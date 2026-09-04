@@ -442,3 +442,41 @@ build output before and after. Fixed by moving the auth-state read into
 a client-side island (`AccountMenu`, `GET /api/v1/auth/me` in a
 `useEffect`) so only that one header slot is dynamic; the rest of the
 page tree stays static. See `docs/AUTH.md`.
+
+## Mobile header + layout overflow fixes
+
+`SiteHeader` previously hid both the nav links and `AccountMenu` behind
+`md:flex` with no mobile fallback at all — on a phone there was
+literally no way to reach `/tracking`, `/pricing`, sign in, or sign out.
+Added `MobileNav` (`src/components/layout/mobile-nav.tsx`): a hamburger
+button revealing a dropdown panel with the nav links and `AccountMenu`
+stacked, closing on link click or on a backdrop click outside it. The
+mobile header layout is a 3-column grid (`hamburger | centered logo |
+spacer`) so the logo is genuinely centered regardless of the hamburger
+button's width, matching the "logo and search centered in the top bar"
+ask; a compact `ProfileSearchForm` renders as a second row below the
+top bar on mobile only, so a username/profile-link search is reachable
+from every page, not just the homepage hero.
+
+While auditing mobile at 375px width, found and fixed two real
+horizontal-overflow bugs (verified via `document.documentElement.
+scrollWidth > clientWidth`, not just visual inspection — the tab strip's
+`overflow-x-auto` looked suspicious but was actually fine; a naive
+DOM-scan of "elements wider than the viewport" produces false positives
+for anything correctly clipped by an ancestor's `overflow-x`, so the
+scan was restricted to elements with no scrolling ancestor):
+
+- `ProfileHeader`'s Track/Compare/Export button row was
+  `flex shrink-0` with no wrap — on mobile the three buttons together
+  are wider than a 375px viewport, so the row pushed the entire page
+  375px→440px wide instead of wrapping. Changed to `flex-wrap` on
+  mobile, `flex-nowrap` from `sm:` up (unchanged desktop behavior).
+- `ExportMenu`'s dropdown was `absolute right-0 w-56`, anchored to the
+  export button's right edge. Once the button row above started
+  wrapping, the button can sit near the left edge of a narrow screen,
+  so a right-anchored 224px-wide menu extended off the left edge of the
+  viewport, clipping every option's leading text (e.g. "Full profile —
+  JSON" rendered as just "— JSON"). Changed to anchor `left-0` with a
+  `max-w-[calc(100vw-2rem)]` cap below `sm:`, reverting to the original
+  `right-0`/`w-56` at `sm:` and up where the button never sits near a
+  screen edge.

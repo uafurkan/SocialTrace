@@ -45,7 +45,7 @@ export function ExportMenu({ profileId, username }: { profileId: string; usernam
       </Button>
 
       {isOpen ? (
-        <ul className="absolute right-0 top-full z-20 mt-1 w-56 overflow-hidden rounded-card border border-border bg-surface shadow-elevated">
+        <ul className="absolute left-0 top-full z-20 mt-1 w-64 max-w-[calc(100vw-2rem)] overflow-hidden rounded-card border border-border bg-surface shadow-elevated sm:left-auto sm:right-0 sm:w-56">
           {OPTIONS.map((option) => (
             <li key={option.label}>
               <a

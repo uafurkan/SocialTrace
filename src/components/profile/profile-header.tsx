@@ -65,7 +65,7 @@ export function ProfileHeader({ profile, initialTracked, dbAvailable }: ProfileH
         </div>
       </div>
 
-      <div className="flex shrink-0 gap-2 sm:flex-col">
+      <div className="flex flex-wrap gap-2 sm:flex-col sm:flex-nowrap sm:shrink-0">
         <TrackButton
           profileId={profile.id}
           username={profile.username}
