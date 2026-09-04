@@ -1,7 +1,4 @@
-"use client";
-
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 
 import { copy } from "@/lib/copy";
 import { Logo } from "@/components/layout/logo";
@@ -11,9 +8,6 @@ import { TrackNavBadge } from "@/components/layout/track-nav-badge";
 import { ProfileSearchForm } from "@/components/home/profile-search-form";
 
 export function SiteHeader() {
-  const pathname = usePathname();
-  const showMobileSearch = pathname !== "/";
-
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-surface/90 backdrop-blur">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
@@ -50,11 +44,9 @@ export function SiteHeader() {
           </div>
         </div>
 
-        {showMobileSearch ? (
-          <div className="pb-3 md:hidden">
-            <ProfileSearchForm size="compact" />
-          </div>
-        ) : null}
+        <div className="pb-3 md:hidden">
+          <ProfileSearchForm size="compact" />
+        </div>
       </div>
     </header>
   );
