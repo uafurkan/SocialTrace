@@ -26,6 +26,108 @@
   display: none;
 }
 
+/*
+ * Brand mark (src/components/layout/logo.tsx): the lens ring and the trace
+ * line draw themselves once per page load, the two nodes land as the line
+ * reaches them, and hovering the brand link re-traces it. Every animation
+ * resolves to the mark's static resting state, so the logo at rest is
+ * pixel-identical to the un-animated version. Plain CSS rather than Framer
+ * Motion so the header stays a server component with no client JS.
+ */
+.logo-lens {
+  animation: logo-draw 700ms cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+
+.logo-trace {
+  animation: logo-draw 900ms cubic-bezier(0.65, 0, 0.35, 1) 250ms both;
+}
+
+.logo-node {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: logo-node-land 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.logo-node-first {
+  animation-delay: 570ms;
+}
+
+.logo-node-second {
+  animation-delay: 830ms;
+}
+
+/* Same keyframes as logo-draw under a different name on purpose: reusing the
+ * name would only retarget the finished mount animation instead of starting a
+ * new one, so the mark would never re-trace. */
+.brand-mark:hover .logo-trace {
+  animation: logo-retrace 800ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.brand-mark:hover .logo-node {
+  animation: logo-node-ripple 620ms ease-out;
+}
+
+.brand-mark:hover .logo-node-first {
+  animation-delay: 280ms;
+}
+
+.brand-mark:hover .logo-node-second {
+  animation-delay: 500ms;
+}
+
+/* Drops the dash pattern on the last frame: a dasharray of exactly the path
+ * length leaves a hairline seam where the dash meets its own start. */
+@keyframes logo-draw {
+  from {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+  }
+  99% {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dasharray: none;
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes logo-retrace {
+  from {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+  }
+  99% {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dasharray: none;
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes logo-node-land {
+  from {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes logo-node-ripple {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.45);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -34,5 +136,14 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  /* The rule above collapses durations but not delays, which would still
+   * stagger the mark into view. Dropping the animations entirely leaves the
+   * elements in their static state, which is the finished mark. */
+  .logo-lens,
+  .logo-trace,
+  .logo-node {
+    animation: none;
   }
 }

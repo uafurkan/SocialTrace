@@ -16,7 +16,7 @@ export function SiteHeader() {
 
           <Link
             href="/"
-            className="flex items-center justify-center gap-2 font-semibold text-primary md:justify-start"
+            className="brand-mark flex items-center justify-center gap-2 font-semibold text-primary md:justify-start"
           >
             <Logo className="h-6 w-6" />
             <span className="tracking-tight">{copy.brand.name.toUpperCase()}</span>
