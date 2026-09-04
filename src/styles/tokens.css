@@ -26,6 +26,22 @@
   --info: #2e90fa;
   --info-soft: #eff8ff;
 
+  /* Deterministic avatar background palette — used when a profile/user has
+     no avatar image, so the fallback is a distinct color per identity
+     rather than one flat gray circle everywhere (spec §7.2 tokens only). */
+  --avatar-1-bg: #eef0ff;
+  --avatar-1-fg: #4649d8;
+  --avatar-2-bg: #ecfdf3;
+  --avatar-2-fg: #067a46;
+  --avatar-3-bg: #fff4ed;
+  --avatar-3-fg: #b93815;
+  --avatar-4-bg: #eff8ff;
+  --avatar-4-fg: #175cd3;
+  --avatar-5-bg: #fdf2fa;
+  --avatar-5-fg: #a3186a;
+  --avatar-6-bg: #f9fee1;
+  --avatar-6-fg: #4d7c0f;
+
   --radius-sm: 8px;
   --radius-button: 10px;
   --radius-card: 14px;

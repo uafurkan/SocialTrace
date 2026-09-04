@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { TrendingDown, TrendingUp, User } from "lucide-react";
+import { TrendingDown, TrendingUp } from "lucide-react";
 
 import type { TrackedProfileSummary } from "@/lib/tracking/watchlist";
+import { Avatar } from "@/components/ui/avatar";
 import { cn, formatCount, formatRelativeTime } from "@/lib/utils";
 
 function DeltaLine({ profile }: { profile: TrackedProfileSummary }) {
@@ -43,14 +44,12 @@ export function TrackedProfileList({ profiles }: { profiles: TrackedProfileSumma
             href={`/profile/${profile.username}`}
             className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-subtle"
           >
-            <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-subtle text-muted">
-              {profile.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={profile.avatarUrl} alt="" className="size-full object-cover" loading="lazy" />
-              ) : (
-                <User className="size-5" aria-hidden="true" />
-              )}
-            </div>
+            <Avatar
+              username={profile.username}
+              displayName={profile.displayName}
+              avatarUrl={profile.avatarUrl}
+              size="lg"
+            />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium text-primary">@{profile.username}</p>
               <p className="truncate text-xs text-muted">

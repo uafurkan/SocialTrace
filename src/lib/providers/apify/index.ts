@@ -5,7 +5,6 @@ import { fetchMembers } from "./followers";
 import { fetchApifyPosts } from "./posts";
 import { MEMBER_FETCH_CAP, fetchApifyProfile } from "./profile";
 import { fetchApifyReels } from "./reels";
-import { fetchApifyUserSearch } from "./search";
 
 function usernameFromProfileId(profileId: string): string {
   return profileId.replace(/^profile_/, "");
@@ -21,7 +20,6 @@ export class ApifyInstagramProvider implements SocialDataProvider {
     followers: true,
     following: true,
     followerHistory: false,
-    userSearch: true,
   };
 
   async getProfile(username: string) {
@@ -63,10 +61,6 @@ export class ApifyInstagramProvider implements SocialDataProvider {
     const all = await fetchMembers(username, kind, MEMBER_FETCH_CAP);
     const filtered = query ? all.filter((u) => u.username.toLowerCase().includes(query.toLowerCase())) : all;
     return paginate(filtered, cursor, limit);
-  }
-
-  async searchUsers(query: string, limit = 8): Promise<SocialUser[]> {
-    return fetchApifyUserSearch(query, limit);
   }
 }
 

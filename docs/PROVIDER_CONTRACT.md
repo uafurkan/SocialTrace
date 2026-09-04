@@ -60,16 +60,15 @@ nothing costs money unless explicitly opted in.
   actor's recent posts — real reel data (caption, likes, comments,
   `videoPlayCount`, timestamp). Cached per-process per profile so
   re-paginating doesn't re-run the actor.
-- **Username search** (`apify/search.ts`): backs the homepage search
-  box's suggestions dropdown, via
-  `nkactors/instagram-search-users-api-no-cookies-fast-reliable`, which
-  calls Instagram's own internal search and returns results already
-  ranked by relevance (closest match first) — preserved as-is rather than
-  re-sorted. **Latency**: this actor takes ~6-7 seconds per call (Apify
-  actor cold start), so it cannot power true per-keystroke "search as you
-  type" — `ProfileSearchForm` debounces 500ms after typing stops and
-  shows a loading state instead of faking instant results. Results are
-  cached per lowercased query for the process lifetime.
+- **No username search actor, by design.** The homepage box takes a full
+  username or a profile link and resolves it with the same single
+  `getProfile` call the profile page itself makes — there is no
+  suggestions-as-you-type endpoint. A live search actor
+  (`nkactors/instagram-search-users-api-no-cookies-fast-reliable`) was
+  tried in an earlier slice but was removed: it billed per keystroke
+  (debounced, not eliminated) with a ~6-7s cold start per call, for a
+  homepage convenience feature. See `docs/SEARCH.md` and
+  `docs/DECISIONS.md`.
 - **Followers/following** (`apify/followers.ts`): no single actor was
   clearly best, so this tries **five actors in a fixed priority order**,
   falling back to the next on any failure or empty/malformed result:

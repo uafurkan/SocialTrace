@@ -1,7 +1,8 @@
-import { BadgeCheck, User } from "lucide-react";
+import { BadgeCheck } from "lucide-react";
 import Link from "next/link";
 
 import type { Profile } from "@/lib/domain/types";
+import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CoverageBadge } from "@/components/profile/coverage-badge";
@@ -20,14 +21,13 @@ export function ProfileHeader({ profile, initialTracked, dbAvailable }: ProfileH
   return (
     <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-        <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-surface-subtle text-muted">
-          {profile.avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={profile.avatarUrl} alt="" className="size-full object-cover" />
-          ) : (
-            <User className="size-9" aria-hidden="true" />
-          )}
-        </div>
+        <Avatar
+          username={profile.username}
+          displayName={profile.displayName}
+          avatarUrl={profile.avatarUrl}
+          size="xl"
+          className="border border-border"
+        />
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-semibold text-primary">@{profile.username}</h1>

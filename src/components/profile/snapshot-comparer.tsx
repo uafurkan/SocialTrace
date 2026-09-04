@@ -1,10 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { BadgeCheck, TrendingDown, TrendingUp, User } from "lucide-react";
+import { BadgeCheck, TrendingDown, TrendingUp } from "lucide-react";
 
 import type { SnapshotSummary, SocialUser } from "@/lib/domain/types";
 import type { FollowerComparisonResult } from "@/lib/diff/compare";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn, formatCount } from "@/lib/utils";
 
@@ -25,14 +26,7 @@ function label(snapshot: SnapshotSummary): string {
 function MemberRow({ user }: { user: SocialUser }) {
   return (
     <li className="flex items-center gap-3 border-b border-border px-4 py-2.5 last:border-0">
-      <div className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-subtle text-muted">
-        {user.avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={user.avatarUrl} alt="" className="size-full object-cover" loading="lazy" />
-        ) : (
-          <User className="size-3.5" aria-hidden="true" />
-        )}
-      </div>
+      <Avatar username={user.username} displayName={user.displayName} avatarUrl={user.avatarUrl} size="xs" />
       <p className="truncate text-sm font-medium text-primary">@{user.username}</p>
       {user.isVerified ? <BadgeCheck className="size-3.5 shrink-0 text-info" /> : null}
     </li>

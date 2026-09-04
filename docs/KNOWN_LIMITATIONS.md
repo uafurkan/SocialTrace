@@ -18,12 +18,14 @@ most of `SOCIALTRACE_MASTER_BUILD_SPEC.md`. Explicitly out of scope:
   lists are capped at 200 real users per profile per kind (Apify bills
   per result), reels come from a dedicated actor
   (`apify/instagram-reel-scraper`), and every request re-hits Apify
-  except a same-process in-memory cache for pagination and search — there
-  is no durable cache, no persistence to the Postgres schema yet, and no
+  except a same-process in-memory cache for pagination — there is no
+  durable cache, no persistence to the Postgres schema yet, and no
   retry/backoff tuning beyond falling through to the next actor in the
-  chain. Homepage username search is real (Instagram's own search via an
-  Apify actor) but takes ~6-7s per lookup, so it's debounced rather than
-  truly live — see `docs/PROVIDER_CONTRACT.md`.
+  chain. The homepage box takes a full username or a profile link and
+  makes exactly one lookup on submit — there is deliberately no
+  search-as-you-type: a live suggestions box would mean a billed Apify
+  call on every keystroke once the real provider is enabled — see
+  `docs/SEARCH.md`.
 - **No auth, billing, or accounts.** No login, no Stripe, no plans
   enforcement. The pricing page is static copy only.
 - **Snapshot, diff, and tracking exist (synchronous, bounded,

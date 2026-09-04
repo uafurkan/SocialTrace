@@ -162,7 +162,6 @@ export class MockSocialDataProvider implements SocialDataProvider {
     followers: true,
     following: true,
     followerHistory: false,
-    userSearch: true,
   };
 
   async getProfile(username: string) {
@@ -225,42 +224,6 @@ export class MockSocialDataProvider implements SocialDataProvider {
 
     return paginate(filtered, cursor, limit);
   }
-
-  async searchUsers(query: string, limit = 8): Promise<SocialUser[]> {
-    const trimmed = query.trim().toLowerCase();
-    if (!trimmed) return [];
-
-    const seeded = Object.keys(SEED_PROFILES).filter((u) => u.includes(trimmed));
-    const rand = mulberry32(hashSeed(trimmed));
-    const synthetic = Array.from({ length: 5 }, () => `${trimmed}${Math.floor(rand() * 900 + 100)}`);
-    const candidates = [...new Set([...seeded, trimmed, ...synthetic])];
-
-    return rankByRelevance(candidates, trimmed)
-      .slice(0, limit)
-      .map((username) => {
-        const seed = seedProfileFor(username);
-        return {
-          id: `mock_${username}`,
-          platform: "instagram",
-          username,
-          displayName: seed.displayName,
-          avatarUrl: "",
-          isVerified: seed.isVerified,
-        };
-      });
-  }
-}
-
-/** Exact match first, then startsWith, then includes — same ranking the real search uses. */
-function rankByRelevance(usernames: string[], query: string): string[] {
-  return [...usernames].sort((a, b) => rankOf(a, query) - rankOf(b, query) || a.localeCompare(b));
-}
-
-function rankOf(username: string, query: string): number {
-  if (username === query) return 0;
-  if (username.startsWith(query)) return 1;
-  if (username.includes(query)) return 2;
-  return 3;
 }
 
 export const mockProvider = new MockSocialDataProvider();

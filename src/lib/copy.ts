@@ -21,7 +21,7 @@ export const copy = {
     heroHeadline: "Trace what changes.",
     heroSubhead:
       "Explore public social profiles, search available audience data, compare snapshots, and export structured datasets.",
-    searchPlaceholder: "@username",
+    searchPlaceholder: "@username or instagram.com/username",
     searchCta: "Explore",
     noAccountNote: "No account required for basic public exploration.",
     valueCards: [

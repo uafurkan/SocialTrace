@@ -1,125 +1,85 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { copy } from "@/lib/copy";
-import type { SocialUser } from "@/lib/domain/types";
-import { cn } from "@/lib/utils";
 
-const usernameSchema = z
-  .string()
-  .trim()
-  .transform((v) => v.replace(/^@/, ""))
-  .pipe(z.string().min(1, "Enter a username").max(30, "Username is too long"));
+const USERNAME_PATTERN = /^[a-z0-9._]{1,30}$/i;
+
+const INSTAGRAM_HOST_PATTERN = /^(?:www\.)?instagram\.com$/i;
 
 /**
- * Real search-as-you-type is not instant (~6-7s per lookup against real
- * Instagram data — see docs/PROVIDER_CONTRACT.md), so this debounces on a
- * pause in typing rather than firing per keystroke, and shows a loading
- * state while the request is in flight instead of pretending it's live.
+ * Non-profile Instagram URL segments — if the first path part after the
+ * host is one of these, the input isn't a profile link (spec §1.3: we
+ * only resolve real, addressable profiles, never guess from ambiguous
+ * input).
  */
-const SEARCH_DEBOUNCE_MS = 500;
+const RESERVED_PATH_SEGMENTS = new Set(["p", "reel", "reels", "stories", "explore", "accounts", "direct", "tv"]);
+
+/**
+ * No search-as-you-type here on purpose — a live suggestions box means a
+ * network call (and, once a real provider is enabled, a billed API call)
+ * on every keystroke. Instead this requires the full username or a
+ * profile link, then does exactly one lookup on submit — the same single
+ * request that loading the profile page would make anyway.
+ */
+function extractUsername(input: string): string | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+
+  const withoutAt = trimmed.replace(/^@/, "");
+  if (USERNAME_PATTERN.test(withoutAt)) return withoutAt;
+
+  try {
+    const url = new URL(/^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`);
+    if (!INSTAGRAM_HOST_PATTERN.test(url.hostname)) return null;
+
+    const [firstSegment] = url.pathname.split("/").filter(Boolean);
+    if (!firstSegment || RESERVED_PATH_SEGMENTS.has(firstSegment.toLowerCase())) return null;
+    return USERNAME_PATTERN.test(firstSegment) ? firstSegment : null;
+  } catch {
+    return null;
+  }
+}
+
+const inputSchema = z.string().min(1, "Enter a username or profile link");
 
 export function ProfileSearchForm({ size = "default" }: { size?: "default" | "compact" }) {
   const router = useRouter();
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [suggestions, setSuggestions] = useState<SocialUser[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
-  const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const containerRef = useRef<HTMLFormElement>(null);
-  const requestIdRef = useRef(0);
-
-  useEffect(() => {
-    const query = value.trim().replace(/^@/, "");
-    if (!query) {
-      setSuggestions([]);
-      setIsSearching(false);
-      return;
-    }
-
-    setIsSearching(true);
-    const requestId = ++requestIdRef.current;
-    const timeout = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/v1/search?q=${encodeURIComponent(query)}`);
-        const data = (await res.json()) as { items: SocialUser[] };
-        if (requestIdRef.current === requestId) {
-          setSuggestions(data.items);
-          setIsOpen(true);
-          setHighlightedIndex(-1);
-        }
-      } catch {
-        if (requestIdRef.current === requestId) setSuggestions([]);
-      } finally {
-        if (requestIdRef.current === requestId) setIsSearching(false);
-      }
-    }, SEARCH_DEBOUNCE_MS);
-
-    return () => clearTimeout(timeout);
-  }, [value]);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  function goToProfile(username: string) {
-    setIsOpen(false);
-    router.push(`/profile/${encodeURIComponent(username)}`);
-  }
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (highlightedIndex >= 0 && suggestions[highlightedIndex]) {
-      goToProfile(suggestions[highlightedIndex].username);
-      return;
-    }
-    const result = usernameSchema.safeParse(value);
-    if (!result.success) {
-      setError(result.error.issues[0]?.message ?? "Enter a valid username");
-      return;
-    }
-    setError(null);
-    goToProfile(result.data);
-  }
 
-  function handleKeyDown(event: React.KeyboardEvent) {
-    if (!isOpen || suggestions.length === 0) return;
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      setHighlightedIndex((i) => Math.min(i + 1, suggestions.length - 1));
-    } else if (event.key === "ArrowUp") {
-      event.preventDefault();
-      setHighlightedIndex((i) => Math.max(i - 1, -1));
-    } else if (event.key === "Escape") {
-      setIsOpen(false);
+    const result = inputSchema.safeParse(value);
+    if (!result.success) {
+      setError(result.error.issues[0]?.message ?? "Enter a username or profile link");
+      return;
     }
+
+    const username = extractUsername(result.data);
+    if (!username) {
+      setError("Enter a full username (e.g. nike) or a profile link (e.g. instagram.com/nike)");
+      return;
+    }
+
+    setError(null);
+    router.push(`/profile/${encodeURIComponent(username)}`);
   }
 
   return (
-    <form onSubmit={handleSubmit} className="relative w-full" ref={containerRef}>
+    <form onSubmit={handleSubmit} className="w-full">
       <div className={size === "compact" ? "flex gap-2" : "flex flex-col gap-3 sm:flex-row"}>
         <Input
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          onFocus={() => suggestions.length > 0 && setIsOpen(true)}
-          onKeyDown={handleKeyDown}
           placeholder={copy.home.searchPlaceholder}
-          aria-label="Instagram username"
-          aria-expanded={isOpen}
-          aria-autocomplete="list"
-          role="combobox"
+          aria-label="Instagram username or profile link"
           autoComplete="off"
           className="flex-1"
         />
@@ -128,46 +88,6 @@ export function ProfileSearchForm({ size = "default" }: { size?: "default" | "co
         </Button>
       </div>
       {error ? <p className="mt-2 text-sm text-danger">{error}</p> : null}
-
-      {isOpen && (isSearching || suggestions.length > 0) ? (
-        <ul
-          role="listbox"
-          className="absolute left-0 right-0 top-full z-20 mt-1 max-h-80 overflow-y-auto rounded-card border border-border bg-surface shadow-elevated"
-        >
-          {isSearching && suggestions.length === 0 ? (
-            <li className="px-4 py-3 text-sm text-secondary">Searching Instagram…</li>
-          ) : null}
-          {suggestions.map((user, index) => (
-            <li key={user.id}>
-              <button
-                type="button"
-                role="option"
-                aria-selected={index === highlightedIndex}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => goToProfile(user.username)}
-                className={cn(
-                  "flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-surface-subtle",
-                  index === highlightedIndex && "bg-surface-subtle",
-                )}
-              >
-                <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-subtle text-xs font-medium text-muted">
-                  {user.avatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={user.avatarUrl} alt="" className="size-full object-cover" />
-                  ) : (
-                    user.username.slice(0, 2).toUpperCase()
-                  )}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium text-primary">@{user.username}</span>
-                  <span className="block truncate text-xs text-secondary">{user.displayName}</span>
-                </span>
-                {user.isVerified ? <span className="shrink-0 text-xs text-info">✓</span> : null}
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
     </form>
   );
 }

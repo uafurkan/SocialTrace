@@ -14,8 +14,6 @@ export interface ProviderCapabilities {
   followers: boolean;
   following: boolean;
   followerHistory: boolean;
-  /** Username search-as-you-type suggestions (spec-adjacent, added for the homepage search box). */
-  userSearch: boolean;
 }
 
 export interface ProviderProfileResult {
@@ -36,6 +34,4 @@ export interface SocialDataProvider {
   getReels(profileId: string, cursor?: string, limit?: number): Promise<CursorPage<Post>>;
   getFollowers(profileId: string, cursor?: string, limit?: number, query?: string): Promise<CursorPage<SocialUser>>;
   getFollowing(profileId: string, cursor?: string, limit?: number, query?: string): Promise<CursorPage<SocialUser>>;
-  /** Username search-as-you-type suggestions, ranked closest-match first. Not paginated — small top-N list. */
-  searchUsers(query: string, limit?: number): Promise<SocialUser[]>;
 }

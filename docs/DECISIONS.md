@@ -324,3 +324,52 @@ No blog (spec §94) and no programmatic profile SEO (spec §47) in this
 slice — both require either human-authored long-form content or a real,
 resolved-and-indexed profile dataset, neither of which this slice can
 manufacture honestly. See `docs/SEO.md`.
+
+## 2026-09-04 — Search UX: honest mock quality, not a provider switch
+
+The homepage search box's mock suggestions padded unmatched queries
+with a random 3-digit suffix (`query483`) — deterministic, but reads as
+noise since the digits carry no meaning, and every mock profile has an
+empty `avatarUrl` so every result rendered as a flat gray circle. The
+user asked to fix both, and separately asked whether to switch the
+default provider to real Apify data to get real accounts/photos — the
+answer was no, stay on mock (still free by default; a provider switch
+is a cost decision for later). So both fixes had to work within mock
+data's own honesty constraint: `src/lib/providers/mock-provider.ts`
+now pads unmatched queries with plausible word-suffixed handles
+(`nikeofficial`, `nikehq`, ...) instead of digits, only as many as
+needed to fill the requested limit — but this is still fabricated
+data, not a real Instagram lookup, and the UI/docs say so plainly
+(`docs/SEARCH.md`).
+
+For the missing photos, rather than fake an image, `src/components/ui/avatar.tsx`
+renders a deterministic colored-initials fallback (hash of username →
+one of 6 token-defined color pairs in `src/styles/tokens.css`) so the
+same identity gets the same visual treatment everywhere it appears —
+replacing five near-duplicate inline avatar blocks (profile header,
+followers/following list, tracking dashboard, snapshot comparison,
+search suggestions) with one shared component. Falls back the same way
+if a real `avatarUrl` ever 404s, rather than showing a broken image
+icon. See `docs/SEARCH.md`.
+
+## 2026-09-04 — Removed search-as-you-type entirely; full username or link only
+
+Follow-up to the previous entry: polishing the mock suggestions'
+synthetic entries made them look more like real accounts they weren't,
+which cut against this build's core honesty rule, and the underlying
+mechanism — a debounced suggestions box calling `provider.searchUsers`
+on a pause in typing — was designed to eventually call a paid Apify
+search actor per call. The user asked to remove the cost risk at the
+root rather than tune the debounce: require the full username or a
+pasted profile link, and do exactly one lookup on submit — the same
+single `getProfile` call viewing the profile page makes anyway, so
+"just typing" a query can never cost more than actually opening a
+profile does.
+
+Removed rather than left dormant: `src/app/api/v1/search/route.ts`,
+`src/lib/providers/apify/search.ts`, and `searchUsers`/`userSearch`
+from `SocialDataProvider`/`ProviderCapabilities` and both
+implementations. `ProfileSearchForm` now parses either a bare username
+or an `instagram.com/<username>` URL client-side
+(`extractUsername`), rejecting non-profile paths (`/p/`, `/reel/`,
+etc.) instead of guessing. See `docs/SEARCH.md`.

@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { BadgeCheck, Bookmark, Search, User } from "lucide-react";
+import { BadgeCheck, Bookmark, Search } from "lucide-react";
 
 import type { CursorPage, SocialUser } from "@/lib/domain/types";
+import { Avatar } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { copy } from "@/lib/copy";
@@ -151,14 +152,12 @@ export function MemberList({ profileId, username, kind, dbAvailable }: MemberLis
                   className="absolute left-0 top-0 flex w-full items-center gap-3 border-b border-border px-4 last:border-0"
                   style={{ height: row.size, transform: `translateY(${row.start}px)` }}
                 >
-                  <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-subtle text-muted">
-                    {user.avatarUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={user.avatarUrl} alt="" className="size-full object-cover" loading="lazy" />
-                    ) : (
-                      <User className="size-4" aria-hidden="true" />
-                    )}
-                  </div>
+                  <Avatar
+                    username={user.username}
+                    displayName={user.displayName}
+                    avatarUrl={user.avatarUrl}
+                    size="sm"
+                  />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
                       <p className="truncate text-sm font-medium text-primary">@{user.username}</p>
