@@ -11,8 +11,13 @@ export function ProfileHeader({ profile }: { profile: Profile }) {
   return (
     <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-        <div className="flex size-20 shrink-0 items-center justify-center rounded-full border border-border bg-surface-subtle text-muted">
-          <User className="size-9" aria-hidden="true" />
+        <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-surface-subtle text-muted">
+          {profile.avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={profile.avatarUrl} alt="" className="size-full object-cover" />
+          ) : (
+            <User className="size-9" aria-hidden="true" />
+          )}
         </div>
         <div>
           <div className="flex items-center gap-2">

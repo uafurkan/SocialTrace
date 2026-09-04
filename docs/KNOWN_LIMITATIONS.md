@@ -16,12 +16,14 @@ most of `SOCIALTRACE_MASTER_BUILD_SPEC.md`. Explicitly out of scope:
   the default unless `SOCIAL_PROVIDER=apify` + `APIFY_API_TOKEN` are set,
   so nothing costs money by default. When enabled: follower/following
   lists are capped at 200 real users per profile per kind (Apify bills
-  per result), reels are approximated from the profile actor's recent
-  videos (no dedicated reels dataset), and every request re-hits Apify
-  except a same-process in-memory cache for pagination — there is no
-  durable cache, no persistence to the Postgres schema yet, and no retry/
-  backoff tuning beyond falling through to the next actor in the chain.
-  See `docs/PROVIDER_CONTRACT.md`.
+  per result), reels come from a dedicated actor
+  (`apify/instagram-reel-scraper`), and every request re-hits Apify
+  except a same-process in-memory cache for pagination and search — there
+  is no durable cache, no persistence to the Postgres schema yet, and no
+  retry/backoff tuning beyond falling through to the next actor in the
+  chain. Homepage username search is real (Instagram's own search via an
+  Apify actor) but takes ~6-7s per lookup, so it's debounced rather than
+  truly live — see `docs/PROVIDER_CONTRACT.md`.
 - **No auth, billing, or accounts.** No login, no Stripe, no plans
   enforcement. The pricing page is static copy only.
 - **No snapshot/diff engine, tracking, or watchlists.** The "Track",

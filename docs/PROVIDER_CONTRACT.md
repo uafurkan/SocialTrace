@@ -54,9 +54,22 @@ nothing costs money unless explicitly opted in.
 - **Profile + posts** (`apify/profile.ts`, `apify/posts.ts`): both come
   from the single `apify/instagram-profile-scraper` actor's response
   (`followersCount`, `followsCount`, `biography`, `verified`,
-  `latestPosts[]`, etc.). That actor doesn't distinguish reels from
-  regular videos, so `getReels` approximates reels as `type === "Video"`
-  posts — a known limitation, not a real reels dataset.
+  `latestPosts[]`, etc.).
+- **Reels** (`apify/reels.ts`): a dedicated actor,
+  `apify/instagram-reel-scraper`, not approximated from the profile
+  actor's recent posts — real reel data (caption, likes, comments,
+  `videoPlayCount`, timestamp). Cached per-process per profile so
+  re-paginating doesn't re-run the actor.
+- **Username search** (`apify/search.ts`): backs the homepage search
+  box's suggestions dropdown, via
+  `nkactors/instagram-search-users-api-no-cookies-fast-reliable`, which
+  calls Instagram's own internal search and returns results already
+  ranked by relevance (closest match first) — preserved as-is rather than
+  re-sorted. **Latency**: this actor takes ~6-7 seconds per call (Apify
+  actor cold start), so it cannot power true per-keystroke "search as you
+  type" — `ProfileSearchForm` debounces 500ms after typing stops and
+  shows a loading state instead of faking instant results. Results are
+  cached per lowercased query for the process lifetime.
 - **Followers/following** (`apify/followers.ts`): no single actor was
   clearly best, so this tries **five actors in a fixed priority order**,
   falling back to the next on any failure or empty/malformed result:

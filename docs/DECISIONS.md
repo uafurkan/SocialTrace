@@ -83,3 +83,20 @@ served from a same-process in-memory cache rather than re-invoking (and
 re-billing) the actor chain on every "load more" click; this is
 explicitly not a durable cache, and persisting results into the Postgres
 schema from the prior slice is deferred to a future ingestion-job slice.
+
+## 2026-09-04 — Dedicated reels actor + real (but debounced) username search
+
+The user asked for real reels data (not the video-post approximation from
+the first Apify slice) and an Instagram-style "type and see suggestions"
+search box. `apify/instagram-reel-scraper` (the official, most-used reel
+actor) replaces the approximation. For search, live testing in this
+session found no actor offering true per-keystroke latency — the best
+candidate (`nkactors/instagram-search-users-api-no-cookies-fast-reliable`,
+which calls Instagram's own internal search endpoint) took ~6-7s per
+call, an inherent cost of Apify's actor-run model, not something a
+debounce can hide. Rather than fake instant results or silently degrade
+to local-only matches, `ProfileSearchForm` debounces 500ms after typing
+stops and shows an explicit "Searching Instagram…" loading state — an
+honest slower-than-Instagram's-own search, consistent with this project's
+data-honesty principle (spec §1.2) applied to UX latency, not just
+dataset completeness.

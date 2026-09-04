@@ -44,6 +44,10 @@ export function PostGrid({ posts }: { posts: Post[] }) {
               key={post.id}
               className="group relative aspect-square overflow-hidden rounded-card border border-border bg-surface-subtle"
             >
+              {post.thumbnailUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={post.thumbnailUrl} alt="" className="size-full object-cover" loading="lazy" />
+              ) : null}
               {post.mediaType !== "image" ? (
                 <Play className="absolute right-2 top-2 size-4 text-inverse drop-shadow" aria-hidden="true" />
               ) : null}
@@ -54,6 +58,11 @@ export function PostGrid({ posts }: { posts: Post[] }) {
                 <span className="flex items-center gap-1">
                   <MessageCircle className="size-3.5" /> {formatCount(post.commentCount)}
                 </span>
+                {post.viewCount != null ? (
+                  <span className="flex items-center gap-1">
+                    <Play className="size-3.5" /> {formatCount(post.viewCount)}
+                  </span>
+                ) : null}
               </div>
             </div>
           ))}

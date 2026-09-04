@@ -112,8 +112,13 @@ export function MemberList({ profileId, kind }: MemberListProps) {
                   className="absolute left-0 top-0 flex w-full items-center gap-3 border-b border-border px-4 last:border-0"
                   style={{ height: row.size, transform: `translateY(${row.start}px)` }}
                 >
-                  <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-surface-subtle text-muted">
-                    <User className="size-4" aria-hidden="true" />
+                  <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-subtle text-muted">
+                    {user.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={user.avatarUrl} alt="" className="size-full object-cover" loading="lazy" />
+                    ) : (
+                      <User className="size-4" aria-hidden="true" />
+                    )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">

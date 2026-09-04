@@ -4,6 +4,8 @@ import type { ProviderCapabilities, SocialDataProvider } from "../types";
 import { fetchMembers } from "./followers";
 import { fetchApifyPosts } from "./posts";
 import { MEMBER_FETCH_CAP, fetchApifyProfile } from "./profile";
+import { fetchApifyReels } from "./reels";
+import { fetchApifyUserSearch } from "./search";
 
 function usernameFromProfileId(profileId: string): string {
   return profileId.replace(/^profile_/, "");
@@ -19,6 +21,7 @@ export class ApifyInstagramProvider implements SocialDataProvider {
     followers: true,
     following: true,
     followerHistory: false,
+    userSearch: true,
   };
 
   async getProfile(username: string) {
@@ -26,24 +29,19 @@ export class ApifyInstagramProvider implements SocialDataProvider {
   }
 
   async getPosts(profileId: string, cursor?: string, limit = 24): Promise<CursorPage<Post>> {
-    return this.buildPosts(profileId, "image", cursor, limit);
+    const username = usernameFromProfileId(profileId);
+    const all = await fetchApifyPosts(username, profileId);
+    return paginate(all, cursor, limit);
   }
 
   async getReels(profileId: string, cursor?: string, limit = 24): Promise<CursorPage<Post>> {
-    return this.buildPosts(profileId, "reel", cursor, limit);
-  }
-
-  private async buildPosts(
-    profileId: string,
-    mediaType: "image" | "reel",
-    cursor: string | undefined,
-    limit: number,
-  ): Promise<CursorPage<Post>> {
     const username = usernameFromProfileId(profileId);
-    const all = await fetchApifyPosts(username, profileId);
-    // latestPosts doesn't separate reels — approximate reels as videos (see posts.ts).
-    const filtered = mediaType === "reel" ? all.filter((p) => p.mediaType === "video") : all;
-    return paginate(filtered, cursor, limit);
+    // Dedicated reels dataset (apify/instagram-reel-scraper) — fetch enough
+    // up front to satisfy the requested page plus whatever's already been
+    // paged through, since the actor has no native cursor of its own.
+    const offset = cursor ? Number.parseInt(cursor, 10) || 0 : 0;
+    const all = await fetchApifyReels(username, profileId, offset + limit);
+    return paginate(all, cursor, limit);
   }
 
   async getFollowers(profileId: string, cursor?: string, limit = 100, query?: string): Promise<CursorPage<SocialUser>> {
@@ -65,6 +63,10 @@ export class ApifyInstagramProvider implements SocialDataProvider {
     const all = await fetchMembers(username, kind, MEMBER_FETCH_CAP);
     const filtered = query ? all.filter((u) => u.username.toLowerCase().includes(query.toLowerCase())) : all;
     return paginate(filtered, cursor, limit);
+  }
+
+  async searchUsers(query: string, limit = 8): Promise<SocialUser[]> {
+    return fetchApifyUserSearch(query, limit);
   }
 }
 
