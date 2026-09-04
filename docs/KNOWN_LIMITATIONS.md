@@ -4,9 +4,12 @@ This build is the **frontend scaffold + design system** slice only (see
 `docs/DECISIONS.md`). It is not production-ready and does not implement
 most of `SOCIALTRACE_MASTER_BUILD_SPEC.md`. Explicitly out of scope:
 
-- **No database.** No Postgres, no Drizzle schema, no migrations. Domain
-  types in `src/lib/domain/types.ts` are designed to map cleanly onto the
-  future schema (`docs/DATA_MODEL.md`), but nothing is persisted.
+- **Database schema exists, nothing is wired up.** `src/lib/db/schema.ts`
+  defines the Postgres tables (Drizzle ORM) and `drizzle/` holds the
+  generated migrations (see `docs/DATABASE.md`), but no provider writes
+  to them and no app code reads from them — `src/lib/providers/mock-provider.ts`
+  still serves the UI directly. No seed script, no live database
+  connected in this session.
 - **No real data provider.** `src/lib/providers/mock-provider.ts` returns
   deterministic fake data. No Instagram or other platform integration
   exists. Follower/following datasets are capped at 5,000 generated users

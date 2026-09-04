@@ -51,9 +51,16 @@ snapshots exist, this should be computed from
 `follower_memberships`/`profile_snapshots` at read time or cached
 alongside the snapshot, not hand-set.
 
+## Tables now defined (schema/migrations only — see docs/DATABASE.md)
+
+`src/lib/db/schema.ts` now defines `profiles`, `social_users`,
+`memberships` (follower/following, `kind`-discriminated),
+`media_items`, `profile_snapshots`, and `change_events`, matching the
+mappings above. No app code reads from or writes to these tables yet —
+`src/lib/providers/mock-provider.ts` still serves the UI directly.
+
 ## Not modeled yet
 
-`profile_snapshots`, `follower_memberships`, `following_memberships`,
-`change_events`, `tracking_jobs`, `watchlists`, `saved_searches`,
-`exports`, `subscriptions`, `api_keys` — all from spec §31, none exist in
-this build.
+`tracking_jobs`, `watchlists`, `saved_searches`, `exports`,
+`subscriptions`, `api_keys` — all from spec §31, none exist in this
+build.

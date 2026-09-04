@@ -44,3 +44,17 @@ client-server contract (cursor pagination, server-side search) matches
 the spec's real architecture (§12, §30) even though there's no separate
 API service. A dedicated Fastify API becomes necessary once there's a
 real provider, persistence, and background jobs to coordinate.
+
+## 2026-09-04 — Database schema slice: Drizzle + Postgres, schema-only
+
+Per the build order in spec §110/§228, the schema comes before a real
+provider, snapshot engine, or API layer, since those all need tables to
+write into. This slice adds `src/lib/db/schema.ts` (Drizzle ORM, matching
+`docs/DATA_MODEL.md`'s mapping) and a generated migration under
+`drizzle/`, using Postgres per the spec's stated stack (§247). Drizzle was
+chosen over raw SQL/Prisma for TypeScript-first schema definitions that
+stay close to the domain types without a separate codegen step. Deliberately
+schema-only: no `PostgresProvider` implementation, no seed script, no live
+database connected — `getDb()` in `src/lib/db/index.ts` is unused by the
+app so this can be reviewed independently of any provider-swap decision.
+See `docs/DATABASE.md`.
