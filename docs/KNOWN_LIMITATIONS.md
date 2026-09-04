@@ -42,8 +42,13 @@ most of `SOCIALTRACE_MASTER_BUILD_SPEC.md`. Explicitly out of scope:
   (see `docs/TRACKING.md`). There's no scheduler, so tracked profiles'
   numbers only update when someone manually captures a new snapshot — no
   check frequency, notification channel, or change threshold config.
-  "Compare snapshots" still renders a disabled button — no UI for
-  comparing two arbitrary (non-adjacent) snapshots.
+- **Follower comparison exists (spec §23), reusing the diff engine's
+  coverage gate.** "Compare snapshots" on the profile header now links
+  to a real `/profile/[username]/compare` page — pick any two snapshots
+  and see who was gained/lost between them, computed on demand from the
+  `memberships` table's history columns (no new table needed). Same
+  ≥99.5%-coverage-on-both-sides rule as the automatic diff engine; below
+  that it says so instead of guessing. See `docs/FOLLOWER_COMPARISON.md`.
 - **Export exists but is synchronous and bounded, not a background-job
   pipeline.** The profile page's Export dropdown downloads JSON/XML (full
   profile bundle) or CSV (one resource at a time) directly from

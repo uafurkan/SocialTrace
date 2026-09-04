@@ -26,7 +26,7 @@ const PAGE_SIZE = 100;
  * comparison; otherwise no added/removed change_events are recorded for
  * that kind at all, which is the honest "comparison unavailable" outcome.
  */
-const DIFF_COVERAGE_THRESHOLD = 99.5;
+export const DIFF_COVERAGE_THRESHOLD = 99.5;
 
 export function normalizeUsername(username: string): string {
   return username.trim().toLowerCase();

@@ -25,13 +25,13 @@ export async function generateMetadata({ params }: { params: { username: string 
 export default async function ProfileLayout({ children, params }: ProfileLayoutProps) {
   const profile = await requireProfile(params.username);
 
-  const trackingAvailable = isDbConfigured();
+  const dbAvailable = isDbConfigured();
   const visitorId = cookies().get(VISITOR_COOKIE)?.value;
-  const initialTracked = trackingAvailable && visitorId ? await isProfileTracked(profile.username, visitorId) : false;
+  const initialTracked = dbAvailable && visitorId ? await isProfileTracked(profile.username, visitorId) : false;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-      <ProfileHeader profile={profile} initialTracked={initialTracked} trackingAvailable={trackingAvailable} />
+      <ProfileHeader profile={profile} initialTracked={initialTracked} dbAvailable={dbAvailable} />
       <div className="mt-8">
         <ProfileTabs username={profile.username} />
         <div className="pt-6">{children}</div>

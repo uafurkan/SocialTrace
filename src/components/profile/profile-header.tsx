@@ -1,4 +1,5 @@
 import { BadgeCheck, User } from "lucide-react";
+import Link from "next/link";
 
 import type { Profile } from "@/lib/domain/types";
 import { Badge } from "@/components/ui/badge";
@@ -12,10 +13,10 @@ import { copy } from "@/lib/copy";
 interface ProfileHeaderProps {
   profile: Profile;
   initialTracked: boolean;
-  trackingAvailable: boolean;
+  dbAvailable: boolean;
 }
 
-export function ProfileHeader({ profile, initialTracked, trackingAvailable }: ProfileHeaderProps) {
+export function ProfileHeader({ profile, initialTracked, dbAvailable }: ProfileHeaderProps) {
   return (
     <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
@@ -69,11 +70,17 @@ export function ProfileHeader({ profile, initialTracked, trackingAvailable }: Pr
           profileId={profile.id}
           username={profile.username}
           initialTracked={initialTracked}
-          available={trackingAvailable}
+          available={dbAvailable}
         />
-        <Button variant="secondary" disabled title={copy.profile.comingSoon}>
-          {copy.profile.compareCta}
-        </Button>
+        {dbAvailable ? (
+          <Button asChild variant="secondary">
+            <Link href={`/profile/${profile.username}/compare`}>{copy.profile.compareCta}</Link>
+          </Button>
+        ) : (
+          <Button variant="secondary" disabled title={copy.profile.comingSoon}>
+            {copy.profile.compareCta}
+          </Button>
+        )}
         <ExportMenu profileId={profile.id} username={profile.username} />
       </div>
     </div>

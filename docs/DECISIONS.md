@@ -250,3 +250,28 @@ snapshot-capture endpoint past its limit returned `429` with a
 using up to that point real (then cleaned-up) snapshot rows in the Neon
 database; the health endpoint and security headers were also checked
 live against the running dev server.
+
+## 2026-09-04 — Follower comparison (spec §23): reconstruction, not a new table
+
+The profile header's "Compare snapshots" button had been a disabled
+placeholder since the earliest slice of this build. Implementing it
+(`src/lib/diff/compare.ts`) turned out not to need a new per-snapshot
+membership log table: `memberships.first_seen_at`/`removed_at` (already
+present for the automatic diff engine, `docs/DIFF.md`) fully describe
+each social user's membership timeline, so "who was active as of
+snapshot X's captured_at" is a single query (`first_seen_at <= T AND
+(removed_at IS NULL OR removed_at > T)`) against the existing schema —
+for *any* two snapshots, not just consecutive ones. Reused
+`DIFF_COVERAGE_THRESHOLD` from the diff engine unchanged, since a
+comparison is the same "this specific account is gone" claim spec §20
+already governs, just for an arbitrary pair instead of only the latest
+one.
+
+Verified live against the real Neon database with a scenario that
+couldn't be produced through the deterministic mock provider alone (its
+follower lists never change between captures): directly crafted a second
+snapshot row and membership timeline changes (one real follower marked
+removed between two timestamps, one brand-new follower inserted) to
+confirm the reconstruction correctly classified each as new/removed, and
+confirmed a synthetic low-coverage snapshot correctly produced
+"unavailable" instead of a number. See `docs/FOLLOWER_COMPARISON.md`.
