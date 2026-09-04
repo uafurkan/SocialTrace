@@ -91,16 +91,17 @@ most of `SOCIALTRACE_MASTER_BUILD_SPEC.md`. Explicitly out of scope:
   by mock data by default. No blog, no OG image generation, no
   programmatic profile SEO, and no landing pages for the tools that
   don't have a real feature behind them yet — see `docs/SEO.md`.
-- **Unit tests cover pure logic only (48 tests, Vitest — `npm test`).**
+- **Unit tests (69, Vitest — `npm test`) cover pure logic; integration
+  tests (`npm run test:integration`) now cover the real database.**
   Coverage math, the diff engine's coverage gate and membership
   reconciliation, saved-search matching, profile-link parsing, the rate
-  limiter, and avatar/formatting helpers all have unit tests — see
-  `docs/TESTING.md`. Nothing that touches the database (snapshot
-  capture, tracking, saved searches end-to-end, every API route),
-  components, or the Apify provider is automated yet; those were
-  verified manually and live per feature (each doc's "Verified live"
-  section).
-- **No observability (Sentry/OpenTelemetry) or analytics.**
+  limiter, and avatar/formatting helpers have unit tests; snapshot
+  capture, tracking, saved searches, and auth/session now have real
+  integration tests against the live Neon database (`docs/TESTING.md`).
+  Components and the Apify provider are still verified manually
+  (Playwright screenshots, live `curl` checks) rather than automated.
+- **Sentry error monitoring exists, opt-in via `SENTRY_DSN`** — no
+  analytics or OpenTelemetry.
 - **Rate limiting is distributed when configured, in-process otherwise.**
   `src/lib/rate-limit.ts` uses real Upstash Redis
   (`UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN`) when set; without

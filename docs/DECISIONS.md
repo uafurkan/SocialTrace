@@ -508,6 +508,19 @@ now reads both joins via raw `db.execute(sql\`...\`)` rather than leaving
 one on the query builder and one worked around — one proven-correct code
 path instead of two different ones.
 
+**Update from writing this slice's integration tests
+(`docs/TESTING.md`):** the same query-builder join, exercised fresh in
+`scheduled-capture.integration.test.ts` against a brand-new vitest
+process, returned the correct row — the failure didn't reproduce there.
+The likely difference is the long-running `next dev` process the bug was
+originally found in (many hot-reload cycles, a module-level cached `db`
+client reused across requests) versus a short-lived one-shot process —
+consistent with something connection/fetch-cache-state-dependent in
+neon-http rather than a pure function of the query shape. Left the raw
+`db.execute()` form in place regardless: it's proven correct in both
+environments, whereas the query builder is only proven correct in one of
+them.
+
 ## Production hardening: real integrations, opt-in, not simulated
 
 Asked to take rate limiting/CSP/observability further (option 3 of a

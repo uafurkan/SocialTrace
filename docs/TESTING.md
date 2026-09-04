@@ -57,29 +57,80 @@ mocking of Drizzle or Neon:
 
 69 tests across 12 files as of this slice.
 
+## Integration tests (`npm run test:integration`)
+
+Separate from the suite above: `*.integration.test.ts` files run
+against the **real** Neon database from `.env.local`, using a separate
+Vitest config (`vitest.integration.config.mts`) so `npm test` stays
+fast and network-free. Asked which approach to use — the real dev DB,
+`pg-mem`, or a Neon branch-per-CI-run — the choice was the real dev DB:
+`pg-mem` runs a different driver (`node-postgres`) than production
+(`drizzle-orm/neon-http`) and specifically would **not** have caught the
+drizzle-orm query-builder bug found while building the scheduler (see
+`docs/DECISIONS.md`) — a fake-Postgres layer only ever tests against
+its own reimplementation, not the real driver's real behavior. A Neon
+branch-per-run needs a Neon API key and a CI pipeline, neither of which
+exist in this build.
+
+- **`src/lib/db/test-helpers.ts`** — shared `uniqueUsername`/
+  `uniqueEmail` (per-run-unique so parallel/repeated runs don't collide)
+  and `deleteTestProfiles`/`deleteTestUsers` cleanup, relying on the
+  schema's cascading FKs (deleting a `profiles` row cascades to
+  memberships, snapshots, watchlist entries, saved searches, and change
+  events; deleting a `users` row cascades to `sessions`) so a test only
+  has to remember the usernames/emails it created.
+- **`src/lib/auth/auth.integration.test.ts`** — real signup → duplicate
+  rejection → login → wrong-password rejection, and a real session
+  created, looked up by its raw token, and invalidated (via
+  `createSession`/`getSessionUserByToken`/`invalidateSession` against
+  the real `sessions`/`users` tables — the SHA-256 hashing in between is
+  exercised for real, not mocked).
+- **`src/lib/tracking/tracking.integration.test.ts`** — track/untrack
+  round-trip, the free-plan tracked-profile limit thrown for real at 11
+  profiles, the no-op-safe re-track-at-the-limit case, and a saved
+  search created/listed (correctly `available: false` before two
+  snapshots exist)/deleted.
+- **`src/lib/snapshot/capture.integration.test.ts`** — `captureSnapshot`
+  against the mock provider persists a real row and a second capture
+  adds a second row without erroring the diff/upsert path;
+  `ProfileNotFoundError` for the mock provider's known-missing
+  usernames.
+- **`src/lib/snapshot/scheduled-capture.integration.test.ts`** —
+  regression coverage for the drizzle-orm bug above: tracks one profile,
+  saved-searches a *different* profile, and asserts `runScheduledCapture`
+  captures both (the bug would have silently dropped the saved-search-only
+  one from `attempted`) plus a dedup check for a profile that's both
+  tracked and saved-searched. Re-running this suite with the join
+  temporarily reverted to the query-builder form did **not** reproduce
+  the original failure in a fresh Vitest process — see `docs/DECISIONS.md`
+  for why the raw-`execute()` fix stays regardless (proven correct in
+  both the process shape that failed and the one that didn't; the query
+  builder is only proven correct in one of them).
+
+Confirmed live: `npm run test:integration` passes (4 files, 11 tests)
+against the real database, and a follow-up query against Neon directly
+confirmed zero leftover `profiles`/`users` rows afterward.
+
 ## What's deliberately not covered yet
 
-- **Anything that touches `getDb()`** — snapshot capture end-to-end,
-  the tracking/watchlist/saved-search DB writes, signup/login/session
-  creation and lookup, plan-limit enforcement, and every API route.
-  These were verified manually and live against the real Neon database
-  for each slice (see each feature's own doc's "Verified live" section
-  — auth's is in `docs/AUTH.md`/`docs/BILLING.md`) but aren't automated
-  — that needs either a disposable test database or a mocking layer for
-  Drizzle's query builder, neither of which exists yet.
 - **Components.** No React Testing Library / jsdom setup yet — UI was
   verified with Playwright against a running dev server per change
   (screenshots, not committed as a suite).
 - **The Apify provider.** Its actors are real, billed, external
   services; no recorded-fixture/VCR-style testing exists yet.
+- **Most API routes** (the HTTP layer itself — request parsing, cookie
+  setting, status codes) — the integration tests above exercise the
+  library functions those routes call, not the routes; each route's own
+  doc's "Verified live" section covers manual `curl` verification of the
+  HTTP layer per slice.
 
 ## When this needs to change
 
-The natural next step is a disposable-database integration layer (a
-Neon branch created per CI run, or `pg-mem`/similar) so
-`captureSnapshot`, `compareSnapshots`, and the tracking/saved-search
-read paths can be tested end-to-end rather than only at their pure
-core. Until then, each new coverage-gated or diff-adjacent feature
-should keep extracting its decision logic into a pure, exported
-function the way `evaluateCoverageGate`/`diffActiveMembers` were, so it
-stays testable without a database.
+A CI pipeline (GitHub Actions or similar) would need either a Neon
+branch created per run or a `DATABASE_URL` secret pointing at a
+persistent test database — `npm run test:integration` already skips
+cleanly via `describe.skipIf(!isDbConfigured())` when `DATABASE_URL`
+isn't set, so wiring it into CI is adding the secret, not changing the
+tests. Until then, each new DB-touching feature should get an
+integration test alongside its manual "Verified live" check, the same
+way this slice's four files were added.
