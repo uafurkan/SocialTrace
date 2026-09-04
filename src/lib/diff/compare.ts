@@ -70,6 +70,42 @@ function coverageOf(snapshot: typeof schema.profileSnapshots.$inferSelect, kind:
   return Number(kind === "follower" ? snapshot.followerCoveragePercent : snapshot.followingCoveragePercent);
 }
 
+export interface CoverageGateResult {
+  available: boolean;
+  reason: string | null;
+}
+
+/** Pure spec §20 gate: both sides of a comparison must clear the coverage threshold. */
+export function evaluateCoverageGate(
+  kind: "follower" | "following",
+  fromCoveragePercent: number,
+  toCoveragePercent: number,
+): CoverageGateResult {
+  if (fromCoveragePercent < DIFF_COVERAGE_THRESHOLD || toCoveragePercent < DIFF_COVERAGE_THRESHOLD) {
+    return {
+      available: false,
+      reason: `Comparison unavailable: both snapshots need at least ${DIFF_COVERAGE_THRESHOLD}% ${kind} coverage to reliably tell who was gained or lost (spec §20's rule against inferring removal from a partial capture).`,
+    };
+  }
+  return { available: true, reason: null };
+}
+
+export interface MembershipDiff {
+  newMembers: SocialUser[];
+  removedMembers: SocialUser[];
+  netChange: number;
+}
+
+/** Pure reconciliation: who's in `newer` but not `older`, and vice versa. */
+export function diffActiveMembers(
+  olderActive: Map<string, SocialUser>,
+  newerActive: Map<string, SocialUser>,
+): MembershipDiff {
+  const newMembers = [...newerActive.values()].filter((user) => !olderActive.has(user.id));
+  const removedMembers = [...olderActive.values()].filter((user) => !newerActive.has(user.id));
+  return { newMembers, removedMembers, netChange: newMembers.length - removedMembers.length };
+}
+
 export async function compareSnapshots(
   username: string,
   kind: "follower" | "following",
@@ -109,16 +145,9 @@ export async function compareSnapshots(
     coveragePercent: coverageOf(newerRow, kind),
   };
 
-  if (from.coveragePercent < DIFF_COVERAGE_THRESHOLD || to.coveragePercent < DIFF_COVERAGE_THRESHOLD) {
-    return {
-      available: false,
-      reason: `Comparison unavailable: both snapshots need at least ${DIFF_COVERAGE_THRESHOLD}% ${kind} coverage to reliably tell who was gained or lost (spec §20's rule against inferring removal from a partial capture).`,
-      from,
-      to,
-      newMembers: [],
-      removedMembers: [],
-      netChange: 0,
-    };
+  const gate = evaluateCoverageGate(kind, from.coveragePercent, to.coveragePercent);
+  if (!gate.available) {
+    return { ...gate, from, to, newMembers: [], removedMembers: [], netChange: 0 };
   }
 
   const [olderActive, newerActive] = await Promise.all([
@@ -126,16 +155,5 @@ export async function compareSnapshots(
     activeMembersAsOf(db, profileRow.id, kind, newerRow.capturedAt),
   ]);
 
-  const newMembers = [...newerActive.values()].filter((user) => !olderActive.has(user.id));
-  const removedMembers = [...olderActive.values()].filter((user) => !newerActive.has(user.id));
-
-  return {
-    available: true,
-    reason: null,
-    from,
-    to,
-    newMembers,
-    removedMembers,
-    netChange: newMembers.length - removedMembers.length,
-  };
+  return { available: true, reason: null, from, to, ...diffActiveMembers(olderActive, newerActive) };
 }

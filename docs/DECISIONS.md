@@ -373,3 +373,29 @@ implementations. `ProfileSearchForm` now parses either a bare username
 or an `instagram.com/<username>` URL client-side
 (`extractUsername`), rejecting non-profile paths (`/p/`, `/reel/`,
 etc.) instead of guessing. See `docs/SEARCH.md`.
+
+## 2026-09-04 — Vitest for pure-logic unit tests, no test database yet
+
+The project had zero automated tests. Rather than reach for a
+disposable-test-database setup immediately (real infrastructure work:
+either a Neon branch per CI run or a Postgres-compatible in-memory
+mock, neither of which exists), this slice targets what's already
+testable without one: the pure decision logic behind the product's
+core invariants. `evaluateCoverageGate` and `diffActiveMembers` were
+extracted out of `compareSnapshots` (`src/lib/diff/compare.ts`)
+specifically so the coverage-gate check and the membership
+reconciliation — the same logic Follower Comparison and Saved Searches
+both depend on — could be unit tested independent of the two database
+round-trips the full function also makes. `coveragePercentFor` (already
+pure) was exported from `src/lib/snapshot/capture.ts` for the same
+reason, and `extractUsername` was moved out of `ProfileSearchForm` into
+its own module (`src/lib/profile-link.ts`) so URL/username parsing
+could be tested without rendering the component.
+
+Vitest was chosen over Jest for zero-config TypeScript + ESM support
+and native tsconfig path-alias resolution (`resolve.tsconfigPaths` —
+no separate plugin needed). Tests are co-located as `<name>.test.ts`
+next to the module they cover rather than in a parallel `__tests__/`
+tree, so a reader finds the tests exactly where they'd look for the
+implementation. See `docs/TESTING.md` for what's covered and what
+still needs a real (or mocked) database to test.

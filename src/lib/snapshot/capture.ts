@@ -40,7 +40,7 @@ export function normalizeUsername(username: string): string {
  * this snapshot only stored a capped sample of it; showing the provider's
  * number here would misrepresent what's actually in the database.
  */
-function coveragePercentFor(indexed: number, total: number): number {
+export function coveragePercentFor(indexed: number, total: number): number {
   if (total <= 0) return 0;
   const raw = (indexed / total) * 100;
   return raw < 1 ? Math.round(raw * 100) / 100 : Math.round(raw * 10) / 10;

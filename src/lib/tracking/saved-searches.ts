@@ -26,7 +26,7 @@ export interface SavedSearchResult {
   removedMatches: SocialUser[];
 }
 
-function matches(user: SocialUser, query: string): boolean {
+export function matches(user: SocialUser, query: string): boolean {
   const needle = query.toLowerCase();
   return user.username.toLowerCase().includes(needle) || user.displayName.toLowerCase().includes(needle);
 }

@@ -78,8 +78,15 @@ most of `SOCIALTRACE_MASTER_BUILD_SPEC.md`. Explicitly out of scope:
   by mock data by default. No blog, no OG image generation, no
   programmatic profile SEO, and no landing pages for the tools that
   don't have a real feature behind them yet — see `docs/SEO.md`.
-- **No automated tests yet.** Verification for this slice was manual
-  (dev server + build/lint).
+- **Unit tests cover pure logic only (48 tests, Vitest — `npm test`).**
+  Coverage math, the diff engine's coverage gate and membership
+  reconciliation, saved-search matching, profile-link parsing, the rate
+  limiter, and avatar/formatting helpers all have unit tests — see
+  `docs/TESTING.md`. Nothing that touches the database (snapshot
+  capture, tracking, saved searches end-to-end, every API route),
+  components, or the Apify provider is automated yet; those were
+  verified manually and live per feature (each doc's "Verified live"
+  section).
 - **No observability (Sentry/OpenTelemetry) or analytics.**
 - **Rate limiting is in-process memory only, not distributed.**
   `src/lib/rate-limit.ts` protects the snapshot/export/track routes on a
