@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Search } from "lucide-react";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
@@ -35,17 +36,31 @@ export function ProfileSearchForm({ size = "default" }: { size?: "default" | "co
     router.push(`/profile/${encodeURIComponent(username)}`);
   }
 
+  const isCompact = size === "compact";
+
   return (
     <form onSubmit={handleSubmit} className="w-full">
-      <div className={size === "compact" ? "flex gap-2" : "flex flex-col gap-3 sm:flex-row"}>
-        <Input
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder={copy.home.searchPlaceholder}
-          aria-label="Instagram username or profile link"
-          autoComplete="off"
-          className="flex-1"
-        />
+      <div
+        className={
+          isCompact
+            ? "flex gap-2"
+            : "flex flex-col gap-2 rounded-card border border-border bg-surface p-2 shadow-default sm:flex-row sm:items-center"
+        }
+      >
+        <div className="relative flex-1">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
+            aria-hidden="true"
+          />
+          <Input
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder={copy.home.searchPlaceholder}
+            aria-label="Instagram username or profile link"
+            autoComplete="off"
+            className={isCompact ? "pl-9" : "border-0 pl-9 shadow-none focus-visible:border-0 focus-visible:ring-0"}
+          />
+        </div>
         <Button type="submit" className="sm:w-auto">
           {copy.home.searchCta}
         </Button>
