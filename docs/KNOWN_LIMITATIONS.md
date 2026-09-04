@@ -26,14 +26,19 @@ most of `SOCIALTRACE_MASTER_BUILD_SPEC.md`. Explicitly out of scope:
   truly live — see `docs/PROVIDER_CONTRACT.md`.
 - **No auth, billing, or accounts.** No login, no Stripe, no plans
   enforcement. The pricing page is static copy only.
-- **Snapshot engine exists (synchronous, bounded); diff engine, tracking,
-  and watchlists don't yet.** `/profile/[username]/history` lists real
-  captured snapshots and can capture a new one on demand — but only when
-  `DATABASE_URL` is set (falls back to "not available" otherwise), and
-  each capture is bounded to 500 followers/following (see
-  `docs/SNAPSHOTS.md`). "Track", "Compare", and "Changes" still render
-  honest "not available" states or disabled buttons — no diff computation
-  between two snapshots yet, and no watchlist/auth to "track" with.
+- **Snapshot and diff engines exist (synchronous, bounded, coverage-gated);
+  tracking and watchlists don't yet.** `/profile/[username]/history` lists
+  real captured snapshots and can capture a new one on demand, and
+  `/profile/[username]/changes` lists the added/removed followers and
+  changed profile fields detected automatically at capture time — but
+  only when `DATABASE_URL` is set (falls back to "not available"
+  otherwise). Each capture is bounded to 500 followers/following (see
+  `docs/SNAPSHOTS.md`), and membership diffing only runs when both sides
+  of the comparison have ≥99.5% coverage (see `docs/DIFF.md`) — so large
+  accounts accumulate history but never get "gained"/"lost" claims from
+  it. "Track" and "Compare snapshots" still render disabled buttons — no
+  watchlist/auth to "track" with, and no UI for comparing two arbitrary
+  (non-adjacent) snapshots.
 - **Export exists but is synchronous and bounded, not a background-job
   pipeline.** The profile page's Export dropdown downloads JSON/XML (full
   profile bundle) or CSV (one resource at a time) directly from
@@ -53,6 +58,7 @@ most of `SOCIALTRACE_MASTER_BUILD_SPEC.md`. Explicitly out of scope:
 - **No observability (Sentry/OpenTelemetry) or analytics.**
 
 See spec §110 (Release Phases) and §228 (First 10 Engineering Milestones)
-for what a Phase 2+ session should pick up next: real DB schema, provider
-contract for a real data source, snapshot engine, diff engine, and
-tracking persistence, in that order.
+for the build order this session has been following: real DB schema,
+provider contract for a real data source, export, snapshot engine, and
+diff engine are done — tracking/watchlist persistence (Milestone 9) is
+next.

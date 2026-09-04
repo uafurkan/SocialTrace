@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import type { Profile, SnapshotSummary, SocialUser } from "@/lib/domain/types";
 import { getDb, schema } from "@/lib/db";
@@ -16,6 +16,17 @@ import { collectPages } from "@/lib/providers/collect";
  */
 export const SNAPSHOT_MEMBER_LIMIT = 500;
 const PAGE_SIZE = 100;
+
+/**
+ * Spec §20's mandatory rule: a partial/capped capture must never be used to
+ * infer mass "removal" (or "addition") — a member missing from this
+ * snapshot's capped sample might just be outside the cap, not actually
+ * gone. Membership diffing (see diffMemberships below) only runs when a
+ * kind's coverage is at least this complete on both sides of the
+ * comparison; otherwise no added/removed change_events are recorded for
+ * that kind at all, which is the honest "comparison unavailable" outcome.
+ */
+const DIFF_COVERAGE_THRESHOLD = 99.5;
 
 function normalizeUsername(username: string): string {
   return username.trim().toLowerCase();
@@ -113,7 +124,7 @@ async function upsertSocialUsers(
   return new Map(rows.map((row) => [row.normalizedUsername, row.id]));
 }
 
-/** Bumps last_seen_at for members still present; does not mark anything removed — that comparison is the diff engine's job, not the snapshot's (spec §20's "don't infer removal from lower coverage" rule lives there). */
+/** Bumps last_seen_at for members still present and un-marks removedAt, since being captured now means they're not removed. */
 async function upsertMemberships(
   db: ReturnType<typeof getDb>,
   profileId: string,
@@ -132,9 +143,113 @@ async function upsertMemberships(
     });
 }
 
+async function fetchExistingProfileRow(db: ReturnType<typeof getDb>, platform: Profile["platform"], normalizedUsername: string) {
+  const [row] = await db
+    .select()
+    .from(schema.profiles)
+    .where(and(eq(schema.profiles.platform, platform), eq(schema.profiles.normalizedUsername, normalizedUsername)))
+    .limit(1);
+  return row ?? null;
+}
+
+async function fetchLatestSnapshot(db: ReturnType<typeof getDb>, profileId: string) {
+  const [row] = await db
+    .select()
+    .from(schema.profileSnapshots)
+    .where(eq(schema.profileSnapshots.profileId, profileId))
+    .orderBy(desc(schema.profileSnapshots.capturedAt))
+    .limit(1);
+  return row ?? null;
+}
+
+/** The set of socialUserIds this profile currently has an un-removed membership row for, i.e. state as of the end of the previous capture. */
+async function fetchActiveMembershipIds(
+  db: ReturnType<typeof getDb>,
+  profileId: string,
+  kind: "follower" | "following",
+): Promise<Set<string>> {
+  const rows = await db
+    .select({ socialUserId: schema.memberships.socialUserId })
+    .from(schema.memberships)
+    .where(and(eq(schema.memberships.profileId, profileId), eq(schema.memberships.kind, kind), isNull(schema.memberships.removedAt)));
+  return new Set(rows.map((row) => row.socialUserId));
+}
+
+async function markMembershipsRemoved(
+  db: ReturnType<typeof getDb>,
+  profileId: string,
+  kind: "follower" | "following",
+  socialUserIds: string[],
+) {
+  if (socialUserIds.length === 0) return;
+  await db
+    .update(schema.memberships)
+    .set({ removedAt: new Date() })
+    .where(
+      and(
+        eq(schema.memberships.profileId, profileId),
+        eq(schema.memberships.kind, kind),
+        inArray(schema.memberships.socialUserId, socialUserIds),
+      ),
+    );
+}
+
+/**
+ * Diffs one membership kind (follower/following) between the previous
+ * snapshot's active set and this capture's set, and returns the
+ * change_events rows to insert — but only when coverage was near-complete
+ * on *both* sides. Per spec §20, a capped/partial capture must never be
+ * used to infer mass removal or addition: a member missing from this
+ * snapshot's 500-item sample might simply be outside the cap, not gone;
+ * likewise "added" is only meaningful if the previous capture would have
+ * seen them too. Below the threshold, this returns no events at all for
+ * that kind, which is the honest "comparison unavailable" outcome, rather
+ * than a misleading partial diff.
+ */
+function diffMembership(
+  kind: "follower" | "following",
+  previousActiveIds: Set<string>,
+  previousCoveragePercent: number,
+  currentIds: Set<string>,
+  currentCoveragePercent: number,
+): { added: string[]; removed: string[] } {
+  if (previousCoveragePercent < DIFF_COVERAGE_THRESHOLD || currentCoveragePercent < DIFF_COVERAGE_THRESHOLD) {
+    return { added: [], removed: [] };
+  }
+  const added = [...currentIds].filter((id) => !previousActiveIds.has(id));
+  const removed = [...previousActiveIds].filter((id) => !currentIds.has(id));
+  return { added, removed };
+}
+
+function diffProfileFields(
+  before: typeof schema.profiles.$inferSelect,
+  after: Profile,
+): Array<{ field: string; oldValue: string; newValue: string }> {
+  const pairs: Array<[string, string, string]> = [
+    ["displayName", before.displayName, after.displayName],
+    ["bio", before.bio, after.bio],
+    ["avatarUrl", before.avatarUrl, after.avatarUrl],
+    ["isVerified", String(before.isVerified), String(after.isVerified)],
+    ["isPrivate", String(before.isPrivate), String(after.isPrivate)],
+  ];
+  return pairs
+    .filter(([, oldValue, newValue]) => oldValue !== newValue)
+    .map(([field, oldValue, newValue]) => ({ field, oldValue, newValue }));
+}
+
 export async function captureSnapshot(username: string): Promise<SnapshotSummary> {
   const db = getDb();
   const { profile } = await provider.getProfile(username);
+  const normalizedUsername = normalizeUsername(profile.username);
+
+  const existingProfileRow = await fetchExistingProfileRow(db, profile.platform, normalizedUsername);
+  const previousSnapshotRow = existingProfileRow ? await fetchLatestSnapshot(db, existingProfileRow.id) : null;
+  const [previousActiveFollowerIds, previousActiveFollowingIds] = existingProfileRow
+    ? await Promise.all([
+        fetchActiveMembershipIds(db, existingProfileRow.id, "follower"),
+        fetchActiveMembershipIds(db, existingProfileRow.id, "following"),
+      ])
+    : [new Set<string>(), new Set<string>()];
 
   const [followers, following] = await Promise.all([
     collectPages((cursor) => provider.getFollowers(profile.id, cursor, PAGE_SIZE), SNAPSHOT_MEMBER_LIMIT),
@@ -152,6 +267,9 @@ export async function captureSnapshot(username: string): Promise<SnapshotSummary
     upsertMemberships(db, profileRow.id, "following", [...followingIdByUsername.values()]),
   ]);
 
+  const followerCoveragePercent = coveragePercentFor(followers.length, profile.followerCount);
+  const followingCoveragePercent = coveragePercentFor(following.length, profile.followingCount);
+
   const [snapshotRow] = await db
     .insert(schema.profileSnapshots)
     .values({
@@ -161,10 +279,72 @@ export async function captureSnapshot(username: string): Promise<SnapshotSummary
       postCount: profile.postCount,
       indexedFollowerCount: followers.length,
       indexedFollowingCount: following.length,
-      followerCoveragePercent: coveragePercentFor(followers.length, profile.followerCount).toString(),
-      followingCoveragePercent: coveragePercentFor(following.length, profile.followingCount).toString(),
+      followerCoveragePercent: followerCoveragePercent.toString(),
+      followingCoveragePercent: followingCoveragePercent.toString(),
     })
     .returning();
+
+  if (existingProfileRow && previousSnapshotRow) {
+    const currentFollowerIds = new Set(followerIdByUsername.values());
+    const currentFollowingIds = new Set(followingIdByUsername.values());
+    const followerDiff = diffMembership(
+      "follower",
+      previousActiveFollowerIds,
+      Number(previousSnapshotRow.followerCoveragePercent),
+      currentFollowerIds,
+      followerCoveragePercent,
+    );
+    const followingDiff = diffMembership(
+      "following",
+      previousActiveFollowingIds,
+      Number(previousSnapshotRow.followingCoveragePercent),
+      currentFollowingIds,
+      followingCoveragePercent,
+    );
+
+    await Promise.all([
+      markMembershipsRemoved(db, profileRow.id, "follower", followerDiff.removed),
+      markMembershipsRemoved(db, profileRow.id, "following", followingDiff.removed),
+    ]);
+
+    const membershipEventRows = (
+      [
+        ["follower", followerDiff] as const,
+        ["following", followingDiff] as const,
+      ] as const
+    ).flatMap(([kind, diff]) => [
+      ...diff.added.map((socialUserId) => ({
+        profileId: profileRow.id,
+        fromSnapshotId: previousSnapshotRow.id,
+        toSnapshotId: snapshotRow.id,
+        membershipEvent: "added" as const,
+        membershipKind: kind,
+        socialUserId,
+      })),
+      ...diff.removed.map((socialUserId) => ({
+        profileId: profileRow.id,
+        fromSnapshotId: previousSnapshotRow.id,
+        toSnapshotId: snapshotRow.id,
+        membershipEvent: "removed" as const,
+        membershipKind: kind,
+        socialUserId,
+      })),
+    ]);
+
+    const fieldChangeRows = diffProfileFields(existingProfileRow, profile).map(({ field, oldValue, newValue }) => ({
+      profileId: profileRow.id,
+      fromSnapshotId: previousSnapshotRow.id,
+      toSnapshotId: snapshotRow.id,
+      field,
+      oldValue,
+      newValue,
+    }));
+
+    const allRows = [...membershipEventRows, ...fieldChangeRows];
+    if (allRows.length > 0) {
+      await db.insert(schema.changeEvents).values(allRows);
+    }
+  }
 
   return toSnapshotSummary(snapshotRow);
 }

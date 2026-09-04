@@ -156,3 +156,38 @@ the snapshot's coverage from what it actually persisted
 (`indexed / profile.followerCount`), so the snapshot history always
 reflects what's really in the database, not what the provider claims it
 could serve if asked without a cap. See `docs/SNAPSHOTS.md`.
+
+## 2026-09-04 — Diff engine: computed at capture time, gated on coverage on both sides
+
+Milestone 8 (spec §20). Rather than a separate "run the diff" step, the
+diff against a profile's previous snapshot is computed inline inside
+`captureSnapshot` (`src/lib/snapshot/capture.ts`), since a capture always
+has both the old profile row and the new provider data in hand already —
+recomputing it later from two `profile_snapshots` rows would need to
+re-derive the same membership sets from `memberships`, for no benefit.
+Results are written to `change_events` once, at capture time;
+`src/lib/diff/changes.ts`'s `listChanges` only reads them.
+
+The mandatory part of spec §20 — never infer mass removal from a
+coverage drop — was implemented as a symmetric gate: membership diffing
+for a kind (follower/following) only runs when **both** the previous and
+current snapshot's coverage for that kind are ≥99.5%
+(`DIFF_COVERAGE_THRESHOLD`). Below that on either side, no added/removed
+`change_events` are written for that kind — not a partial/best-guess
+diff, nothing at all. This also implies the rule protects against false
+"added" claims, not just false "removed" ones: spec §20's example is
+about removal, but a member missing from a *previous* partial capture
+would look identically "new" in the next one if only the current side's
+coverage were checked.
+
+Verifying this live surfaced a real gap in the mock provider: neither
+existing seed profile (`nike`, ~0.03% coverage; `smallcreator`, capped at
+1.2% coverage by `SNAPSHOT_MEMBER_LIMIT`) ever reaches the 99.5%
+threshold, so neither could exercise the membership-diff code path at
+all. Added a third seed, `tinytest` (180 followers, 95 following, both
+under the cap), specifically so the coverage-gated path is reachable
+through the mock rather than only in theory. See `docs/DIFF.md` for the
+full design and how it was verified against the live Neon database
+(inserting a synthetic "phantom" membership between two real captures and
+confirming it was correctly detected as removed, plus a synthetic stale
+bio value correctly detected as a field change).

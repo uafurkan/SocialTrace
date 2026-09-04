@@ -70,6 +70,23 @@ export interface SnapshotSummary {
   followingCoveragePercent: number;
 }
 
+/**
+ * Spec §20 diff engine output — one row per detected change between two
+ * snapshots. `membership*` fields are set for follower/following churn,
+ * `field`/`oldValue`/`newValue` for a changed profile field; a given event
+ * is one or the other, never both.
+ */
+export interface ChangeEvent {
+  id: string;
+  detectedAt: string;
+  membershipEvent: "added" | "removed" | null;
+  membershipKind: "follower" | "following" | null;
+  user: Pick<SocialUser, "username" | "displayName" | "avatarUrl" | "isVerified"> | null;
+  field: string | null;
+  oldValue: string | null;
+  newValue: string | null;
+}
+
 export interface CursorPage<T> {
   items: T[];
   nextCursor: string | null;

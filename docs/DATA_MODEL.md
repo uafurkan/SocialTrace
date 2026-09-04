@@ -57,16 +57,19 @@ alongside the snapshot, not hand-set.
 (follower/following, `kind`-discriminated), `media_items`,
 `profile_snapshots`, and `change_events`, matching the mappings above.
 
-As of the snapshot engine slice (`src/lib/snapshot/capture.ts`, see
-`docs/SNAPSHOTS.md`), `profiles`, `social_users`, `memberships`, and
-`profile_snapshots` are actually written to and read from when a user
-captures a profile snapshot. `media_items` and `change_events` are still
-unwritten — snapshot capture deliberately doesn't persist the media feed
-(out of scope for the diff model), and `change_events` is the next
-milestone's (diff engine) output, not this one's.
+As of the snapshot + diff engine slices (`src/lib/snapshot/capture.ts`,
+`src/lib/diff/changes.ts` — see `docs/SNAPSHOTS.md`/`docs/DIFF.md`),
+`profiles`, `social_users`, `memberships`, `profile_snapshots`, and
+`change_events` are all actually written to and read from when a user
+captures a profile snapshot: `captureSnapshot` writes the snapshot itself
+and, since it also has the previous snapshot on hand, computes and writes
+any `change_events` (added/removed members, changed profile fields) in
+the same request. `media_items` is still unwritten — snapshot capture
+deliberately doesn't persist the media feed, since it's out of scope for
+the diff model spec §20 describes.
 `src/lib/providers/mock-provider.ts`/`apify/` still serve all other data
 (profile display, posts, reels, live followers/following browsing) —
-only the History tab touches Postgres.
+only the History and Changes tabs touch Postgres.
 
 ## Not modeled yet
 

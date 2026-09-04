@@ -1,10 +1,11 @@
 # Database
 
-Spec §31 / §149. As of the snapshot engine slice, this database is
-actually written to and read from — see `docs/SNAPSHOTS.md`. The mock/
-Apify providers still serve all the rest of the app's data
-(`src/lib/providers/`); only snapshot history (`/profile/[username]/history`)
-touches Postgres.
+Spec §31 / §149. As of the snapshot and diff engine slices, this database
+is actually written to and read from — see `docs/SNAPSHOTS.md` and
+`docs/DIFF.md`. The mock/Apify providers still serve all the rest of the
+app's data (`src/lib/providers/`); only snapshot history
+(`/profile/[username]/history`) and change history
+(`/profile/[username]/changes`) touch Postgres.
 
 ## Stack
 
@@ -47,8 +48,9 @@ domain types (`src/lib/domain/types.ts`) to these tables.
 - `profile_snapshots` — one row per indexing pass; `CoverageStatus` is
   computed from these at read time rather than stored on `profiles`.
 - `change_events` — diff output between two snapshots (membership churn
-  or profile field changes). Not written yet — that's the diff engine's
-  job (spec §20), the milestone after this one.
+  or profile field changes), spec §20. Written by `captureSnapshot`
+  (`src/lib/snapshot/capture.ts`) as part of capturing a new snapshot,
+  read by `src/lib/diff/changes.ts` — see `docs/DIFF.md`.
 
 `profiles` and `social_users` are uniquely indexed on
 `(platform, normalized_username)` (added in `drizzle/0001_naive_multiple_man.sql`)

@@ -62,20 +62,22 @@ or calls the API directly — recurring automatic capture is a Tracking/
 Watchlist concern (spec §21, Milestone 9), which needs auth and a job
 queue neither of which exist yet.
 
-**No removal detection here.** `captureSnapshot` only ever bumps
-`last_seen_at` or inserts new `memberships` rows; it never sets
-`removed_at`. Spec §20 is explicit that inferring "removed" from one
-snapshot with lower coverage than the last is wrong (it must not conclude
-"80% of followers disappeared" when coverage dropped from 100% to 20% —
-it should say comparison is unavailable). Getting that rule right belongs
-to the diff engine that compares two snapshots, not to the code that
-records one.
+**Removal detection exists, but is coverage-gated.** `captureSnapshot`
+does set `removed_at` on a membership — but only when doing so is
+actually safe (see `docs/DIFF.md` for the full rule): both the previous
+and current snapshot's coverage for that kind must be at least 99.5%.
+Spec §20 is explicit that inferring "removed" from one snapshot with
+lower coverage than the last is wrong (it must not conclude "80% of
+followers disappeared" when coverage dropped from 100% to 20% — it
+should say comparison is unavailable), so below that threshold nothing
+is marked removed and no `change_events` row is written for that kind.
 
 ## When this needs to change
 
-The Diff Engine milestone will read two `profile_snapshots` rows (or two
-sets of `memberships` bounded by their `first_seen_at`/`last_seen_at`) for
-the same profile and compute added/removed/unchanged, applying spec §20's
-"don't overinterpret a coverage drop" rule. `captureSnapshot`/
-`listSnapshots` shouldn't need to change for that — they already produce
-the rows that engine will consume.
+~~The Diff Engine milestone will read two `profile_snapshots` rows...~~
+Done — see `docs/DIFF.md`. `captureSnapshot` now also computes the diff
+against the profile's previous snapshot (added/removed members, changed
+fields) as part of the same capture, applying spec §20's "don't
+overinterpret a coverage drop" rule, and writes the result to
+`change_events`. The description above of what a single call to
+`captureSnapshot` does is otherwise unchanged.

@@ -4,9 +4,13 @@
  * generates seeded-random fake data so the same username always returns
  * the same profile/followers, keeping UI and future tests reproducible.
  *
- * `nike` is seeded as a large, low-coverage profile and `smallcreator` as
- * a small, fully-indexed one, to exercise the honest coverage UI from
- * spec §1.2 without inventing real data.
+ * `nike` is seeded as a large, low-coverage profile, `smallcreator` as a
+ * mid-size one whose real follower count still exceeds the snapshot
+ * engine's per-capture cap (see src/lib/snapshot/capture.ts), and
+ * `tinytest` as a genuinely small profile fully within that cap — the one
+ * seed where a captured snapshot reaches near-100% coverage, which is
+ * what the diff engine (src/lib/diff/) requires before it will compute
+ * added/removed members at all (spec §20).
  */
 import type { CoverageStatus, CursorPage, Post, Profile, SocialUser } from "@/lib/domain/types";
 import { paginate } from "./paginate";
@@ -65,6 +69,16 @@ const SEED_PROFILES: Record<string, SeedProfile> = {
     followingCount: 892,
     postCount: 214,
     indexedFollowers: 42_183, // fully indexed — small profile
+  },
+  tinytest: {
+    username: "tinytest",
+    displayName: "Tiny Test",
+    bio: "A small account used to exercise near-100%-coverage code paths.",
+    isVerified: false,
+    followerCount: 180,
+    followingCount: 95,
+    postCount: 12,
+    indexedFollowers: 180, // fully indexed and within SNAPSHOT_MEMBER_LIMIT
   },
 };
 
