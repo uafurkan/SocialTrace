@@ -73,7 +73,8 @@ only the History and Changes tabs and the `/tracking` dashboard touch
 Postgres.
 
 `watchlist_entries` (spec §21 Tracking/Watchlist, see `docs/TRACKING.md`)
-is also written to and read from — but it keys rows by an anonymous
+and `saved_searches` (spec §22, see `docs/SAVED_SEARCHES.md`) are also
+written to and read from — but both key rows by an anonymous
 `visitor_id` cookie value, not a real user, since there's no `users`
 table or auth in this build.
 
@@ -81,6 +82,6 @@ table or auth in this build.
 
 `tracking_jobs` (a real scheduler's job queue — `watchlist_entries`
 itself exists, but nothing runs recurring jobs against it),
-`saved_searches`, `subscriptions`, `api_keys` — all from spec §31, none
-exist in this build. `exports` doesn't exist as a table either — exports
-are generated synchronously and streamed, never persisted (`docs/EXPORT.md`).
+`subscriptions`, `api_keys` — all from spec §31, none exist in this
+build. `exports` doesn't exist as a table either — exports are generated
+synchronously and streamed, never persisted (`docs/EXPORT.md`).

@@ -275,3 +275,24 @@ removed between two timestamps, one brand-new follower inserted) to
 confirm the reconstruction correctly classified each as new/removed, and
 confirmed a synthetic low-coverage snapshot correctly produced
 "unavailable" instead of a number. See `docs/FOLLOWER_COMPARISON.md`.
+
+## 2026-09-04 — Saved searches: a thin filter over the comparison reconstruction
+
+Spec §22. Rather than build a separate mechanism for "3 new matching
+accounts, 1 removed matching account," `src/lib/tracking/saved-searches.ts`
+reuses `compareSnapshots` (`docs/FOLLOWER_COMPARISON.md`) between a
+profile's two most recent snapshots and filters the resulting
+new/removed lists by the saved query string — a `saved_searches` table
+just stores which `(profile, kind, query)` an anonymous visitor asked to
+watch, the same cookie-identity scoping as tracking
+(`docs/TRACKING.md`). This kept the feature to one new table and no new
+diffing logic, and it automatically inherits the coverage gate: a saved
+search on a low-coverage profile says "comparison unavailable" the same
+way the comparison page would.
+
+Verified live against the real Neon database: saved a search before any
+snapshot existed (correctly showed "capture at least two snapshots"),
+then crafted a second snapshot with one new and one removed follower and
+confirmed two different saved queries each correctly isolated the match
+relevant to them, and confirmed delete removes a saved search. Test data
+cleaned up afterward. See `docs/SAVED_SEARCHES.md`.

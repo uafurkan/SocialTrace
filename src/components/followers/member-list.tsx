@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { BadgeCheck, Search, User } from "lucide-react";
+import { BadgeCheck, Bookmark, Search, User } from "lucide-react";
 
 import type { CursorPage, SocialUser } from "@/lib/domain/types";
 import { Input } from "@/components/ui/input";
@@ -11,8 +11,15 @@ import { copy } from "@/lib/copy";
 
 interface MemberListProps {
   profileId: string;
+  username: string;
   kind: "followers" | "following";
+  dbAvailable: boolean;
 }
+
+const SAVED_SEARCH_KIND: Record<MemberListProps["kind"], "follower" | "following"> = {
+  followers: "follower",
+  following: "following",
+};
 
 const FILTERS = ["all", "verified", "new", "removed"] as const;
 type Filter = (typeof FILTERS)[number];
@@ -26,13 +33,27 @@ async function fetchPage(profileId: string, kind: MemberListProps["kind"], curso
   return (await res.json()) as CursorPage<SocialUser>;
 }
 
-export function MemberList({ profileId, kind }: MemberListProps) {
+export function MemberList({ profileId, username, kind, dbAvailable }: MemberListProps) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [items, setItems] = useState<SocialUser[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const parentRef = useRef<HTMLDivElement>(null);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+
+  async function handleSaveSearch() {
+    const trimmed = query.trim();
+    if (!trimmed) return;
+    setSaveState("saving");
+    try {
+      const params = new URLSearchParams({ username, kind: SAVED_SEARCH_KIND[kind], query: trimmed });
+      const res = await fetch(`/api/v1/saved-searches?${params.toString()}`, { method: "POST" });
+      setSaveState(res.ok ? "saved" : "idle");
+    } catch {
+      setSaveState("idle");
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -69,15 +90,33 @@ export function MemberList({ profileId, kind }: MemberListProps) {
 
   return (
     <div>
-      <div className="relative mb-3">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
-        <Input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={placeholder}
-          className="pl-9"
-          aria-label={placeholder}
-        />
+      <div className="mb-3 flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
+          <Input
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setSaveState("idle");
+            }}
+            placeholder={placeholder}
+            className="pl-9"
+            aria-label={placeholder}
+          />
+        </div>
+        {dbAvailable && query.trim() ? (
+          <Button
+            variant="tertiary"
+            size="sm"
+            onClick={handleSaveSearch}
+            loading={saveState === "saving"}
+            disabled={saveState === "saved"}
+            title="Save this search to see new/removed matches on future snapshots"
+          >
+            <Bookmark className="size-4" aria-hidden="true" />
+            {saveState === "saved" ? "Saved" : "Save search"}
+          </Button>
+        ) : null}
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2">

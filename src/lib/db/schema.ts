@@ -188,6 +188,35 @@ export const watchlistEntries = pgTable(
   }),
 );
 
+/**
+ * Spec §22 Saved Searches — same anonymous-visitor scoping as
+ * watchlistEntries above (no accounts, see docs/TRACKING.md). Storing the
+ * raw `query` string (rather than, say, a structured filter) matches
+ * spec §22's own example ("Query: alex") and how the follower/following
+ * search box already works (src/components/followers/member-list.tsx).
+ */
+export const savedSearches = pgTable(
+  "saved_searches",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    visitorId: text("visitor_id").notNull(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    kind: membershipKindEnum("kind").notNull(),
+    query: text("query").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    visitorProfileKindQueryIdx: uniqueIndex("saved_searches_visitor_profile_kind_query_idx").on(
+      table.visitorId,
+      table.profileId,
+      table.kind,
+      table.query,
+    ),
+  }),
+);
+
 export const changeEvents = pgTable(
   "change_events",
   {

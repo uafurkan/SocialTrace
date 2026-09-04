@@ -49,6 +49,13 @@ most of `SOCIALTRACE_MASTER_BUILD_SPEC.md`. Explicitly out of scope:
   `memberships` table's history columns (no new table needed). Same
   ≥99.5%-coverage-on-both-sides rule as the automatic diff engine; below
   that it says so instead of guessing. See `docs/FOLLOWER_COMPARISON.md`.
+- **Saved searches exist (spec §22), built on the comparison
+  reconstruction above.** A "Save search" button on the Followers/
+  Following pages saves a `(profile, dataset, query)` for the current
+  anonymous visitor; the `/tracking` dashboard shows new/removed matching
+  accounts between a profile's two most recent snapshots. No
+  notifications — same missing notification channel as tracking, see
+  `docs/SAVED_SEARCHES.md`.
 - **Export exists but is synchronous and bounded, not a background-job
   pipeline.** The profile page's Export dropdown downloads JSON/XML (full
   profile bundle) or CSV (one resource at a time) directly from

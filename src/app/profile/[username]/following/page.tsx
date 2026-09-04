@@ -1,4 +1,5 @@
 import { requireProfile } from "@/lib/server/profile";
+import { isDbConfigured } from "@/lib/db";
 import { DatasetHeader } from "@/components/followers/dataset-header";
 import { MemberList } from "@/components/followers/member-list";
 import { copy } from "@/lib/copy";
@@ -8,7 +9,7 @@ export default async function ProfileFollowingPage({ params }: { params: { usern
   return (
     <div>
       <DatasetHeader title={copy.followers.followingTitle} coverage={profile.followingCoverage} />
-      <MemberList profileId={profile.id} kind="following" />
+      <MemberList profileId={profile.id} username={profile.username} kind="following" dbAvailable={isDbConfigured()} />
     </div>
   );
 }

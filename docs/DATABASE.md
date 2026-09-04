@@ -55,6 +55,10 @@ domain types (`src/lib/domain/types.ts`) to these tables.
 - `watchlist_entries` — spec §21 Tracking/Watchlist, scoped to anonymous
   cookie-identified visitors instead of real accounts (there's no `users`
   table for it to reference) — see `docs/TRACKING.md`.
+- `saved_searches` — spec §22, same anonymous-visitor scoping as
+  `watchlist_entries`. Stores `(visitor, profile, kind, query)`; the
+  new/removed matching accounts it reports are computed on demand from
+  `memberships`, not stored — see `docs/SAVED_SEARCHES.md`.
 
 `profiles` and `social_users` are uniquely indexed on
 `(platform, normalized_username)` (added in `drizzle/0001_naive_multiple_man.sql`)
@@ -74,10 +78,10 @@ real) provider is future work, not part of this slice.
 
 ## Status
 
-All three migrations (`0000_bright_boom_boom.sql`, `0001_naive_multiple_man.sql`,
-`0002_plain_cyclops.sql`) are applied to the project's live Neon database —
-all seven tables exist, with the unique indexes snapshot capture and
-tracking depend on. Note:
+All four migrations (`0000_bright_boom_boom.sql`, `0001_naive_multiple_man.sql`,
+`0002_plain_cyclops.sql`, `0003_calm_doctor_doom.sql`) are applied to the
+project's live Neon database — all eight tables exist, with the unique
+indexes snapshot capture, tracking, and saved searches depend on. Note:
 `drizzle-kit migrate`'s CLI needs a raw TCP connection regardless of the
 app's own driver, which some sandboxed environments (including the one
 used to apply these migrations) block, restricting outbound traffic to
