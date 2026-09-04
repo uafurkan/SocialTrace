@@ -1,25 +1,37 @@
 # Database
 
-Spec §31 / §149. Schema and migrations only in this slice — see
-`docs/KNOWN_LIMITATIONS.md`. No app code reads from or writes to this
-database yet; `src/lib/providers/mock-provider.ts` continues to serve
-`src/app/**` exactly as before.
+Spec §31 / §149. As of the snapshot engine slice, this database is
+actually written to and read from — see `docs/SNAPSHOTS.md`. The mock/
+Apify providers still serve all the rest of the app's data
+(`src/lib/providers/`); only snapshot history (`/profile/[username]/history`)
+touches Postgres.
 
 ## Stack
 
-Postgres, [Drizzle ORM](https://orm.drizzle.team/) + `drizzle-kit` for
-migrations, the `postgres` (postgres.js) driver.
+Postgres (Neon), [Drizzle ORM](https://orm.drizzle.team/) + `drizzle-kit`
+for migrations, [`@neondatabase/serverless`](https://github.com/neondatabase/serverless)
++ `drizzle-orm/neon-http` as the runtime driver.
 
 - `src/lib/db/schema.ts` — table definitions.
-- `src/lib/db/index.ts` — `getDb()`, a lazily-initialized client that
-  throws a clear error if `DATABASE_URL` is unset. Not imported anywhere
-  in `src/app` or `src/components`, so build/lint/typecheck don't need a
-  live database.
+- `src/lib/db/index.ts` — `getDb()` (lazily-initialized Neon HTTP client;
+  throws a clear error if `DATABASE_URL` is unset) and `isDbConfigured()`
+  (a boolean check callers use to gate DB-dependent features instead of
+  hitting that throw — see `docs/SNAPSHOTS.md`).
 - `drizzle.config.ts` — points `drizzle-kit` at the schema and reads
   `DATABASE_URL` (falls back to a placeholder string so `generate` works
   without a real database).
 - `drizzle/` — committed SQL migrations, generated with
   `npx drizzle-kit generate`.
+
+**Why the HTTP driver, not a TCP pool**: the project's live database is
+Neon, and `drizzle-orm/neon-http` (via `@neondatabase/serverless`) issues
+each query as one HTTPS request instead of holding a persistent TCP
+connection — the right shape for a serverless Next.js deployment (Vercel,
+etc.) where a long-lived pool per function instance doesn't fit. This
+replaced the earlier `postgres` (postgres.js) driver; see
+`docs/DECISIONS.md`. `drizzle-kit`'s own CLI commands (`generate`,
+`migrate`) still use a direct connection internally, unrelated to the
+app's runtime driver — see the sandbox note below.
 
 ## Tables
 
@@ -35,7 +47,13 @@ domain types (`src/lib/domain/types.ts`) to these tables.
 - `profile_snapshots` — one row per indexing pass; `CoverageStatus` is
   computed from these at read time rather than stored on `profiles`.
 - `change_events` — diff output between two snapshots (membership churn
-  or profile field changes).
+  or profile field changes). Not written yet — that's the diff engine's
+  job (spec §20), the milestone after this one.
+
+`profiles` and `social_users` are uniquely indexed on
+`(platform, normalized_username)` (added in `drizzle/0001_naive_multiple_man.sql`)
+so snapshot capture can upsert them instead of duplicating a row per
+capture — see `docs/SNAPSHOTS.md`.
 
 ## Local usage
 
@@ -50,12 +68,14 @@ real) provider is future work, not part of this slice.
 
 ## Status
 
-The initial migration (`drizzle/0000_bright_boom_boom.sql`) has been
-applied to the project's Neon Postgres database — all six tables exist
-there. Note: some sandboxed environments (including the one used to run
-this migration) restrict outbound traffic to HTTPS only, which blocks the
-raw TCP connection `drizzle-kit migrate` needs. In that case, apply
-migrations with Neon's HTTP driver instead:
+Both migrations (`0000_bright_boom_boom.sql`, `0001_naive_multiple_man.sql`)
+are applied to the project's live Neon database — all six tables exist,
+with the unique indexes snapshot capture depends on. Note:
+`drizzle-kit migrate`'s CLI needs a raw TCP connection regardless of the
+app's own driver, which some sandboxed environments (including the one
+used to apply these migrations) block, restricting outbound traffic to
+HTTPS only. In that case, apply migrations with Neon's HTTP driver
+directly instead:
 
 ```js
 import { neon } from "@neondatabase/serverless";

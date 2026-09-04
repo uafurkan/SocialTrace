@@ -8,6 +8,13 @@
       "when": 1788485139384,
       "tag": "0000_bright_boom_boom",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788490503770,
+      "tag": "0001_naive_multiple_man",
+      "breakpoints": true
     }
   ]
 }

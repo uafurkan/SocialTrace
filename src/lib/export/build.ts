@@ -1,5 +1,6 @@
-import type { CursorPage, Post, Profile, SocialUser } from "@/lib/domain/types";
+import type { Post, Profile, SocialUser } from "@/lib/domain/types";
 import { provider } from "@/lib/providers";
+import { collectPages } from "@/lib/providers/collect";
 
 /**
  * Spec §29 describes exports as background jobs with queueing, streaming,
@@ -13,17 +14,6 @@ import { provider } from "@/lib/providers";
 export const EXPORT_LIST_LIMIT = 500;
 const PAGE_SIZE = 100;
 
-async function collect<T>(fetchPage: (cursor: string | undefined) => Promise<CursorPage<T>>, limit: number): Promise<T[]> {
-  const items: T[] = [];
-  let cursor: string | undefined;
-  do {
-    const page = await fetchPage(cursor);
-    items.push(...page.items);
-    cursor = page.nextCursor ?? undefined;
-  } while (cursor && items.length < limit);
-  return items.slice(0, limit);
-}
-
 export interface ExportBundle {
   profile: Profile;
   posts: Post[];
@@ -35,10 +25,10 @@ export interface ExportBundle {
 export async function buildExportBundle(username: string): Promise<ExportBundle> {
   const { profile } = await provider.getProfile(username);
   const [posts, reels, followers, following] = await Promise.all([
-    collect((cursor) => provider.getPosts(profile.id, cursor, PAGE_SIZE), EXPORT_LIST_LIMIT),
-    collect((cursor) => provider.getReels(profile.id, cursor, PAGE_SIZE), EXPORT_LIST_LIMIT),
-    collect((cursor) => provider.getFollowers(profile.id, cursor, PAGE_SIZE), EXPORT_LIST_LIMIT),
-    collect((cursor) => provider.getFollowing(profile.id, cursor, PAGE_SIZE), EXPORT_LIST_LIMIT),
+    collectPages((cursor) => provider.getPosts(profile.id, cursor, PAGE_SIZE), EXPORT_LIST_LIMIT),
+    collectPages((cursor) => provider.getReels(profile.id, cursor, PAGE_SIZE), EXPORT_LIST_LIMIT),
+    collectPages((cursor) => provider.getFollowers(profile.id, cursor, PAGE_SIZE), EXPORT_LIST_LIMIT),
+    collectPages((cursor) => provider.getFollowing(profile.id, cursor, PAGE_SIZE), EXPORT_LIST_LIMIT),
   ]);
   return { profile, posts, reels, followers, following };
 }

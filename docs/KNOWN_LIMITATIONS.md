@@ -26,9 +26,14 @@ most of `SOCIALTRACE_MASTER_BUILD_SPEC.md`. Explicitly out of scope:
   truly live — see `docs/PROVIDER_CONTRACT.md`.
 - **No auth, billing, or accounts.** No login, no Stripe, no plans
   enforcement. The pricing page is static copy only.
-- **No snapshot/diff engine, tracking, or watchlists.** The "Track",
-  "Compare", "History", and "Changes" surfaces render honest "not
-  available" states or disabled buttons rather than fake data.
+- **Snapshot engine exists (synchronous, bounded); diff engine, tracking,
+  and watchlists don't yet.** `/profile/[username]/history` lists real
+  captured snapshots and can capture a new one on demand — but only when
+  `DATABASE_URL` is set (falls back to "not available" otherwise), and
+  each capture is bounded to 500 followers/following (see
+  `docs/SNAPSHOTS.md`). "Track", "Compare", and "Changes" still render
+  honest "not available" states or disabled buttons — no diff computation
+  between two snapshots yet, and no watchlist/auth to "track" with.
 - **Export exists but is synchronous and bounded, not a background-job
   pipeline.** The profile page's Export dropdown downloads JSON/XML (full
   profile bundle) or CSV (one resource at a time) directly from

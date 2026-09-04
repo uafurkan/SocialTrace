@@ -119,3 +119,40 @@ generates JSON/XML/CSV synchronously inside the request, bounded by
 `Content-Disposition: attachment` — no queue, no storage, no signed URL,
 because none of those would be real. See `docs/EXPORT.md` for the full
 scope decision and what changes once a job queue/storage exist.
+
+## 2026-09-04 — Snapshot engine: synchronous capture, real writes to the Neon DB, and switching the DB driver to Neon HTTP
+
+Continuing the spec's build order (§110/§228), Milestone 7 is the
+snapshot engine — the first thing in this project that actually writes
+to and reads from the Postgres schema from the earlier DB slice. Spec §19
+describes a job-queue lifecycle (REQUESTED → QUEUED → ... → COMPLETED);
+this build still has no job queue, so `captureSnapshot()`
+(`src/lib/snapshot/capture.ts`) runs synchronously inside a POST request,
+the same honest-scope reduction as the export system. It's bounded by
+`SNAPSHOT_MEMBER_LIMIT = 500` followers/following per capture for the
+same cost/latency reasons as `EXPORT_LIST_LIMIT`.
+
+Two schema-level fixes were needed to make this real: `profiles` and
+`social_users` gained unique indexes on `(platform, normalized_username)`
+(`drizzle/0001_naive_multiple_man.sql`) so capture can upsert instead of
+duplicating a row every time a snapshot is taken. And `src/lib/db/index.ts`
+switched from the `postgres` (postgres.js, raw TCP) driver to
+`@neondatabase/serverless` + `drizzle-orm/neon-http`. This isn't just the
+earlier sandbox workaround for `drizzle-kit migrate` — it's now the
+permanent app driver, because the project's real database is Neon and an
+HTTP-based driver (one request per query, no persistent pool) is what a
+serverless Next.js deployment actually wants. `drizzle-kit`'s own CLI
+still needs a direct connection for `generate`/`migrate`, which is why
+this session again used the one-off `drizzle-orm/neon-http/migrator`
+script to apply the new migration from this sandbox.
+
+A second, non-obvious bug surfaced and was fixed during live testing
+against the real Neon database: the snapshot's `followerCoveragePercent`
+was initially copied from `profile.followerCoverage.coveragePercent` (the
+provider's own coverage claim), which showed "100% coverage, 500
+indexed" for a profile with 42,183 followers — exactly the kind of
+overstated-coverage mistake spec §1.2 exists to prevent. Fixed to compute
+the snapshot's coverage from what it actually persisted
+(`indexed / profile.followerCount`), so the snapshot history always
+reflects what's really in the database, not what the provider claims it
+could serve if asked without a cap. See `docs/SNAPSHOTS.md`.

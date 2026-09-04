@@ -51,13 +51,22 @@ snapshots exist, this should be computed from
 `follower_memberships`/`profile_snapshots` at read time or cached
 alongside the snapshot, not hand-set.
 
-## Tables now defined (schema/migrations only — see docs/DATABASE.md)
+## Tables (see docs/DATABASE.md)
 
-`src/lib/db/schema.ts` now defines `profiles`, `social_users`,
-`memberships` (follower/following, `kind`-discriminated),
-`media_items`, `profile_snapshots`, and `change_events`, matching the
-mappings above. No app code reads from or writes to these tables yet —
-`src/lib/providers/mock-provider.ts` still serves the UI directly.
+`src/lib/db/schema.ts` defines `profiles`, `social_users`, `memberships`
+(follower/following, `kind`-discriminated), `media_items`,
+`profile_snapshots`, and `change_events`, matching the mappings above.
+
+As of the snapshot engine slice (`src/lib/snapshot/capture.ts`, see
+`docs/SNAPSHOTS.md`), `profiles`, `social_users`, `memberships`, and
+`profile_snapshots` are actually written to and read from when a user
+captures a profile snapshot. `media_items` and `change_events` are still
+unwritten — snapshot capture deliberately doesn't persist the media feed
+(out of scope for the diff model), and `change_events` is the next
+milestone's (diff engine) output, not this one's.
+`src/lib/providers/mock-provider.ts`/`apify/` still serve all other data
+(profile display, posts, reels, live followers/following browsing) —
+only the History tab touches Postgres.
 
 ## Not modeled yet
 

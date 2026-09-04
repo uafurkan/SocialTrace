@@ -57,6 +57,19 @@ export interface Post {
   postedAt: string;
 }
 
+/** Spec §19 snapshot metadata, trimmed to what the history UI needs. */
+export interface SnapshotSummary {
+  id: string;
+  capturedAt: string;
+  followerCount: number;
+  followingCount: number;
+  postCount: number;
+  indexedFollowerCount: number;
+  indexedFollowingCount: number;
+  followerCoveragePercent: number;
+  followingCoveragePercent: number;
+}
+
 export interface CursorPage<T> {
   items: T[];
   nextCursor: string | null;

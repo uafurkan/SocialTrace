@@ -14,6 +14,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -42,7 +43,8 @@ export const profiles = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
-    platformNormalizedUsernameIdx: index("profiles_platform_normalized_username_idx").on(
+    /** Unique, not just indexed, so a snapshot capture can upsert by (platform, normalized_username) — see src/lib/snapshot/capture.ts. */
+    platformNormalizedUsernameIdx: uniqueIndex("profiles_platform_normalized_username_idx").on(
       table.platform,
       table.normalizedUsername,
     ),
@@ -69,7 +71,8 @@ export const socialUsers = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
-    platformNormalizedUsernameIdx: index("social_users_platform_normalized_username_idx").on(
+    /** Unique so follower/following capture can upsert by (platform, normalized_username) instead of duplicating identities every snapshot. */
+    platformNormalizedUsernameIdx: uniqueIndex("social_users_platform_normalized_username_idx").on(
       table.platform,
       table.normalizedUsername,
     ),

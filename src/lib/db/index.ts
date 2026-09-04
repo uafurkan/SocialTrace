@@ -1,17 +1,23 @@
 /**
- * Lazy Postgres client factory. Not imported by any route/component yet —
- * this slice is schema/migrations only (see docs/DATABASE.md). Deferring
- * the `postgres()` connection to first use keeps `npm run build` and
- * `npm run lint` working with no `DATABASE_URL` set.
+ * Lazy Postgres client factory, using Neon's HTTP driver rather than a raw
+ * TCP connection. This isn't just a sandbox workaround (see git history
+ * for that earlier one-off use) — it's the permanent driver, because the
+ * project's live database is Neon and HTTP-based access is what serverless
+ * Next.js deployments (Vercel, etc.) actually want: no persistent
+ * connection pool to manage per invocation. See docs/DATABASE.md.
  */
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
+import { neon } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/neon-http";
 
 import * as dbSchema from "./schema";
 
 export { dbSchema as schema };
 
-let cached: ReturnType<typeof drizzle> | null = null;
+let cached: ReturnType<typeof drizzle<typeof dbSchema>> | null = null;
+
+export function isDbConfigured(): boolean {
+  return Boolean(process.env.DATABASE_URL);
+}
 
 export function getDb() {
   if (cached) return cached;
@@ -19,13 +25,12 @@ export function getDb() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
     throw new Error(
-      "DATABASE_URL is not set. See .env.example — this build has no wired-up " +
-        "database usage yet (docs/KNOWN_LIMITATIONS.md); this client exists for " +
-        "future provider work.",
+      "DATABASE_URL is not set. See .env.example. Callers that can run without " +
+        "persistence (e.g. the snapshot engine) should check isDbConfigured() first " +
+        "instead of letting this throw — see docs/SNAPSHOTS.md.",
     );
   }
 
-  const client = postgres(connectionString);
-  cached = drizzle(client, { schema: dbSchema });
+  cached = drizzle(neon(connectionString), { schema: dbSchema });
   return cached;
 }
