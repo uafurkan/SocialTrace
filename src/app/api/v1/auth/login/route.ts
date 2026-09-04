@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Accounts require a configured database (DATABASE_URL is not set)." }, { status: 501 });
   }
 
-  const rate = rateLimit(`login:${clientIdentifierFor(request)}`, LOGIN_RATE_LIMIT, LOGIN_RATE_WINDOW_MS);
+  const rate = await rateLimit(`login:${clientIdentifierFor(request)}`, LOGIN_RATE_LIMIT, LOGIN_RATE_WINDOW_MS);
   if (!rate.allowed) {
     return NextResponse.json(
       { error: "Too many login attempts. Please slow down." },

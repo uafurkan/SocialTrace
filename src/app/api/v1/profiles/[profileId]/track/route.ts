@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const rate = rateLimit(`track:${clientIdentifierFor(request)}`, TRACK_RATE_LIMIT, TRACK_RATE_WINDOW_MS);
+  const rate = await rateLimit(`track:${clientIdentifierFor(request)}`, TRACK_RATE_LIMIT, TRACK_RATE_WINDOW_MS);
   if (!rate.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please slow down." },

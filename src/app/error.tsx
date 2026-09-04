@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import * as Sentry from "@sentry/nextjs";
 
 import { Button } from "@/components/ui/button";
 
@@ -17,6 +18,7 @@ export default function GlobalRouteError({ error, reset }: { error: Error & { di
   useEffect(() => {
     // eslint-disable-next-line no-console
     console.error(error);
+    Sentry.captureException(error);
   }, [error]);
 
   return (

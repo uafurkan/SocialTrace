@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const rate = rateLimit(`saved-search:${clientIdentifierFor(request)}`, SAVE_RATE_LIMIT, SAVE_RATE_WINDOW_MS);
+  const rate = await rateLimit(`saved-search:${clientIdentifierFor(request)}`, SAVE_RATE_LIMIT, SAVE_RATE_WINDOW_MS);
   if (!rate.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please slow down." },

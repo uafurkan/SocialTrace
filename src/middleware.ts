@@ -1,0 +1,61 @@
+import { NextRequest, NextResponse } from "next/server";
+
+/**
+ * A real Content Security Policy, not the placeholder previously deferred
+ * in docs/PRODUCTION_HARDENING.md ("a CSP written now would either be
+ * trivial or need rewriting the moment something is added"). Nothing was
+ * added since — this app has zero third-party scripts, zero inline event
+ * handlers, and confirmed zero external <script>/<iframe> usage — so a
+ * real, non-trivial CSP is possible today: per-request nonce for
+ * script-src (Next.js's App Router needs this for its own hydration
+ * payload scripts — it auto-applies the nonce from this header to those,
+ * see https://nextjs.org/docs/app/building-your-application/configuring/content-security-policy),
+ * 'strict-dynamic' so nonce'd scripts can load their own children without
+ * a wider script-src.
+ *
+ * style-src keeps 'unsafe-inline': Framer Motion (the hero chart's
+ * animation) sets inline `style` attributes directly for transforms, and
+ * nonce'ing every one of those isn't practical. This is the one
+ * deliberate loosening — style-src is a much lower-severity XSS vector
+ * than script-src, which stays nonce-only.
+ *
+ * img-src allows any https origin (not just 'self'): a real provider's
+ * avatar URLs are Instagram's CDN, on numerous rotating subdomains that
+ * can't be enumerated (docs/PROVIDER_CONTRACT.md) — the mock provider
+ * emits no avatarUrl at all, so this only matters once SOCIAL_PROVIDER=apify.
+ *
+ * Deliberately NOT running middleware on /api/* — those responses aren't
+ * HTML, so a script/style CSP doesn't apply to them, and skipping the
+ * nonce generation there avoids pointless per-request overhead on the
+ * highest-traffic paths.
+ */
+export function middleware(request: NextRequest) {
+  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+  const csp = `
+    default-src 'self';
+    script-src 'self' 'nonce-${nonce}' 'strict-dynamic';
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' https: data:;
+    font-src 'self';
+    connect-src 'self';
+    object-src 'none';
+    base-uri 'self';
+    form-action 'self';
+    frame-ancestors 'none';
+    upgrade-insecure-requests;
+  `
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set("Content-Security-Policy", csp);
+
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  response.headers.set("Content-Security-Policy", csp);
+  return response;
+}
+
+export const config = {
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+};

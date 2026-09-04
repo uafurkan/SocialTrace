@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import * as Sentry from "@sentry/nextjs";
 
 /**
  * Catches an error thrown by the root layout itself (error.tsx can't,
@@ -12,6 +13,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
   useEffect(() => {
     // eslint-disable-next-line no-console
     console.error(error);
+    Sentry.captureException(error);
   }, [error]);
 
   return (

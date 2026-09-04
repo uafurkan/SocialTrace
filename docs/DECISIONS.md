@@ -507,3 +507,38 @@ identical, no enum column on the joined-from table) wasn't affected, but
 now reads both joins via raw `db.execute(sql\`...\`)` rather than leaving
 one on the query builder and one worked around — one proven-correct code
 path instead of two different ones.
+
+## Production hardening: real integrations, opt-in, not simulated
+
+Asked to take rate limiting/CSP/observability further (option 3 of a
+multiple-choice question), the same "real-but-scoped" pattern as
+`SOCIAL_PROVIDER=apify` applied again: distributed rate limiting
+(`@upstash/ratelimit` + Upstash Redis) and error monitoring
+(`@sentry/nextjs`) are both real SDK integrations that activate only
+when their account's credentials are set (`UPSTASH_REDIS_REST_URL`/
+`_TOKEN`, `SENTRY_DSN`/`NEXT_PUBLIC_SENTRY_DSN`); unconfigured, behavior
+is byte-for-byte what it was before this slice. See
+`docs/PRODUCTION_HARDENING.md` for what each does when it *is*
+configured.
+
+The Content Security Policy, by contrast, needed no account and no
+"unconfigured" fallback — `docs/PRODUCTION_HARDENING.md` had previously
+deferred it specifically because "this app has no third-party scripts...
+today," reasoning that a CSP written now would either be trivial or need
+rewriting the moment something real was added. Nothing was added since;
+a search confirmed zero third-party scripts, zero inline event
+handlers, zero iframes still hold, so the deferral's own stated
+condition for writing a real CSP was already met — it just hadn't been
+revisited. Wrote it as a per-request nonce'd `script-src` (Next's
+documented middleware pattern) rather than a static `'unsafe-inline'`
+policy, which would have covered the App Router's inline hydration
+scripts but defeated most of a CSP's actual XSS protection.
+
+**Found live: a root-level `middleware.ts` silently no-ops in a `src/`-
+layout Next.js project.** The file compiled without error or warning,
+but the CSP header never appeared on any response and `next dev` never
+logged a `/middleware` compilation step at all — no error to point at
+the cause. Moving the identical file to `src/middleware.ts` fixed it
+immediately. Worth remembering for any future root-level Next.js
+convention file in this project: check whether it belongs under `src/`
+instead before assuming a more complex cause.

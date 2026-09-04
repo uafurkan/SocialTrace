@@ -101,12 +101,15 @@ most of `SOCIALTRACE_MASTER_BUILD_SPEC.md`. Explicitly out of scope:
   verified manually and live per feature (each doc's "Verified live"
   section).
 - **No observability (Sentry/OpenTelemetry) or analytics.**
-- **Rate limiting is in-process memory only, not distributed.**
-  `src/lib/rate-limit.ts` protects the snapshot/export/track routes on a
-  single server process, but a multi-instance serverless deployment
-  (Vercel) can be bypassed by a caller fanning out across instances — see
-  `docs/PRODUCTION_HARDENING.md`. No Content Security Policy, moderation,
-  or abuse reporting either.
+- **Rate limiting is distributed when configured, in-process otherwise.**
+  `src/lib/rate-limit.ts` uses real Upstash Redis
+  (`UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN`) when set; without
+  those, it's the original in-process counter, bypassable on a
+  multi-instance serverless deployment (Vercel) by a caller fanning out
+  across instances — see `docs/PRODUCTION_HARDENING.md`. A real Content
+  Security Policy now exists (`src/middleware.ts`), and Sentry error
+  monitoring is wired up opt-in via `SENTRY_DSN` — no moderation or abuse
+  reporting yet.
 
 See spec §110 (Release Phases) and §228 (First 10 Engineering Milestones)
 for the build order this session has been following: all 10 first

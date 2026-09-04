@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "format must be json, xml, or csv" }, { status: 400 });
   }
 
-  const rate = rateLimit(`export:${clientIdentifierFor(request)}`, EXPORT_RATE_LIMIT, EXPORT_RATE_WINDOW_MS);
+  const rate = await rateLimit(`export:${clientIdentifierFor(request)}`, EXPORT_RATE_LIMIT, EXPORT_RATE_WINDOW_MS);
   if (!rate.allowed) {
     return NextResponse.json(
       { error: "Too many export requests. Please slow down." },

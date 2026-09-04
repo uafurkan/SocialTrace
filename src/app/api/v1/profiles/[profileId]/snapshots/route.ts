@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const rate = rateLimit(`capture:${clientIdentifierFor(request)}`, CAPTURE_RATE_LIMIT, CAPTURE_RATE_WINDOW_MS);
+  const rate = await rateLimit(`capture:${clientIdentifierFor(request)}`, CAPTURE_RATE_LIMIT, CAPTURE_RATE_WINDOW_MS);
   if (!rate.allowed) {
     return NextResponse.json(
       { error: "Too many snapshot captures. Please slow down." },
