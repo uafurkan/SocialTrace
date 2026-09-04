@@ -2,9 +2,11 @@
 
 Spec §21. Milestone 9. The spec's version assumes a logged-in account:
 "Tracked profiles" dashboard, per-profile check frequency, notification
-channel. This build has no auth, no scheduler, and no notification
-channel (see `docs/KNOWN_LIMITATIONS.md`), so this is a deliberately
-scoped-down slice — the same honest-reduction pattern as export/snapshot/
+channel. Accounts now exist (`docs/AUTH.md`) and a fixed-schedule
+scheduler now runs automatic recapture with an in-app notification badge
+(`docs/SCHEDULER.md`) — but there's still no per-profile frequency
+picker and no real email/push channel, so this remains a deliberately
+scoped-down slice, the same honest-reduction pattern as export/snapshot/
 diff.
 
 ## What's implemented
@@ -49,16 +51,17 @@ diff.
 
 ## Scope decisions
 
-**No check frequency, change categories, notification channel, or
-minimum change threshold.** All four are explicitly listed in spec §21's
-"Tracking configuration," and all four require infrastructure this build
-doesn't have: a scheduler to run checks on a frequency, and a
-notification channel (email/webhook/etc.) to notify through. Spec §21
-itself says "only expose frequencies the backend can actually support" —
-since it can support none (there's no recurring capture at all), none are
-exposed. The dashboard instead tells the visitor outright that they need
-to manually capture a new snapshot (from the profile's History tab) to
-update the numbers here.
+**No configurable check frequency, change categories, or minimum change
+threshold — but automatic capture and an in-app notification now
+exist.** A fixed (not user-configurable) Vercel Cron schedule recaptures
+every tracked/saved-search profile every 6 hours, and a small badge next
+to the "Track" nav link surfaces new activity without visiting the
+dashboard — see `docs/SCHEDULER.md`. Spec §21's per-profile frequency
+picker and email/webhook notification channel still don't exist: "only
+expose frequencies the backend can actually support" (spec's own words)
+still means none are exposed as a user-facing setting, since there's
+exactly one fixed schedule, not a per-profile choice. The dashboard
+still supports manually capturing a new snapshot on demand too.
 
 **The follower delta uses the profile's own reported follower count, not
 a coverage-gated membership diff.** "+842 since last snapshot" (spec's
@@ -79,10 +82,12 @@ this slice.
 
 ## When this needs to change
 
-A scheduler (spec §21's "check frequency") is what would make the
-dashboard's numbers move without a manual capture, and is the same
-missing piece noted in `docs/SNAPSHOTS.md`. Real accounts are now
-implemented (`docs/AUTH.md`) — a signed-in visitor's tracked profiles
+A per-profile configurable check frequency (spec §21) and a real email/
+push notification channel are the remaining gaps — see `docs/
+SCHEDULER.md` for what exists today (a fixed 6-hour schedule, an in-app
+badge) and why email isn't wired up (no email-sending service
+configured). Real accounts are now implemented (`docs/AUTH.md`) — a
+signed-in visitor's tracked profiles
 persist across devices, capped by their plan's tracked-profile limit
 (`docs/BILLING.md`, free: 10). Anonymous visitors remain unlimited,
 since there's no plan to enforce against them.

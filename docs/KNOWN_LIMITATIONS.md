@@ -51,9 +51,12 @@ most of `SOCIALTRACE_MASTER_BUILD_SPEC.md`. Explicitly out of scope:
   the comparison have ≥99.5% coverage (see `docs/DIFF.md`), and tracking
   identifies visitors by an anonymous cookie rather than a real account —
   no sign-in, no cross-device sync, no recovery if cookies are cleared
-  (see `docs/TRACKING.md`). There's no scheduler, so tracked profiles'
-  numbers only update when someone manually captures a new snapshot — no
-  check frequency, notification channel, or change threshold config.
+  (see `docs/TRACKING.md`). A Vercel Cron job now recaptures tracked/
+  saved-search profiles automatically every 6 hours (see
+  `docs/SCHEDULER.md`) — but only when deployed to Vercel with
+  `CRON_SECRET` set; there's still no configurable check frequency or
+  change-threshold, and the "notification" is an in-app nav badge, not
+  email or push (no email-sending service is configured).
 - **Follower comparison exists (spec §23), reusing the diff engine's
   coverage gate.** "Compare snapshots" on the profile header now links
   to a real `/profile/[username]/compare` page — pick any two snapshots

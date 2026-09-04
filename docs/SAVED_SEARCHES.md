@@ -50,11 +50,14 @@ follower/following search box already works
 route filtering) — a saved search reuses that same mental model rather
 than inventing filter syntax.
 
-**No notification when a match changes.** Spec §21's "Tracking
-configuration" (notification channel) applies here too, and doesn't
-exist for the same reason noted in `docs/TRACKING.md` — no notification
-channel is wired up. The dashboard is pull, not push: matches only show
-up when you visit `/tracking`.
+**No email/push notification when a match changes.** Spec §21's
+"Tracking configuration" (notification channel) applies here too — no
+email-sending service is configured (`docs/SCHEDULER.md`). There is a
+small in-app badge next to the "Track" nav link showing a live count of
+new/removed matches plus tracked-profile changes, and a scheduled job
+now recaptures profiles automatically (`docs/SCHEDULER.md`) so that
+count can change without you visiting a profile yourself — but seeing
+it still requires being on the site; nothing reaches you outside it.
 
 **Comparison is always "latest two snapshots," not a chosen pair.**
 Unlike `/profile/[username]/compare` (`docs/FOLLOWER_COMPARISON.md`),

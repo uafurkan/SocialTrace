@@ -480,3 +480,30 @@ scan was restricted to elements with no scrolling ancestor):
   `max-w-[calc(100vw-2rem)]` cap below `sm:`, reverting to the original
   `right-0`/`w-56` at `sm:` and up where the button never sits near a
   screen edge.
+
+## Scheduler: Vercel Cron, not a queue; in-app badge, not email
+
+Asked how far to take spec §21's missing "check frequency" and
+"notification channel" (`docs/TRACKING.md`/`docs/SAVED_SEARCHES.md` had
+both flagged as missing since there's no job queue): Vercel Cron for the
+scheduler (the deploy target, so no new infrastructure — no Redis, no
+worker process, just `vercel.json` + one route) and in-app only for
+notifications, explicitly declining real email since no email-sending
+service is configured and a fake "email sent" flow that sends nothing
+would be dishonest — the same "real-but-scoped, not simulated" theme as
+everywhere else in this file. See `docs/SCHEDULER.md`.
+
+**Found and fixed mid-slice: a drizzle-orm query-builder bug, not a data
+bug.** `saved_searches inner join profiles` returned zero rows through
+`.select().from().innerJoin()` on drizzle-orm 0.45.2 — but the exact SQL
+text `.toSQL()` reported for that query, run directly via
+`db.execute(sql\`...\`)`, returned the correct row every time. Isolated by
+elimination: a brand-new (uncached) drizzle client, this query alone
+with nothing else in the request, still empty — ruling out a caching or
+ordering artifact in the app's own code, and narrowing it to the query
+builder itself. `watchlist_entries inner join profiles` (structurally
+identical, no enum column on the joined-from table) wasn't affected, but
+`listProfilesNeedingCapture` (`src/lib/snapshot/scheduled-capture.ts`)
+now reads both joins via raw `db.execute(sql\`...\`)` rather than leaving
+one on the query builder and one worked around — one proven-correct code
+path instead of two different ones.

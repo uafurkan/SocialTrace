@@ -6,12 +6,13 @@ import { useState } from "react";
 
 import { copy } from "@/lib/copy";
 import { AccountMenu } from "@/components/layout/account-menu";
+import { TrackNavBadge } from "@/components/layout/track-nav-badge";
 
 const links = [
-  { href: "/#explore", label: copy.nav.explore },
-  { href: "/tracking", label: copy.nav.track },
-  { href: "/api", label: copy.nav.api },
-  { href: "/pricing", label: copy.nav.pricing },
+  { href: "/#explore", label: copy.nav.explore, badge: false },
+  { href: "/tracking", label: copy.nav.track, badge: true },
+  { href: "/api", label: copy.nav.api, badge: false },
+  { href: "/pricing", label: copy.nav.pricing, badge: false },
 ];
 
 export function MobileNav() {
@@ -44,9 +45,10 @@ export function MobileNav() {
                   key={link.href}
                   href={link.href}
                   onClick={() => setOpen(false)}
-                  className="rounded-button px-2 py-2.5 hover:bg-surface-subtle hover:text-primary"
+                  className="flex items-center rounded-button px-2 py-2.5 hover:bg-surface-subtle hover:text-primary"
                 >
                   {link.label}
+                  {link.badge ? <TrackNavBadge /> : null}
                 </Link>
               ))}
             </nav>

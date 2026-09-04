@@ -26,8 +26,9 @@ export default async function TrackingPage() {
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
       <h1 className="text-xl font-semibold text-primary">Tracked profiles</h1>
       <p className="mt-1 text-sm text-secondary">
-        Profiles you&apos;ve clicked &quot;Track profile&quot; on. Capture a new snapshot from a profile&apos;s
-        History tab to update its numbers here — tracking doesn&apos;t recapture automatically yet.
+        Profiles you&apos;ve clicked &quot;Track profile&quot; on. A scheduled job recaptures these
+        periodically when one is configured (see docs/SCHEDULER.md) — or capture a new snapshot yourself from a
+        profile&apos;s History tab any time.
       </p>
 
       <div className="mt-6">

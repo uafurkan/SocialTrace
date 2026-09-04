@@ -4,6 +4,7 @@ import { copy } from "@/lib/copy";
 import { Logo } from "@/components/layout/logo";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { MobileNav } from "@/components/layout/mobile-nav";
+import { TrackNavBadge } from "@/components/layout/track-nav-badge";
 import { ProfileSearchForm } from "@/components/home/profile-search-form";
 
 export function SiteHeader() {
@@ -27,8 +28,9 @@ export function SiteHeader() {
             <Link href="/#explore" className="hover:text-primary">
               {copy.nav.explore}
             </Link>
-            <Link href="/tracking" className="hover:text-primary">
+            <Link href="/tracking" className="flex items-center hover:text-primary">
               {copy.nav.track}
+              <TrackNavBadge />
             </Link>
             <Link href="/api" className="hover:text-primary">
               {copy.nav.api}
