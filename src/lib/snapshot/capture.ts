@@ -28,7 +28,7 @@ const PAGE_SIZE = 100;
  */
 const DIFF_COVERAGE_THRESHOLD = 99.5;
 
-function normalizeUsername(username: string): string {
+export function normalizeUsername(username: string): string {
   return username.trim().toLowerCase();
 }
 
@@ -60,7 +60,7 @@ function toSnapshotSummary(row: typeof schema.profileSnapshots.$inferSelect): Sn
   };
 }
 
-async function upsertProfileRow(db: ReturnType<typeof getDb>, profile: Profile) {
+export async function upsertProfileRow(db: ReturnType<typeof getDb>, profile: Profile) {
   const values = {
     platform: profile.platform,
     username: profile.username,

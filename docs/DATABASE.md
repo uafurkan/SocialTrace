@@ -1,11 +1,12 @@
 # Database
 
-Spec §31 / §149. As of the snapshot and diff engine slices, this database
-is actually written to and read from — see `docs/SNAPSHOTS.md` and
-`docs/DIFF.md`. The mock/Apify providers still serve all the rest of the
-app's data (`src/lib/providers/`); only snapshot history
-(`/profile/[username]/history`) and change history
-(`/profile/[username]/changes`) touch Postgres.
+Spec §31 / §149. As of the snapshot, diff, and tracking slices, this
+database is actually written to and read from — see `docs/SNAPSHOTS.md`,
+`docs/DIFF.md`, and `docs/TRACKING.md`. The mock/Apify providers still
+serve all the rest of the app's data (`src/lib/providers/`); only
+snapshot history (`/profile/[username]/history`), change history
+(`/profile/[username]/changes`), and the tracking dashboard
+(`/tracking`) touch Postgres.
 
 ## Stack
 
@@ -51,6 +52,9 @@ domain types (`src/lib/domain/types.ts`) to these tables.
   or profile field changes), spec §20. Written by `captureSnapshot`
   (`src/lib/snapshot/capture.ts`) as part of capturing a new snapshot,
   read by `src/lib/diff/changes.ts` — see `docs/DIFF.md`.
+- `watchlist_entries` — spec §21 Tracking/Watchlist, scoped to anonymous
+  cookie-identified visitors instead of real accounts (there's no `users`
+  table for it to reference) — see `docs/TRACKING.md`.
 
 `profiles` and `social_users` are uniquely indexed on
 `(platform, normalized_username)` (added in `drizzle/0001_naive_multiple_man.sql`)
@@ -70,9 +74,10 @@ real) provider is future work, not part of this slice.
 
 ## Status
 
-Both migrations (`0000_bright_boom_boom.sql`, `0001_naive_multiple_man.sql`)
-are applied to the project's live Neon database — all six tables exist,
-with the unique indexes snapshot capture depends on. Note:
+All three migrations (`0000_bright_boom_boom.sql`, `0001_naive_multiple_man.sql`,
+`0002_plain_cyclops.sql`) are applied to the project's live Neon database —
+all seven tables exist, with the unique indexes snapshot capture and
+tracking depend on. Note:
 `drizzle-kit migrate`'s CLI needs a raw TCP connection regardless of the
 app's own driver, which some sandboxed environments (including the one
 used to apply these migrations) block, restricting outbound traffic to

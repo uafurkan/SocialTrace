@@ -15,6 +15,13 @@
       "when": 1788490503770,
       "tag": "0001_naive_multiple_man",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788491870324,
+      "tag": "0002_plain_cyclops",
+      "breakpoints": true
     }
   ]
 }

@@ -5,10 +5,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CoverageBadge } from "@/components/profile/coverage-badge";
 import { ExportMenu } from "@/components/profile/export-menu";
+import { TrackButton } from "@/components/profile/track-button";
 import { formatCount } from "@/lib/utils";
 import { copy } from "@/lib/copy";
 
-export function ProfileHeader({ profile }: { profile: Profile }) {
+interface ProfileHeaderProps {
+  profile: Profile;
+  initialTracked: boolean;
+  trackingAvailable: boolean;
+}
+
+export function ProfileHeader({ profile, initialTracked, trackingAvailable }: ProfileHeaderProps) {
   return (
     <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
@@ -58,7 +65,12 @@ export function ProfileHeader({ profile }: { profile: Profile }) {
       </div>
 
       <div className="flex shrink-0 gap-2 sm:flex-col">
-        <Button variant="primary">{copy.profile.trackCta}</Button>
+        <TrackButton
+          profileId={profile.id}
+          username={profile.username}
+          initialTracked={initialTracked}
+          available={trackingAvailable}
+        />
         <Button variant="secondary" disabled title={copy.profile.comingSoon}>
           {copy.profile.compareCta}
         </Button>

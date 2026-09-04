@@ -164,6 +164,30 @@ export const profileSnapshots = pgTable(
  * (bio/display name/avatar) are represented via `field`/`oldValue`/
  * `newValue` instead of a fixed column per field.
  */
+/**
+ * Spec §21 Tracking/Watchlist, scoped down: the spec's dashboard assumes a
+ * logged-in account, which this build doesn't have (see docs/DECISIONS.md).
+ * `visitorId` is an anonymous id issued via a first-party cookie the first
+ * time someone tracks a profile, standing in for a user id — there's no
+ * `users` table for it to reference. No frequency/notification config
+ * columns: those need a scheduler and a notification channel, neither of
+ * which exist yet.
+ */
+export const watchlistEntries = pgTable(
+  "watchlist_entries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    visitorId: text("visitor_id").notNull(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    visitorProfileIdx: uniqueIndex("watchlist_entries_visitor_profile_idx").on(table.visitorId, table.profileId),
+  }),
+);
+
 export const changeEvents = pgTable(
   "change_events",
   {

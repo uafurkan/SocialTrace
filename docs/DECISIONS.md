@@ -191,3 +191,31 @@ full design and how it was verified against the live Neon database
 (inserting a synthetic "phantom" membership between two real captures and
 confirming it was correctly detected as removed, plus a synthetic stale
 bio value correctly detected as a field change).
+
+## 2026-09-04 — Tracking/Watchlist: anonymous cookie identity instead of accounts
+
+Milestone 9 (spec §21). The spec's "Tracked profiles" dashboard assumes a
+logged-in account; this build has no auth (`docs/KNOWN_LIMITATIONS.md`).
+Rather than skip the milestone entirely or build throwaway auth just to
+unblock it, tracking is scoped to an anonymous identity: a first-party
+`st_visitor` cookie (random UUID, httpOnly), created the first time
+someone clicks "Track profile," identifies their `watchlist_entries` rows
+(`src/lib/db/schema.ts`). This is a real, working feature (the dashboard
+at `/tracking` is genuinely backed by the database, not a mock), just
+scoped to "this browser" instead of "this account" — an honest trade
+consistent with how every other slice in this build has been scoped, and
+one that upgrades cleanly to real accounts later (swap the cookie value
+for a `users.id`).
+
+The spec's "Tracking configuration" (check frequency, notification
+channel, change categories, minimum threshold) was not implemented at
+all, per spec §21's own instruction to "only expose frequencies the
+backend can actually support" — this backend supports none, having no
+scheduler or notification channel, so the dashboard instead asks the
+visitor to manually recapture. See `docs/TRACKING.md` for the full scope
+and how the follower-delta display avoids the diff engine's coverage-gate
+(it's a whole-profile-count delta, not a membership-level claim, so
+spec §20's rule doesn't apply to it). Verified live end-to-end against
+the real Neon database: track/untrack via cookies, dashboard delta across
+two real captures, and the profile header correctly reflecting tracked
+state on reload.

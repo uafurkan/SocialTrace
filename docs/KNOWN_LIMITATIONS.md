@@ -26,19 +26,24 @@ most of `SOCIALTRACE_MASTER_BUILD_SPEC.md`. Explicitly out of scope:
   truly live — see `docs/PROVIDER_CONTRACT.md`.
 - **No auth, billing, or accounts.** No login, no Stripe, no plans
   enforcement. The pricing page is static copy only.
-- **Snapshot and diff engines exist (synchronous, bounded, coverage-gated);
-  tracking and watchlists don't yet.** `/profile/[username]/history` lists
-  real captured snapshots and can capture a new one on demand, and
-  `/profile/[username]/changes` lists the added/removed followers and
-  changed profile fields detected automatically at capture time — but
+- **Snapshot, diff, and tracking exist (synchronous, bounded,
+  coverage-gated, and cookie-identified instead of accounts).**
+  `/profile/[username]/history` lists real captured snapshots and can
+  capture a new one on demand, `/profile/[username]/changes` lists the
+  added/removed followers and changed profile fields detected
+  automatically at capture time, and clicking "Track profile" adds a
+  profile to the visitor's real `/tracking` dashboard — but all of it
   only when `DATABASE_URL` is set (falls back to "not available"
   otherwise). Each capture is bounded to 500 followers/following (see
-  `docs/SNAPSHOTS.md`), and membership diffing only runs when both sides
-  of the comparison have ≥99.5% coverage (see `docs/DIFF.md`) — so large
-  accounts accumulate history but never get "gained"/"lost" claims from
-  it. "Track" and "Compare snapshots" still render disabled buttons — no
-  watchlist/auth to "track" with, and no UI for comparing two arbitrary
-  (non-adjacent) snapshots.
+  `docs/SNAPSHOTS.md`), membership diffing only runs when both sides of
+  the comparison have ≥99.5% coverage (see `docs/DIFF.md`), and tracking
+  identifies visitors by an anonymous cookie rather than a real account —
+  no sign-in, no cross-device sync, no recovery if cookies are cleared
+  (see `docs/TRACKING.md`). There's no scheduler, so tracked profiles'
+  numbers only update when someone manually captures a new snapshot — no
+  check frequency, notification channel, or change threshold config.
+  "Compare snapshots" still renders a disabled button — no UI for
+  comparing two arbitrary (non-adjacent) snapshots.
 - **Export exists but is synchronous and bounded, not a background-job
   pipeline.** The profile page's Export dropdown downloads JSON/XML (full
   profile bundle) or CSV (one resource at a time) directly from
@@ -59,6 +64,7 @@ most of `SOCIALTRACE_MASTER_BUILD_SPEC.md`. Explicitly out of scope:
 
 See spec §110 (Release Phases) and §228 (First 10 Engineering Milestones)
 for the build order this session has been following: real DB schema,
-provider contract for a real data source, export, snapshot engine, and
-diff engine are done — tracking/watchlist persistence (Milestone 9) is
-next.
+provider contract for a real data source, export, snapshot engine, diff
+engine, and tracking/watchlist (scoped to anonymous visitors, no auth)
+are done — production hardening + SEO (Milestone 10) is what's left of
+the first 10.

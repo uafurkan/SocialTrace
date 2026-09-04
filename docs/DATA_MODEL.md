@@ -69,10 +69,18 @@ deliberately doesn't persist the media feed, since it's out of scope for
 the diff model spec §20 describes.
 `src/lib/providers/mock-provider.ts`/`apify/` still serve all other data
 (profile display, posts, reels, live followers/following browsing) —
-only the History and Changes tabs touch Postgres.
+only the History and Changes tabs and the `/tracking` dashboard touch
+Postgres.
+
+`watchlist_entries` (spec §21 Tracking/Watchlist, see `docs/TRACKING.md`)
+is also written to and read from — but it keys rows by an anonymous
+`visitor_id` cookie value, not a real user, since there's no `users`
+table or auth in this build.
 
 ## Not modeled yet
 
-`tracking_jobs`, `watchlists`, `saved_searches`, `exports`,
-`subscriptions`, `api_keys` — all from spec §31, none exist in this
-build.
+`tracking_jobs` (a real scheduler's job queue — `watchlist_entries`
+itself exists, but nothing runs recurring jobs against it),
+`saved_searches`, `subscriptions`, `api_keys` — all from spec §31, none
+exist in this build. `exports` doesn't exist as a table either — exports
+are generated synchronously and streamed, never persisted (`docs/EXPORT.md`).

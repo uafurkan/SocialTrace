@@ -15,7 +15,7 @@ export function SiteHeader() {
           <Link href="/#explore" className="hover:text-primary">
             {copy.nav.explore}
           </Link>
-          <Link href="/tools" className="hover:text-primary">
+          <Link href="/tracking" className="hover:text-primary">
             {copy.nav.track}
           </Link>
           <Link href="/api" className="hover:text-primary">
