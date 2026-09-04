@@ -10,10 +10,18 @@ most of `SOCIALTRACE_MASTER_BUILD_SPEC.md`. Explicitly out of scope:
   to them and no app code reads from them — `src/lib/providers/mock-provider.ts`
   still serves the UI directly. No seed script, no live database
   connected in this session.
-- **No real data provider.** `src/lib/providers/mock-provider.ts` returns
-  deterministic fake data. No Instagram or other platform integration
-  exists. Follower/following datasets are capped at 5,000 generated users
-  in memory per profile, regardless of the fake `followerCount`.
+- **Real provider exists but is opt-in.** `src/lib/providers/apify/`
+  implements `SocialDataProvider` against Apify actors for real Instagram
+  data; the mock provider (`src/lib/providers/mock-provider.ts`) stays
+  the default unless `SOCIAL_PROVIDER=apify` + `APIFY_API_TOKEN` are set,
+  so nothing costs money by default. When enabled: follower/following
+  lists are capped at 200 real users per profile per kind (Apify bills
+  per result), reels are approximated from the profile actor's recent
+  videos (no dedicated reels dataset), and every request re-hits Apify
+  except a same-process in-memory cache for pagination — there is no
+  durable cache, no persistence to the Postgres schema yet, and no retry/
+  backoff tuning beyond falling through to the next actor in the chain.
+  See `docs/PROVIDER_CONTRACT.md`.
 - **No auth, billing, or accounts.** No login, no Stripe, no plans
   enforcement. The pricing page is static copy only.
 - **No snapshot/diff engine, tracking, or watchlists.** The "Track",

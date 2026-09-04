@@ -58,3 +58,28 @@ schema-only: no `PostgresProvider` implementation, no seed script, no live
 database connected — `getDb()` in `src/lib/db/index.ts` is unused by the
 app so this can be reviewed independently of any provider-swap decision.
 See `docs/DATABASE.md`.
+
+## 2026-09-04 — Real Instagram provider: Apify, with a 5-actor follower fallback chain
+
+Building or licensing a first-party Instagram data pipeline is out of
+scope for this project's stage. The user chose Apify (a marketplace of
+pre-built scraping actors reached over a plain REST API, no scraping code
+of our own to maintain) and tested actors live from this session using
+their own Apify account. One actor (`apify/instagram-profile-scraper`)
+reliably covers profile + recent posts. No single actor for follower/
+following lists was clearly best, so the user asked to wire in all five
+candidates found, tried in a fixed priority order with the next one
+attempted on any failure — this maximizes the odds of getting real data
+back on a given day, at the cost of more integration surface (five
+normalizers instead of one). This is gated behind `SOCIAL_PROVIDER=apify`
+(default stays `mock`) since Apify bills per result and the mock costs
+nothing.
+
+Follower/following fetches are capped at 200 users per profile per kind
+(`MEMBER_FETCH_CAP`) rather than attempting "all of them" — for large
+accounts this is a real (not simulated) instance of the coverage/partial-
+data model the UI was built for. Pagination beyond what's fetched is
+served from a same-process in-memory cache rather than re-invoking (and
+re-billing) the actor chain on every "load more" click; this is
+explicitly not a durable cache, and persisting results into the Postgres
+schema from the prior slice is deferred to a future ingestion-job slice.

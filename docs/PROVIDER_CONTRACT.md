@@ -42,13 +42,54 @@ Follower/following generation is capped at 5,000 in-memory users per
 profile regardless of the fake `followerCount`, to keep the mock fast —
 this is a mock-only limitation, not a modeled "coverage" number.
 
-## Adding a real provider later
+## Real implementation: `ApifyInstagramProvider`
 
-1. Implement `SocialDataProvider` against the real source (e.g. a
-   licensed data API), including honest `capabilities` flags — never
-   claim a capability the source doesn't reliably provide (spec §2.3).
-2. Update `src/lib/providers/index.ts`'s `provider` export (behind a
-   feature flag / env check per spec §35 if multiple providers need to
+`src/lib/providers/apify/`. Uses [Apify](https://apify.com) actors over
+their REST API (`POST /v2/acts/{actorId}/run-sync-get-dataset-items`, see
+`apify/client.ts`) — no scraping code of our own, no Instagram login/
+cookies. Selected via `SOCIAL_PROVIDER=apify` + `APIFY_API_TOKEN` in
+`src/lib/providers/index.ts`; the mock provider stays the default so
+nothing costs money unless explicitly opted in.
+
+- **Profile + posts** (`apify/profile.ts`, `apify/posts.ts`): both come
+  from the single `apify/instagram-profile-scraper` actor's response
+  (`followersCount`, `followsCount`, `biography`, `verified`,
+  `latestPosts[]`, etc.). That actor doesn't distinguish reels from
+  regular videos, so `getReels` approximates reels as `type === "Video"`
+  posts — a known limitation, not a real reels dataset.
+- **Followers/following** (`apify/followers.ts`): no single actor was
+  clearly best, so this tries **five actors in a fixed priority order**,
+  falling back to the next on any failure or empty/malformed result:
+  1. `apify/instagram-followers-following-scraper` (official Apify actor)
+  2. `scraping_solutions/instagram-scraper-followers-following-no-cookies`
+  3. `datadoping/instagram-followers-scraper` (followers only — no "following" mode)
+  4. `coderx/instagram-followers-following-scraper-no-cookies-login`
+  5. `seemuapps/instagram-followers-scraper`
+
+  Each actor returns a different raw shape (verified live against real
+  output during development, not guessed from docs) — see the
+  `normalize` function next to each entry in `ACTOR_CHAIN`. Results are
+  capped at `MEMBER_FETCH_CAP` (200) per profile per kind and cached
+  in-memory per process so paginating an already-fetched list doesn't
+  re-run (and re-bill) the actor chain — this is a cost/safety guard, not
+  a durable cache; see `docs/KNOWN_LIMITATIONS.md`.
+- **Coverage honesty**: `Profile.followerCoverage`/`followingCoverage`
+  are computed against `MEMBER_FETCH_CAP`, not a live fetched count (that
+  would mean invoking a paid follower-scraper actor on every profile
+  view) — so a huge account's coverage badge will correctly show a very
+  low percentage the moment its real follower count is known, before its
+  follower list is ever fetched.
+- **Not implemented**: stories, highlights, follower history —
+  `capabilities` marks these `false`, same honesty rule as the mock
+  provider.
+
+## Adding another provider later
+
+1. Implement `SocialDataProvider` against the real source, including
+   honest `capabilities` flags — never claim a capability the source
+   doesn't reliably provide (spec §2.3).
+2. Update `src/lib/providers/index.ts`'s provider-selection logic (behind
+   a feature flag / env check per spec §35 if multiple providers need to
    coexist).
 3. No changes should be required in `src/app/**` or `src/components/**` —
    if a change there turns out to be necessary, the interface was

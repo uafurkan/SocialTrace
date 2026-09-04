@@ -8,7 +8,8 @@
  * a small, fully-indexed one, to exercise the honest coverage UI from
  * spec §1.2 without inventing real data.
  */
-import type { CursorPage, CoverageStatus, Post, Profile, SocialUser } from "@/lib/domain/types";
+import type { CoverageStatus, CursorPage, Post, Profile, SocialUser } from "@/lib/domain/types";
+import { paginate } from "./paginate";
 import { ProfileNotFoundError, type ProviderCapabilities, type SocialDataProvider } from "./types";
 
 function hashSeed(input: string): number {
@@ -135,17 +136,6 @@ function generateSocialUsers(profileId: string, count: number, rand: () => numbe
     });
   }
   return users;
-}
-
-function paginate<T>(items: T[], cursor: string | undefined, limit: number): CursorPage<T> {
-  const offset = cursor ? Number.parseInt(cursor, 10) || 0 : 0;
-  const page = items.slice(offset, offset + limit);
-  const nextOffset = offset + limit;
-  return {
-    items: page,
-    nextCursor: nextOffset < items.length ? String(nextOffset) : null,
-    totalCount: items.length,
-  };
 }
 
 export class MockSocialDataProvider implements SocialDataProvider {
