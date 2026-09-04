@@ -1,10 +1,11 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq } from "drizzle-orm";
 
 import type { SocialUser } from "@/lib/domain/types";
 import { getDb, schema } from "@/lib/db";
 import { compareSnapshots } from "@/lib/diff/compare";
 import { provider } from "@/lib/providers";
 import { upsertProfileRow } from "@/lib/snapshot/capture";
+import { assertWithinLimit, type Plan } from "@/lib/billing/plans";
 
 /**
  * Spec §22 Saved Searches, built on top of the follower comparison
@@ -36,12 +37,37 @@ export async function createSavedSearch(
   kind: "follower" | "following",
   query: string,
   visitorId: string,
+  plan?: Plan,
 ): Promise<void> {
   const db = getDb();
   const trimmedQuery = query.trim();
   if (!trimmedQuery) return;
+
   const { profile } = await provider.getProfile(username);
   const profileRow = await upsertProfileRow(db, profile);
+
+  if (plan) {
+    const [existing] = await db
+      .select({ id: schema.savedSearches.id })
+      .from(schema.savedSearches)
+      .where(
+        and(
+          eq(schema.savedSearches.visitorId, visitorId),
+          eq(schema.savedSearches.profileId, profileRow.id),
+          eq(schema.savedSearches.kind, kind),
+          eq(schema.savedSearches.query, trimmedQuery),
+        ),
+      )
+      .limit(1);
+    if (!existing) {
+      const [row] = await db
+        .select({ value: count() })
+        .from(schema.savedSearches)
+        .where(eq(schema.savedSearches.visitorId, visitorId));
+      assertWithinLimit(plan, "saved searches", row.value);
+    }
+  }
+
   await db
     .insert(schema.savedSearches)
     .values({ visitorId, profileId: profileRow.id, kind, query: trimmedQuery })

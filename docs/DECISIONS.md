@@ -399,3 +399,46 @@ next to the module they cover rather than in a parallel `__tests__/`
 tree, so a reader finds the tests exactly where they'd look for the
 implementation. See `docs/TESTING.md` for what's covered and what
 still needs a real (or mocked) database to test.
+
+## 2026-09-04 — Email + password accounts; plan limits with no payment behind them
+
+Asked which auth method and how far to take billing: chose email +
+password (no OAuth client credentials, no email-sending service for
+magic links, so this was the only method buildable without another
+external dependency) and "plan/limit infrastructure only, no payment" —
+real enforcement, no Stripe. Both are documented in full in
+`docs/AUTH.md`/`docs/BILLING.md`; the decisions worth recording here are
+the two structural ones:
+
+**Tracking/saved searches upgrade to accounts without a schema
+migration.** Both features were built (`docs/TRACKING.md`,
+`docs/SAVED_SEARCHES.md`) storing a plain `visitor_id` string, with both
+docs explicitly flagging "swap the cookie value for a `users.id` once
+accounts exist" as the future upgrade path. `src/lib/auth/identity.ts`'s
+`resolveIdentity` does exactly that at read/write time — a signed-in
+visitor's scope becomes `account:<userId>`, an anonymous one keeps the
+cookie — so no migration touches `watchlist_entries` or
+`saved_searches` at all. This is the payoff of having written that
+upgrade note down when the tables were designed instead of hard-coding
+an assumption.
+
+**Session tokens are hashed, matching the existing password-hashing
+precedent.** `sessions.token_hash` stores SHA-256 of the random session
+token, never the token itself — the same reasoning `bcryptjs` already
+established for `users.passwordHash`: a leaked database row shouldn't
+be enough to act as that credential. bcryptjs (not native `bcrypt`) to
+avoid native bindings, consistent with the project's serverless-first
+driver choices elsewhere (`docs/DATABASE.md`'s Neon HTTP driver
+reasoning).
+
+**Discovered and fixed mid-slice: reading the session cookie in
+`SiteHeader` broke static generation for every page.** `SiteHeader` is
+shared by every route including the SEO content pages built earlier
+(`/changelog`, `/help`, the tool landing pages). Making it an async
+Server Component that called `cookies()` (via `resolveIdentityReadOnly`)
+turned every one of those pages from statically prerendered (`○`) to
+fully dynamic (`ƒ`) in `next build`'s output — confirmed by diffing the
+build output before and after. Fixed by moving the auth-state read into
+a client-side island (`AccountMenu`, `GET /api/v1/auth/me` in a
+`useEffect`) so only that one header slot is dynamic; the rest of the
+page tree stays static. See `docs/AUTH.md`.

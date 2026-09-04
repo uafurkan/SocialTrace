@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
 
 import { isDbConfigured } from "@/lib/db";
+import { resolveIdentityReadOnly } from "@/lib/auth/identity";
 import { listTrackedProfiles } from "@/lib/tracking/watchlist";
 import { listSavedSearches } from "@/lib/tracking/saved-searches";
-import { VISITOR_COOKIE } from "@/lib/tracking/visitor-cookie";
 import { NotAvailable } from "@/components/profile/not-available";
 import { TrackedProfileList } from "@/components/tracking/tracked-profile-list";
 import { SavedSearchList } from "@/components/tracking/saved-search-list";
@@ -16,9 +15,11 @@ export const metadata: Metadata = {
 
 export default async function TrackingPage() {
   const trackingAvailable = isDbConfigured();
-  const visitorId = trackingAvailable ? cookies().get(VISITOR_COOKIE)?.value : undefined;
-  const [profiles, savedSearches] = visitorId
-    ? await Promise.all([listTrackedProfiles(visitorId), listSavedSearches(visitorId)])
+  const [profiles, savedSearches] = trackingAvailable
+    ? await (async () => {
+        const identity = await resolveIdentityReadOnly();
+        return Promise.all([listTrackedProfiles(identity.scopeId), listSavedSearches(identity.scopeId)]);
+      })()
     : [[], []];
 
   return (

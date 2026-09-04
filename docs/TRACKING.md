@@ -9,13 +9,18 @@ diff.
 
 ## What's implemented
 
-- **Anonymous, cookie-identified tracking instead of accounts.** Clicking
-  "Track profile" issues a first-party `st_visitor` cookie (a random UUID,
-  httpOnly, 1-year expiry — `src/lib/tracking/visitor-cookie.ts`) the
-  first time it's needed, and stores a `watchlist_entries` row keyed by
-  that id (`src/lib/db/schema.ts`). There's no `users` table for it to
-  reference — the visitor id *is* the identity, scoped to one browser.
-  Clearing cookies loses the watchlist; there's no recovery or sign-in.
+- **Anonymous, cookie-identified tracking by default — account-scoped if
+  signed in.** Clicking "Track profile" issues a first-party `st_visitor`
+  cookie (a random UUID, httpOnly, 1-year expiry —
+  `src/lib/tracking/visitor-cookie.ts`) the first time it's needed, and
+  stores a `watchlist_entries` row keyed by that id
+  (`src/lib/db/schema.ts`). Clearing cookies loses the watchlist; there's
+  no recovery. **Update (see `docs/AUTH.md`):** now that accounts exist,
+  a signed-in visitor's key becomes `account:<userId>` instead of the
+  cookie — `src/lib/auth/identity.ts`'s `resolveIdentity` decides which,
+  per request. Tracking a profile while signed in makes it follow the
+  account across browsers/devices instead of staying pinned to one
+  browser; tracking while signed out behaves exactly as it always did.
 - `POST/DELETE /api/v1/profiles/[profileId]/track?username=<username>` —
   track/untrack for the current visitor. `GET` on the same path reports
   whether the current visitor is tracking that profile (used to render
@@ -74,10 +79,10 @@ this slice.
 
 ## When this needs to change
 
-Real accounts (auth) would let a visitor's watchlist survive a cleared
-cookie or follow them across devices — `watchlist_entries.visitor_id`
-would then reference a `users.id` instead of a bare cookie value, a
-one-column migration once auth exists. A scheduler (spec §21's "check
-frequency") is what would make the dashboard's numbers move without a
-manual capture, and is the same missing piece noted in
-`docs/SNAPSHOTS.md`.
+A scheduler (spec §21's "check frequency") is what would make the
+dashboard's numbers move without a manual capture, and is the same
+missing piece noted in `docs/SNAPSHOTS.md`. Real accounts are now
+implemented (`docs/AUTH.md`) — a signed-in visitor's tracked profiles
+persist across devices, capped by their plan's tracked-profile limit
+(`docs/BILLING.md`, free: 10). Anonymous visitors remain unlimited,
+since there's no plan to enforce against them.

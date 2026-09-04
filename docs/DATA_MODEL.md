@@ -74,14 +74,21 @@ Postgres.
 
 `watchlist_entries` (spec §21 Tracking/Watchlist, see `docs/TRACKING.md`)
 and `saved_searches` (spec §22, see `docs/SAVED_SEARCHES.md`) are also
-written to and read from — but both key rows by an anonymous
-`visitor_id` cookie value, not a real user, since there's no `users`
-table or auth in this build.
+written to and read from — both key rows by a generic `visitor_id`
+string that's either an anonymous cookie value or `account:<userId>`
+for a signed-in user (`docs/AUTH.md`'s identity resolution), so neither
+table needed a schema change when accounts were added.
+
+`users` and `sessions` (spec §31, trimmed to email + password —
+`docs/AUTH.md`) are written to and read from as of the auth slice.
+`users.plan` gates the limits in `docs/BILLING.md`.
 
 ## Not modeled yet
 
 `tracking_jobs` (a real scheduler's job queue — `watchlist_entries`
 itself exists, but nothing runs recurring jobs against it),
-`subscriptions`, `api_keys` — all from spec §31, none exist in this
+`subscriptions` (spec §31's richer billing shape — this build's `users.plan`
+is a simpler binary free/pro column with no payment processing behind
+it, see `docs/BILLING.md`), `api_keys` — none of these exist in this
 build. `exports` doesn't exist as a table either — exports are generated
 synchronously and streamed, never persisted (`docs/EXPORT.md`).

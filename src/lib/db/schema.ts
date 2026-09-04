@@ -22,6 +22,8 @@ export const platformEnum = pgEnum("platform", ["instagram"]);
 export const mediaTypeEnum = pgEnum("media_type", ["image", "video", "reel"]);
 export const membershipKindEnum = pgEnum("membership_kind", ["follower", "following"]);
 export const membershipEventEnum = pgEnum("membership_event", ["added", "removed"]);
+/** Spec §31's plan model, trimmed to what's enforceable without real billing — see docs/BILLING.md. */
+export const planEnum = pgEnum("plan", ["free", "pro"]);
 
 /** Future `profiles` table — see docs/DATA_MODEL.md "Profile" mapping. */
 export const profiles = pgTable(
@@ -243,5 +245,52 @@ export const changeEvents = pgTable(
       table.profileId,
       table.detectedAt,
     ),
+  }),
+);
+
+/**
+ * Spec §31 `users` table, trimmed to email + password auth (no OAuth, no
+ * magic links in this build — see docs/AUTH.md). An account is optional:
+ * tracking and saved searches keep working for anonymous visitors via the
+ * cookie scoping in docs/TRACKING.md — an account only upgrades that
+ * scope to persist across browsers/devices (see src/lib/auth/identity.ts).
+ * `passwordHash` is never the plaintext password; `plan` gates the limits
+ * in docs/BILLING.md, which has no real payment processing behind it.
+ */
+export const users = pgTable(
+  "users",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    email: text("email").notNull(),
+    normalizedEmail: text("normalized_email").notNull(),
+    passwordHash: text("password_hash").notNull(),
+    plan: planEnum("plan").notNull().default("free"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    normalizedEmailIdx: uniqueIndex("users_normalized_email_idx").on(table.normalizedEmail),
+  }),
+);
+
+/**
+ * Session tokens are never stored raw — only a SHA-256 hash of the random
+ * token that's actually set in the `st_session` cookie (src/lib/auth/session.ts),
+ * the same reason a password is hashed rather than stored: a leaked
+ * database row shouldn't be enough to impersonate a logged-in session.
+ */
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    tokenHashIdx: uniqueIndex("sessions_token_hash_idx").on(table.tokenHash),
+    userIdIdx: index("sessions_user_id_idx").on(table.userId),
   }),
 );

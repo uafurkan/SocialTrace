@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { copy } from "@/lib/copy";
 import { Logo } from "@/components/layout/logo";
+import { AccountMenu } from "@/components/layout/account-menu";
 
 export function SiteHeader() {
   return (
@@ -25,6 +26,9 @@ export function SiteHeader() {
             {copy.nav.pricing}
           </Link>
         </nav>
+        <div className="hidden items-center md:flex">
+          <AccountMenu />
+        </div>
       </div>
     </header>
   );

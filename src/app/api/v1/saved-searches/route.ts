@@ -1,9 +1,9 @@
-import { randomUUID } from "node:crypto";
-
 import { NextRequest, NextResponse } from "next/server";
 
 import { isDbConfigured } from "@/lib/db";
+import { resolveIdentity } from "@/lib/auth/identity";
 import { ProfileNotFoundError } from "@/lib/providers";
+import { PlanLimitError } from "@/lib/billing/plans";
 import { clientIdentifierFor, rateLimit } from "@/lib/rate-limit";
 import { createSavedSearch, listSavedSearches } from "@/lib/tracking/saved-searches";
 import { VISITOR_COOKIE, VISITOR_COOKIE_OPTIONS } from "@/lib/tracking/visitor-cookie";
@@ -18,8 +18,8 @@ export async function GET(request: NextRequest) {
   if (!isDbConfigured()) {
     return NextResponse.json({ available: false, items: [] });
   }
-  const visitorId = request.cookies.get(VISITOR_COOKIE)?.value;
-  const items = visitorId ? await listSavedSearches(visitorId) : [];
+  const identity = await resolveIdentity(request);
+  const items = await listSavedSearches(identity.scopeId);
   return NextResponse.json({ available: true, items });
 }
 
@@ -50,18 +50,23 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const visitorId = request.cookies.get(VISITOR_COOKIE)?.value ?? randomUUID();
+  const identity = await resolveIdentity(request);
 
   try {
-    await createSavedSearch(username, kind as Kind, query, visitorId);
+    await createSavedSearch(username, kind as Kind, query, identity.scopeId, identity.account?.plan);
   } catch (error) {
     if (error instanceof ProfileNotFoundError) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+    }
+    if (error instanceof PlanLimitError) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
     }
     throw error;
   }
 
   const response = NextResponse.json({ saved: true });
-  response.cookies.set(VISITOR_COOKIE, visitorId, VISITOR_COOKIE_OPTIONS);
+  if (identity.visitorCookieToIssue) {
+    response.cookies.set(VISITOR_COOKIE, identity.visitorCookieToIssue, VISITOR_COOKIE_OPTIONS);
+  }
   return response;
 }

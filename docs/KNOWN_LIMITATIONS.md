@@ -26,10 +26,20 @@ most of `SOCIALTRACE_MASTER_BUILD_SPEC.md`. Explicitly out of scope:
   search-as-you-type: a live suggestions box would mean a billed Apify
   call on every keystroke once the real provider is enabled — see
   `docs/SEARCH.md`.
-- **No auth, billing, or accounts.** No login, no Stripe, no plans
-  enforcement. The pricing page is static copy only.
+- **Accounts and plan limits exist; real billing does not.** Email +
+  password sign-in/sign-up (`/login`, `/signup`, no OAuth, no magic
+  links, no password reset — needs a real email service), and
+  `users.plan` (free/pro) really gates tracked-profile and saved-search
+  counts (free: 10 each) — see `docs/AUTH.md`, `docs/BILLING.md`. There
+  is no Stripe or any other payment processor; `/account`'s "Upgrade" is
+  a disabled button, and nothing can set a real account to `pro` except
+  editing the database directly. The pricing page is still static copy
+  only. Accounts are optional everywhere — tracking and saved searches
+  work exactly as before for anonymous visitors; logging in only
+  upgrades that scope from "this browser" to "this account" (same rows,
+  no migration, see `docs/AUTH.md`'s identity resolution).
 - **Snapshot, diff, and tracking exist (synchronous, bounded,
-  coverage-gated, and cookie-identified instead of accounts).**
+  coverage-gated, and cookie- or account-identified).**
   `/profile/[username]/history` lists real captured snapshots and can
   capture a new one on demand, `/profile/[username]/changes` lists the
   added/removed followers and changed profile fields detected

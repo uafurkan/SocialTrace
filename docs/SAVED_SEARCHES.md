@@ -29,8 +29,11 @@ On future snapshots:
 - **"Save search" button** on the Followers/Following pages
   (`src/components/followers/member-list.tsx`) — appears next to the
   search box once you've typed something and a database is configured.
-  Saves `(profile, kind, query)` for the current anonymous visitor (the
-  same `st_visitor` cookie identity as tracking, `docs/TRACKING.md`).
+  Saves `(profile, kind, query)` for the current visitor — the same
+  cookie-or-account identity as tracking (`docs/TRACKING.md`,
+  `docs/AUTH.md`); saving while signed in makes it follow the account
+  across devices, capped by the plan's saved-search limit
+  (`docs/BILLING.md`, free: 10).
 - **`GET/POST /api/v1/saved-searches`** (list / create) and
   **`DELETE /api/v1/saved-searches/[id]`** — list, save, and remove.
 - **The `/tracking` dashboard** now has a "Saved searches" section below

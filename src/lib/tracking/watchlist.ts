@@ -1,8 +1,9 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq } from "drizzle-orm";
 
 import { getDb, schema } from "@/lib/db";
 import { provider } from "@/lib/providers";
 import { normalizeUsername, upsertProfileRow } from "@/lib/snapshot/capture";
+import { assertWithinLimit, type Plan } from "@/lib/billing/plans";
 
 /**
  * Spec §21 Tracking/Watchlist, scoped to what's possible without accounts
@@ -39,9 +40,23 @@ export async function isProfileTracked(username: string, visitorId: string): Pro
   return Boolean(row);
 }
 
-/** Fetches the profile fresh (so a never-before-seen profile can be tracked without first capturing a snapshot) and upserts a minimal profiles row for the watchlist entry to reference. */
-export async function trackProfile(username: string, visitorId: string): Promise<void> {
+/**
+ * Fetches the profile fresh (so a never-before-seen profile can be
+ * tracked without first capturing a snapshot) and upserts a minimal
+ * profiles row for the watchlist entry to reference. `plan` is only
+ * provided when `visitorId` is an account scope (`account:<userId>`,
+ * see src/lib/auth/identity.ts) — anonymous visitors have no plan to
+ * enforce a limit against (docs/BILLING.md).
+ */
+export async function trackProfile(username: string, visitorId: string, plan?: Plan): Promise<void> {
   const db = getDb();
+  if (plan && !(await isProfileTracked(username, visitorId))) {
+    const [row] = await db
+      .select({ value: count() })
+      .from(schema.watchlistEntries)
+      .where(eq(schema.watchlistEntries.visitorId, visitorId));
+    assertWithinLimit(plan, "tracked profiles", row.value);
+  }
   const { profile } = await provider.getProfile(username);
   const profileRow = await upsertProfileRow(db, profile);
   await db

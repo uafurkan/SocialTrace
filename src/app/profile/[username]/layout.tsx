@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
 
 import { getProfileByUsername, requireProfile } from "@/lib/server/profile";
 import { isDbConfigured } from "@/lib/db";
+import { resolveIdentityReadOnly } from "@/lib/auth/identity";
 import { isProfileTracked } from "@/lib/tracking/watchlist";
-import { VISITOR_COOKIE } from "@/lib/tracking/visitor-cookie";
 import { ProfileHeader } from "@/components/profile/profile-header";
 import { ProfileTabs } from "@/components/profile/profile-tabs";
 
@@ -26,8 +25,9 @@ export default async function ProfileLayout({ children, params }: ProfileLayoutP
   const profile = await requireProfile(params.username);
 
   const dbAvailable = isDbConfigured();
-  const visitorId = cookies().get(VISITOR_COOKIE)?.value;
-  const initialTracked = dbAvailable && visitorId ? await isProfileTracked(profile.username, visitorId) : false;
+  const initialTracked = dbAvailable
+    ? await isProfileTracked(profile.username, (await resolveIdentityReadOnly()).scopeId)
+    : false;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">

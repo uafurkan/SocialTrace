@@ -52,13 +52,20 @@ domain types (`src/lib/domain/types.ts`) to these tables.
   or profile field changes), spec §20. Written by `captureSnapshot`
   (`src/lib/snapshot/capture.ts`) as part of capturing a new snapshot,
   read by `src/lib/diff/changes.ts` — see `docs/DIFF.md`.
-- `watchlist_entries` — spec §21 Tracking/Watchlist, scoped to anonymous
-  cookie-identified visitors instead of real accounts (there's no `users`
-  table for it to reference) — see `docs/TRACKING.md`.
-- `saved_searches` — spec §22, same anonymous-visitor scoping as
+- `watchlist_entries` — spec §21 Tracking/Watchlist, keyed by a generic
+  `visitor_id` string that's either an anonymous cookie or
+  `account:<userId>` for a logged-in user — see `docs/TRACKING.md` and
+  `docs/AUTH.md`'s identity resolution.
+- `saved_searches` — spec §22, same visitor/account scoping as
   `watchlist_entries`. Stores `(visitor, profile, kind, query)`; the
   new/removed matching accounts it reports are computed on demand from
   `memberships`, not stored — see `docs/SAVED_SEARCHES.md`.
+- `users` — spec §31, email + password accounts (`docs/AUTH.md`).
+  `plan` (`free`/`pro`) gates the limits in `docs/BILLING.md` — no
+  payment processing exists behind it.
+- `sessions` — one row per logged-in session; `token_hash` is a SHA-256
+  hash of the random token set in the `st_session` cookie, never the
+  raw token itself — see `docs/AUTH.md`.
 
 `profiles` and `social_users` are uniquely indexed on
 `(platform, normalized_username)` (added in `drizzle/0001_naive_multiple_man.sql`)
@@ -78,10 +85,10 @@ real) provider is future work, not part of this slice.
 
 ## Status
 
-All four migrations (`0000_bright_boom_boom.sql`, `0001_naive_multiple_man.sql`,
-`0002_plain_cyclops.sql`, `0003_calm_doctor_doom.sql`) are applied to the
-project's live Neon database — all eight tables exist, with the unique
-indexes snapshot capture, tracking, and saved searches depend on. Note:
+All five migrations (`0000_bright_boom_boom.sql` through
+`0004_dear_menace.sql`) are applied to the project's live Neon database
+— all ten tables exist, with the unique indexes snapshot capture,
+tracking, saved searches, and auth depend on. Note:
 `drizzle-kit migrate`'s CLI needs a raw TCP connection regardless of the
 app's own driver, which some sandboxed environments (including the one
 used to apply these migrations) block, restricting outbound traffic to

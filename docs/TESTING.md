@@ -42,18 +42,31 @@ mocking of Drizzle or Neon:
   and initials derivation (`docs/SEARCH.md`).
 - **`src/lib/utils.test.ts`** — `formatCount` (K/M/B thresholds) and
   `formatRelativeTime` (minute/hour/day boundaries, via fake timers).
+- **`src/lib/auth/password.test.ts`** — bcrypt round-trip (hash → verify
+  correct/incorrect password), and that hashing the same password twice
+  produces different hashes (random salt per call).
+- **`src/lib/auth/session.test.ts`** — `hashSessionToken` is
+  deterministic, never returns the raw token, and produces a 64-char
+  hex SHA-256 digest.
+- **`src/lib/auth/users.test.ts`** — `normalizeEmail` (trim + lowercase).
+- **`src/lib/auth/validation.test.ts`** — the signup/login Zod schemas
+  (email format, 8-character minimum on signup only, trimming).
+- **`src/lib/billing/plans.test.ts`** — `assertWithinLimit` allows up to
+  the limit and throws `PlanLimitError` at it, the pro plan never
+  throws, and the error message names the plan and limit.
 
-48 tests across 7 files as of this slice.
+69 tests across 12 files as of this slice.
 
 ## What's deliberately not covered yet
 
 - **Anything that touches `getDb()`** — snapshot capture end-to-end,
-  the tracking/watchlist/saved-search DB writes, the API routes
-  themselves. These were verified manually and live against the real
-  Neon database for each slice (see each feature's own doc's "Verified
-  live" section) but aren't automated — that needs either a disposable
-  test database or a mocking layer for Drizzle's query builder, neither
-  of which exists yet.
+  the tracking/watchlist/saved-search DB writes, signup/login/session
+  creation and lookup, plan-limit enforcement, and every API route.
+  These were verified manually and live against the real Neon database
+  for each slice (see each feature's own doc's "Verified live" section
+  — auth's is in `docs/AUTH.md`/`docs/BILLING.md`) but aren't automated
+  — that needs either a disposable test database or a mocking layer for
+  Drizzle's query builder, neither of which exists yet.
 - **Components.** No React Testing Library / jsdom setup yet — UI was
   verified with Playwright against a running dev server per change
   (screenshots, not committed as a suite).
