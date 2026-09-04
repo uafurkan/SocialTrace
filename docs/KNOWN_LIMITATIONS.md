@@ -66,10 +66,16 @@ most of `SOCIALTRACE_MASTER_BUILD_SPEC.md`. Explicitly out of scope:
   mark these `false`, and those tabs render "not available in this
   build."
 - **No job queue, Redis, or background workers.**
-- **No structured data (JSON-LD), OG image generation, or blog/help/
-  changelog content.** `robots.ts`/`sitemap.ts` only list the static pages
-  that actually exist; profile URLs are intentionally excluded from the
-  sitemap since they're backed by mock data, not real public profiles.
+- **SEO content pages exist for real features only (spec §45–§97).**
+  `/help` (+ 7 articles), `/data-methodology`, `/changelog`, `/faq`, and
+  three tool landing pages (`/tools/instagram-follower-history`,
+  `/tools/instagram-follower-compare`, `/tools/instagram-growth-tracker`)
+  are real content backed by real features, with WebSite/BreadcrumbList/
+  Article/FAQPage JSON-LD. `robots.ts`/`sitemap.ts` list these plus the
+  existing static pages; profile URLs stay excluded since they're backed
+  by mock data by default. No blog, no OG image generation, no
+  programmatic profile SEO, and no landing pages for the tools that
+  don't have a real feature behind them yet — see `docs/SEO.md`.
 - **No automated tests yet.** Verification for this slice was manual
   (dev server + build/lint).
 - **No observability (Sentry/OpenTelemetry) or analytics.**

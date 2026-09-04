@@ -4,10 +4,12 @@ import { ProfileSearchForm } from "@/components/home/profile-search-form";
 import { HeroChart } from "@/components/home/hero-chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { copy } from "@/lib/copy";
+import { JsonLd, websiteJsonLd } from "@/lib/seo/json-ld";
 
 export default function HomePage() {
   return (
     <div>
+      <JsonLd id="ld-website" data={websiteJsonLd()} />
       <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
         <div className="grid items-center gap-12 lg:grid-cols-2">
           <div>

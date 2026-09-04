@@ -9,6 +9,15 @@ const columns = [
       { href: "/tools", label: "Tools" },
       { href: "/pricing", label: "Pricing" },
       { href: "/api", label: "API" },
+      { href: "/changelog", label: "Changelog" },
+    ],
+  },
+  {
+    title: "Learn",
+    links: [
+      { href: "/help", label: "Help center" },
+      { href: "/data-methodology", label: "Data methodology" },
+      { href: "/faq", label: "FAQ" },
     ],
   },
   {

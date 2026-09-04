@@ -296,3 +296,31 @@ then crafted a second snapshot with one new and one removed follower and
 confirmed two different saved queries each correctly isolated the match
 relevant to them, and confirmed delete removes a saved search. Test data
 cleaned up afterward. See `docs/SAVED_SEARCHES.md`.
+
+## 2026-09-04 — SEO content pages: real features only, no scaled content
+
+Spec §45–§97 asks for a help center, changelog, FAQ, data methodology
+page, and tool landing pages, but spec §45/§57 explicitly forbid scaled/
+doorway content — near-identical pages that exist only to catch keyword
+variants. Rather than generate landing pages for all 13 tools named in
+spec §46, only three were built
+(`/tools/instagram-follower-history`, `/tools/instagram-follower-compare`,
+`/tools/instagram-growth-tracker`) — the three with a real, working
+feature behind them (snapshot history, the Compare view, the tracking
+dashboard). The other 10 stay listed on `/tools` as "Coming soon" rather
+than getting a landing page with no real tool to link to.
+
+Help articles (`src/lib/seo/help-articles.ts`), changelog entries
+(`src/lib/seo/changelog-entries.ts`), and FAQ entries
+(`src/lib/seo/faq-entries.ts`) are plain TypeScript data modules, not a
+CMS — there's no authoring workflow to build yet for seven help articles
+and a changelog with one entry per shipped slice. JSON-LD
+(`src/lib/seo/json-ld.tsx`) centralizes escaping (`<` → `<`) per the
+Next.js JSON-LD guide's XSS warning (spec §53/§209) so every page that
+emits structured data goes through one audited helper rather than
+hand-rolling `JSON.stringify` per page.
+
+No blog (spec §94) and no programmatic profile SEO (spec §47) in this
+slice — both require either human-authored long-form content or a real,
+resolved-and-indexed profile dataset, neither of which this slice can
+manufacture honestly. See `docs/SEO.md`.

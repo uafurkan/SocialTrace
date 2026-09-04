@@ -5,7 +5,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/api/"],
+      disallow: ["/api/", "/tracking"],
     },
     sitemap: "https://socialtrace.example.com/sitemap.xml",
   };
