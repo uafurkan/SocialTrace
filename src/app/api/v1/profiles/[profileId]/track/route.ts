@@ -4,8 +4,12 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { isDbConfigured } from "@/lib/db";
 import { ProfileNotFoundError } from "@/lib/providers";
+import { clientIdentifierFor, rateLimit } from "@/lib/rate-limit";
 import { isProfileTracked, trackProfile, untrackProfile } from "@/lib/tracking/watchlist";
 import { VISITOR_COOKIE, VISITOR_COOKIE_OPTIONS } from "@/lib/tracking/visitor-cookie";
+
+const TRACK_RATE_LIMIT = 30;
+const TRACK_RATE_WINDOW_MS = 10 * 60 * 1000;
 
 /**
  * `profileId` in the path is unused for lookup (see the sibling
@@ -22,6 +26,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: "Tracking requires a configured database (DATABASE_URL is not set)." },
       { status: 501 },
+    );
+  }
+
+  const rate = rateLimit(`track:${clientIdentifierFor(request)}`, TRACK_RATE_LIMIT, TRACK_RATE_WINDOW_MS);
+  if (!rate.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please slow down." },
+      { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } },
     );
   }
 

@@ -61,10 +61,19 @@ most of `SOCIALTRACE_MASTER_BUILD_SPEC.md`. Explicitly out of scope:
 - **No automated tests yet.** Verification for this slice was manual
   (dev server + build/lint).
 - **No observability (Sentry/OpenTelemetry) or analytics.**
+- **Rate limiting is in-process memory only, not distributed.**
+  `src/lib/rate-limit.ts` protects the snapshot/export/track routes on a
+  single server process, but a multi-instance serverless deployment
+  (Vercel) can be bypassed by a caller fanning out across instances — see
+  `docs/PRODUCTION_HARDENING.md`. No Content Security Policy, moderation,
+  or abuse reporting either.
 
 See spec §110 (Release Phases) and §228 (First 10 Engineering Milestones)
-for the build order this session has been following: real DB schema,
-provider contract for a real data source, export, snapshot engine, diff
-engine, and tracking/watchlist (scoped to anonymous visitors, no auth)
-are done — production hardening + SEO (Milestone 10) is what's left of
-the first 10.
+for the build order this session has been following: all 10 first
+milestones have a slice now — real DB schema, provider contract for a
+real data source, export, snapshot engine, diff engine, tracking/
+watchlist (scoped to anonymous visitors, no auth), and production
+hardening (error boundaries, security headers, health check, best-effort
+rate limiting — SEO structured data/content pages deliberately excluded,
+see `docs/PRODUCTION_HARDENING.md`). None of these are complete relative
+to the full spec — each has its own docs file listing what was cut.

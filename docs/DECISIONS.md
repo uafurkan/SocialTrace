@@ -219,3 +219,34 @@ spec §20's rule doesn't apply to it). Verified live end-to-end against
 the real Neon database: track/untrack via cookies, dashboard delta across
 two real captures, and the profile header correctly reflecting tracked
 state on reload.
+
+## 2026-09-04 — Production hardening: the parts that don't need infrastructure this build lacks
+
+Milestone 10 (spec §110/§228) is "production hardening + SEO launch," a
+large bucket covering rate limiting, error handling, security headers,
+health checks, structured data, moderation, and more. Rather than treat
+it as one all-or-nothing milestone, this slice picked out exactly the
+parts that are real and self-contained today: error boundaries
+(`src/app/error.tsx`, `src/app/global-error.tsx`), security response
+headers (`next.config.mjs`), a `GET /api/health` endpoint that actually
+checks database connectivity (not just whether `DATABASE_URL` is set),
+and a rate limiter (`src/lib/rate-limit.ts`) applied to the three routes
+that do real per-request work: snapshot capture, export, and track.
+
+Two things were deliberately left out with reasons recorded in
+`docs/PRODUCTION_HARDENING.md` rather than silently skipped: a Content
+Security Policy (there's nothing concrete to allowlist yet — this app
+loads no third-party scripts) and SEO structured data on profile pages
+(would assert real-looking claims — follower counts, verification — atop
+pages backed by mock data by default, the same data-honesty concern
+spec §1.2 already applies to the UI, applied to markup instead).
+
+The rate limiter itself is an in-process `Map`, which is real protection
+for a single long-lived process but not for a multi-instance serverless
+deployment (Vercel) — documented explicitly as a known limitation rather
+than shipped as if it were complete. Verified live: hammering the
+snapshot-capture endpoint past its limit returned `429` with a
+`Retry-After` header on the 11th request in the same 10-minute window,
+using up to that point real (then cleaned-up) snapshot rows in the Neon
+database; the health endpoint and security headers were also checked
+live against the running dev server.

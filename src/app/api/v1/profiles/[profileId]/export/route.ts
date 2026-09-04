@@ -3,6 +3,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { buildExportBundle } from "@/lib/export/build";
 import { toExportJson, toExportXml, toMemberCsv, toPostCsv } from "@/lib/export/serialize";
 import { ProfileNotFoundError } from "@/lib/providers";
+import { clientIdentifierFor, rateLimit } from "@/lib/rate-limit";
+
+/** Each export re-paginates the full provider list, so it's the same per-request cost as a snapshot capture — cap it the same way. */
+const EXPORT_RATE_LIMIT = 10;
+const EXPORT_RATE_WINDOW_MS = 10 * 60 * 1000;
 
 const FORMATS = ["json", "xml", "csv"] as const;
 type Format = (typeof FORMATS)[number];
@@ -31,6 +36,14 @@ export async function GET(request: NextRequest) {
   }
   if (!FORMATS.includes(format as Format)) {
     return NextResponse.json({ error: "format must be json, xml, or csv" }, { status: 400 });
+  }
+
+  const rate = rateLimit(`export:${clientIdentifierFor(request)}`, EXPORT_RATE_LIMIT, EXPORT_RATE_WINDOW_MS);
+  if (!rate.allowed) {
+    return NextResponse.json(
+      { error: "Too many export requests. Please slow down." },
+      { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } },
+    );
   }
 
   let bundle;

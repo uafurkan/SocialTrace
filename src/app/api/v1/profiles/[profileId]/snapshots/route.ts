@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { isDbConfigured } from "@/lib/db";
 import { ProfileNotFoundError } from "@/lib/providers";
+import { clientIdentifierFor, rateLimit } from "@/lib/rate-limit";
 import { captureSnapshot, listSnapshots } from "@/lib/snapshot/capture";
+
+const CAPTURE_RATE_LIMIT = 10;
+const CAPTURE_RATE_WINDOW_MS = 10 * 60 * 1000;
 
 /**
  * Spec §19's snapshot lifecycle assumes a job queue; this build has none,
@@ -34,6 +38,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: "Snapshot capture requires a configured database (DATABASE_URL is not set)." },
       { status: 501 },
+    );
+  }
+
+  const rate = rateLimit(`capture:${clientIdentifierFor(request)}`, CAPTURE_RATE_LIMIT, CAPTURE_RATE_WINDOW_MS);
+  if (!rate.allowed) {
+    return NextResponse.json(
+      { error: "Too many snapshot captures. Please slow down." },
+      { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } },
     );
   }
 
