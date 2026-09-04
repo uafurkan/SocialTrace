@@ -555,3 +555,23 @@ the cause. Moving the identical file to `src/middleware.ts` fixed it
 immediately. Worth remembering for any future root-level Next.js
 convention file in this project: check whether it belongs under `src/`
 instead before assuming a more complex cause.
+
+## Vercel Cron: Hobby plan only allows a once-a-day schedule
+
+`vercel.json` originally scheduled `/api/cron/capture-tracked` for
+`0 */6 * * *` (every 6 hours, see `docs/SCHEDULER.md`). Found live: on
+Vercel's **Hobby** plan (the one this project is on, team `byturco's
+projects`), a `vercel.json` whose cron fires more than once a day makes
+Vercel refuse the deployment at config-validation time — before a build
+even starts. There's no build log to point at the cause and no entry in
+the Deployments list at all; from the outside it looks exactly like "my
+pushes stopped deploying," which is how this was actually found (the
+user reported every push after this commit was "blocked" on Vercel with
+nothing in the dashboard to explain why — confirmed by comparing GitHub's
+per-commit status checks, which flipped from passing to failing starting
+at this exact commit, and by the Vercel project overview still showing
+the production deployment pinned to the last commit before it).
+
+Fixed by changing the schedule to `0 4 * * *` (once a day). If a tighter
+check interval is ever needed, it requires upgrading the Vercel project
+off the Hobby plan first — not just editing `vercel.json`.

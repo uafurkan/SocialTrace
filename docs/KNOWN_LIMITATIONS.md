@@ -52,7 +52,7 @@ most of `SOCIALTRACE_MASTER_BUILD_SPEC.md`. Explicitly out of scope:
   identifies visitors by an anonymous cookie rather than a real account —
   no sign-in, no cross-device sync, no recovery if cookies are cleared
   (see `docs/TRACKING.md`). A Vercel Cron job now recaptures tracked/
-  saved-search profiles automatically every 6 hours (see
+  saved-search profiles automatically once a day (see
   `docs/SCHEDULER.md`) — but only when deployed to Vercel with
   `CRON_SECRET` set; there's still no configurable check frequency or
   change-threshold, and the "notification" is an in-app nav badge, not

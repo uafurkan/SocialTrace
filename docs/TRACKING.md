@@ -54,7 +54,7 @@ diff.
 **No configurable check frequency, change categories, or minimum change
 threshold — but automatic capture and an in-app notification now
 exist.** A fixed (not user-configurable) Vercel Cron schedule recaptures
-every tracked/saved-search profile every 6 hours, and a small badge next
+every tracked/saved-search profile once a day, and a small badge next
 to the "Track" nav link surfaces new activity without visiting the
 dashboard — see `docs/SCHEDULER.md`. Spec §21's per-profile frequency
 picker and email/webhook notification channel still don't exist: "only

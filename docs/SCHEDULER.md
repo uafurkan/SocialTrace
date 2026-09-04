@@ -19,11 +19,17 @@ email-sending service.
   one bad profile (deleted/renamed/private) or a slow provider can't
   take down the whole batch or fan out too many concurrent calls to a
   real, billed provider (`docs/PROVIDER_CONTRACT.md`).
-- **`vercel.json`** schedules that route every 6 hours via Vercel Cron —
+- **`vercel.json`** schedules that route once a day via Vercel Cron —
   the only "scheduler" this build has, chosen because it needs no new
   infrastructure (no Redis, no separate worker process) beyond a
   `vercel.json` file and one env var, and the user confirmed Vercel is
-  the deploy target.
+  the deploy target. Once a day, not more often: the **Hobby** plan
+  rejects a `vercel.json` whose cron schedule fires more than once a
+  day — a `0 */6 * * *` (every 6 hours) schedule was tried first and
+  silently blocked every deployment from that commit onward (no build
+  log, no entry in the Deployments list — Vercel refuses the deployment
+  at config-validation time, before a build ever starts). See
+  `docs/DECISIONS.md`.
 - **Auth**: the route refuses to run at all unless `CRON_SECRET` is set
   and the request's `Authorization: Bearer <value>` header matches it.
   Vercel automatically sends that header on cron invocations once
@@ -57,14 +63,14 @@ opening `/tracking`), not a real push notification.
 
 **Sequential, not parallel, capture.** `runScheduledCapture` awaits each
 `captureSnapshot` one at a time. A real provider (Apify) bills per
-result and has its own rate limits; firing 25 concurrent captures every
-6 hours multiplies both the cost spike and the chance of hitting a
+result and has its own rate limits; firing 25 concurrent captures once
+a day multiplies both the cost spike and the chance of hitting a
 provider-side limit, for no benefit a cron job actually needs (it isn't
 latency-sensitive).
 
 **No dedup / backoff / retry.** A profile that fails this run (provider
 error, renamed account) simply gets tried again on the next scheduled
-run 6 hours later — there's no persisted "this one is broken, stop
+run a day later — there's no persisted "this one is broken, stop
 retrying" state. Acceptable for a fixed low-frequency schedule; would
 need real backoff bookkeeping before running much more often.
 
