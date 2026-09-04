@@ -1,0 +1,37 @@
+/*
+ * SocialTrace design tokens — spec §7.2.
+ * Semantic CSS custom properties only. Components must reference these
+ * (via Tailwind theme colors in tailwind.config.ts), never raw hex values.
+ */
+:root {
+  --background: #f7f8fa;
+  --surface: #ffffff;
+  --surface-subtle: #f2f4f7;
+  --surface-elevated: #ffffff;
+  --border: #e3e7ed;
+  --border-strong: #cbd2db;
+  --text-primary: #101828;
+  --text-secondary: #475467;
+  --text-muted: #667085;
+  --text-inverse: #ffffff;
+  --brand: #5b5fef;
+  --brand-strong: #4649d8;
+  --brand-soft: #eef0ff;
+  --success: #12b76a;
+  --success-soft: #ecfdf3;
+  --warning: #f79009;
+  --warning-soft: #fffaeb;
+  --danger: #f04438;
+  --danger-soft: #fef3f2;
+  --info: #2e90fa;
+  --info-soft: #eff8ff;
+
+  --radius-sm: 8px;
+  --radius-button: 10px;
+  --radius-card: 14px;
+  --radius-panel: 18px;
+  --radius-modal: 20px;
+
+  --shadow-default: 0 1px 2px rgba(16, 24, 40, 0.04);
+  --shadow-elevated: 0 8px 24px rgba(16, 24, 40, 0.08);
+}
