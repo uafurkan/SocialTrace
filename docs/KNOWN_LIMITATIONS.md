@@ -29,8 +29,12 @@ most of `SOCIALTRACE_MASTER_BUILD_SPEC.md`. Explicitly out of scope:
 - **No snapshot/diff engine, tracking, or watchlists.** The "Track",
   "Compare", "History", and "Changes" surfaces render honest "not
   available" states or disabled buttons rather than fake data.
-- **No export system.** The Export button is disabled; no XML/JSON/CSV
-  generation, no background jobs, no signed URLs.
+- **Export exists but is synchronous and bounded, not a background-job
+  pipeline.** The profile page's Export dropdown downloads JSON/XML (full
+  profile bundle) or CSV (one resource at a time) directly from
+  `/api/v1/profiles/[profileId]/export`, generated inside the request and
+  capped at 500 items per list. No auth, no job queue, no blob storage, no
+  signed/expiring URLs, no JSONL/ZIP/PDF formats — see `docs/EXPORT.md`.
 - **No Stories or Highlights data** — the mock provider's capability flags
   mark these `false`, and those tabs render "not available in this
   build."

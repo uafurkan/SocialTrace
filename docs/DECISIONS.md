@@ -100,3 +100,22 @@ stops and shows an explicit "Searching Instagram…" loading state — an
 honest slower-than-Instagram's-own search, consistent with this project's
 data-honesty principle (spec §1.2) applied to UX latency, not just
 dataset completeness.
+
+## 2026-09-04 — Synchronous, bounded export instead of the spec's job-queue pipeline
+
+Per the build order in spec §110/§228 (schema → provider → ... → export →
+snapshot → diff → tracking), export comes next, and the user asked to
+follow that order rather than jump to snapshot/diff/tracking. Spec §29
+describes export as a background-job pipeline (queue → worker → stream →
+compress → store → signed URL → expiration), which assumes auth, a job
+queue, and blob storage — none of which exist yet in this build. Building
+that pipeline now would mean queuing into nothing and signing URLs to
+storage that doesn't exist.
+
+Instead, `GET /api/v1/profiles/[profileId]/export` (`src/lib/export/`)
+generates JSON/XML/CSV synchronously inside the request, bounded by
+`EXPORT_LIST_LIMIT = 500` per list (reusing the existing paginated
+`provider.getX()` calls), and streams the response directly with
+`Content-Disposition: attachment` — no queue, no storage, no signed URL,
+because none of those would be real. See `docs/EXPORT.md` for the full
+scope decision and what changes once a job queue/storage exist.

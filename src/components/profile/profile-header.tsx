@@ -4,6 +4,7 @@ import type { Profile } from "@/lib/domain/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CoverageBadge } from "@/components/profile/coverage-badge";
+import { ExportMenu } from "@/components/profile/export-menu";
 import { formatCount } from "@/lib/utils";
 import { copy } from "@/lib/copy";
 
@@ -61,9 +62,7 @@ export function ProfileHeader({ profile }: { profile: Profile }) {
         <Button variant="secondary" disabled title={copy.profile.comingSoon}>
           {copy.profile.compareCta}
         </Button>
-        <Button variant="tertiary" disabled title={copy.profile.comingSoon}>
-          {copy.profile.exportCta}
-        </Button>
+        <ExportMenu profileId={profile.id} username={profile.username} />
       </div>
     </div>
   );
