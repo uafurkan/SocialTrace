@@ -23,6 +23,17 @@ export default function HomePage() {
             <div className="mt-8 max-w-lg">
               <ProfileSearchForm />
               <p className="mt-3 text-sm text-muted">{copy.home.noAccountNote}</p>
+              <p className="mt-1 text-sm text-muted">
+                Try{" "}
+                <Link href="/profile/nike" className="text-brand-strong underline underline-offset-2">
+                  @nike
+                </Link>{" "}
+                or{" "}
+                <Link href="/profile/smallcreator" className="text-brand-strong underline underline-offset-2">
+                  @smallcreator
+                </Link>
+                .
+              </p>
             </div>
           </div>
           <HeroChart />
@@ -47,26 +58,6 @@ export default function HomePage() {
       <section className="py-16">
         <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
           <p className="text-lg text-primary">{copy.home.proofStatement}</p>
-        </div>
-      </section>
-
-      <section className="border-t border-border py-16">
-        <div className="mx-auto max-w-2xl px-4 text-center sm:px-6">
-          <h2 className="text-2xl font-semibold text-primary">Look up a public profile</h2>
-          <div className="mx-auto mt-6 max-w-md">
-            <ProfileSearchForm />
-          </div>
-          <p className="mt-6 text-sm text-muted">
-            Try{" "}
-            <Link href="/profile/nike" className="text-brand-strong underline underline-offset-2">
-              @nike
-            </Link>{" "}
-            or{" "}
-            <Link href="/profile/smallcreator" className="text-brand-strong underline underline-offset-2">
-              @smallcreator
-            </Link>
-            .
-          </p>
         </div>
       </section>
     </div>
