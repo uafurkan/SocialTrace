@@ -3,6 +3,36 @@ import { withSentryConfig } from "@sentry/nextjs/config";
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  /**
+   * Real 301s for common misspellings of the brand name landing as a path
+   * on this domain (e.g. someone typing socialtrace.com/socialtrce by
+   * habit, or a stray inbound link using one). This is a targeted fix for
+   * a known, specific typo of our own name — not the doorway-page pattern
+   * declined in docs/SEO.md (a page built to rank for many unrelated
+   * queries and funnel visitors in); a redirect carries no content to
+   * index and both the source and destination clearly refer to the same
+   * real site.
+   */
+  async redirects() {
+    const brandMisspellings = [
+      "socialtrce",
+      "socialtrase",
+      "socialtreace",
+      "socialtrac",
+      "socialtraces",
+      "sosyaltrace",
+      "sosialtrace",
+      "social-trace",
+      "socail-trace",
+      "socialtack",
+      "socialtrak",
+    ];
+    return brandMisspellings.map((slug) => ({
+      source: `/${slug}`,
+      destination: "/",
+      permanent: true,
+    }));
+  },
   async headers() {
     return [
       {

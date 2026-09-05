@@ -138,3 +138,14 @@ specific, real point of confusion (e.g. people misspelling the site's
 own name), the honest fix is a real redirect from that exact known
 misspelling to the real page — not a page built to rank for many queries
 it isn't really about.
+
+## Brand-misspelling redirects (not a doorway page)
+
+`next.config.mjs`'s `redirects()` sends known misspellings of the brand
+name landing as a path on this domain — `/socialtrce`, `/sosyaltrace`,
+`/social-trace`, etc. — to `/` with a real 301. This is narrowly scoped
+to the site's own name, unlike the declined doorway-page request above:
+there's no content built to rank for unrelated queries, no keyword
+stuffing, and both the redirect source and destination obviously refer
+to the same real site — a legitimate typo-correction, the same category
+as a browser's own "did you mean" for a mistyped domain.
