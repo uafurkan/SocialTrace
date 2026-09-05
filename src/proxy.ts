@@ -47,7 +47,14 @@ import { NextRequest, NextResponse } from "next/server";
  */
 export function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
-  const adsEnabled = process.env.NEXT_PUBLIC_EZOIC_ENABLED === "true";
+  // AdSense (docs/ADS.md) shares the same "can't enumerate ad-server
+  // domains" situation as Ezoic below, so it widens frame-src/connect-src
+  // the same way rather than getting its own separate carve-out. Gated on
+  // NEXT_PUBLIC_ADSENSE_ENABLED specifically (not just the client id being
+  // set) so the verification-only script tag doesn't require the wider CSP
+  // before ads are actually turned on.
+  const adsEnabled =
+    process.env.NEXT_PUBLIC_EZOIC_ENABLED === "true" || process.env.NEXT_PUBLIC_ADSENSE_ENABLED === "true";
   // Turnstile's challenge widget renders in its own iframe from
   // challenges.cloudflare.com — that host needs frame-src even with ads
   // off, since bot protection on login/signup is independent of the ad

@@ -1,9 +1,17 @@
-# Display ads (Ezoic)
+# Display ads (Ezoic + Google AdSense)
 
 Opt-in, same pattern as every other integration in this app
-(`SOCIAL_PROVIDER`, `SENTRY_DSN`, ...): with `NEXT_PUBLIC_EZOIC_ENABLED`
-unset or `false`, no script loads and no ad slot renders anywhere — the
-app looks and behaves exactly as it did before this was added.
+(`SOCIAL_PROVIDER`, `SENTRY_DSN`, ...): with both `NEXT_PUBLIC_EZOIC_ENABLED`
+and `NEXT_PUBLIC_ADSENSE_ENABLED` unset or `false`, no script loads and no
+ad slot renders anywhere — the app looks and behaves exactly as it did
+before this was added.
+
+Two networks are wired up as **alternatives, not a combination**: Ezoic
+requires 250,000 active users/month for standard approval (or its
+Incubator Program below that), so AdSense is the parallel path while that
+review is pending. `<AdSlot>` always prefers Ezoic when both are enabled —
+the two are never shown in the same slot at once, since every ad network's
+terms prohibit exactly that.
 
 ## What's wired up
 
@@ -51,6 +59,43 @@ app looks and behaves exactly as it did before this was added.
   Ezoic's ad exchanges serve creatives from a large, non-enumerable set of
   ad-server domains — the same situation `img-src`'s `https:` allowance
   already handles for the real provider's avatar CDN.
+
+## Google AdSense (parallel path)
+
+- **`src/components/ads/adsense-loader.tsx`** — loads
+  `pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=<id>` in
+  `<head>` via `NEXT_PUBLIC_ADSENSE_CLIENT_ID` alone (independent of the
+  enabled flag) — this is Google's site-ownership verification
+  requirement ("paste this script into every page's `<head>`"), so it has
+  to render before the account is even approved.
+- **`src/components/ads/ad-slot.tsx`** — once verified and
+  `NEXT_PUBLIC_ADSENSE_ENABLED=true`, the same `<AdSlot placementId={N}>`
+  calls used for Ezoic render a real `<ins class="adsbygoogle">` unit
+  instead, using whichever `NEXT_PUBLIC_ADSENSE_SLOT_<N>` env var matches
+  that placement id (100 home, 102 tools, 103 profile, 104 ad-gate) — a
+  placement with no slot id configured just stays empty, same
+  fail-closed pattern as everything else here.
+- **`src/app/ads.txt/route.ts`** — when `EZOIC_ADS_TXT_URL` isn't set, this
+  now serves AdSense's authorized-sellers line directly
+  (`google.com, pub-<id>, DIRECT, f08c47fec0942fa0`, Google's own
+  documented static format) derived from `NEXT_PUBLIC_ADSENSE_CLIENT_ID`,
+  instead of just 404ing.
+- **CSP (`src/proxy.ts`)** — `frame-src`/`connect-src` widen to `https:`
+  when `NEXT_PUBLIC_ADSENSE_ENABLED=true`, the same non-enumerable
+  ad-server-domain situation Ezoic already gets.
+
+### AdSense setup steps (not code)
+
+1. Set `NEXT_PUBLIC_ADSENSE_CLIENT_ID=ca-pub-<your id>` and deploy —
+   this alone makes the verification script appear in `<head>`.
+2. In the AdSense dashboard, submit the site for review using the "code
+   snippet already placed" verification method.
+3. Once approved, create an ad unit per placement you want live, put each
+   unit's slot id into the matching `NEXT_PUBLIC_ADSENSE_SLOT_<N>` env
+   var, and set `NEXT_PUBLIC_ADSENSE_ENABLED=true`.
+4. AdSense's own dashboard has the same content-category exclusion
+   requirement as Ezoic below (Settings → Ad blocking controls) — set it
+   before going live.
 
 ## What you still have to do in the Ezoic dashboard (not code)
 

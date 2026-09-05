@@ -6,6 +6,7 @@ import "./globals.css";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { EzoicLoader } from "@/components/ads/ezoic-loader";
+import { AdsenseLoader } from "@/components/ads/adsense-loader";
 import { copy } from "@/lib/copy";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -62,6 +63,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en" className={inter.variable}>
       <body className="flex min-h-screen flex-col font-sans">
+        <AdsenseLoader />
         <EzoicLoader />
         <SiteHeader />
         <main className="flex-1">{children}</main>
