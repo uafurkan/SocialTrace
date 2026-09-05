@@ -714,3 +714,37 @@ bugs that direct-actor testing had missed, all now fixed:
 None of these three showed up testing directly against Apify's API with
 one account (`natgeo`) — they only appeared once a private and a small
 account were run through the app's own pages and API routes.
+
+## Follower-chain sweep across all 5 actors found a 4th bug (seemuapps)
+
+Followed up by calling all 5 follower/following actors directly (not just
+the ones that happened to fire first in the chain) against the private
+test account (`gates`), for both `followers` and `following`, to check
+each one's own error behavior rather than relying on whichever actor the
+chain reaches first:
+
+- `apify/instagram-followers-following-scraper` (official): consistent
+  `{ error: "private_account" }` for both directions — already handled.
+- `scraping_solutions/instagram-scraper-followers-following-no-cookies`:
+  clean `[]` for both directions.
+- `coderx/instagram-followers-following-scraper-no-cookies-login`: hit
+  its own free-tier daily cap mid-sweep and returned a new, previously
+  unseen error shape — `{ error: "daily_limit_reached", message: "...",
+  next_reset: "...", ran_at: "..." }`, again with no `username` field.
+  Already handled correctly by the existing `u.username` truthy filter
+  without any code change — confirms that guard is shape-agnostic rather
+  than special-cased to the one error format seen before.
+- `seemuapps/instagram-followers-scraper`: `[{ cursor_next: null,
+  results: [] }]` for the private account — looked like a clean empty
+  result, but comparing it against this same actor's real output for a
+  public account (`chamath`, real followers returned) revealed a bug
+  unrelated to privacy handling: the actor's response is always an
+  *array wrapping one page object* (`[{ cursor_next, results: [...] }]`),
+  not the page object itself. `followers.ts`'s normalizer read
+  `raw.results` directly, so `Array.isArray(results)` was always false
+  and this actor silently returned "no usable data" for every call, even
+  ones with real followers — it had never actually contributed a result
+  in the fallback chain. Fixed by unwrapping `raw[0]` before reading
+  `.results`. This one would not have been caught by private-account
+  testing alone — it needed a public-account comparison to notice the
+  actor was dead weight regardless of privacy.

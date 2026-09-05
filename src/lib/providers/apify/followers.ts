@@ -117,7 +117,10 @@ const ACTOR_CHAIN: ActorAttempt[] = [
       maxItems: limit,
     }),
     normalize: (raw) => {
-      const results = (raw as { results?: unknown[] } | undefined)?.results;
+      // Live output is an array wrapping a single page object —
+      // `[{ cursor_next, results: [...] }]` — not the page object itself.
+      const page = Array.isArray(raw) ? raw[0] : raw;
+      const results = (page as { results?: unknown[] } | undefined)?.results;
       if (!Array.isArray(results)) return null;
       return results.map((r) => {
         const item = r as Record<string, unknown>;
