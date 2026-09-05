@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { provider } from "@/lib/providers";
 
+export const maxDuration = 60;
+
 export async function GET(request: NextRequest, props: { params: Promise<{ profileId: string }> }) {
   const params = await props.params;
   const { searchParams } = new URL(request.url);

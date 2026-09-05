@@ -7,6 +7,8 @@ import { provider } from "@/lib/providers";
  * §30, §33). The client must never fetch the whole dataset and filter in
  * the browser — this route is the search boundary.
  */
+export const maxDuration = 60;
+
 export async function GET(request: NextRequest, props: { params: Promise<{ profileId: string }> }) {
   const params = await props.params;
   const { searchParams } = new URL(request.url);

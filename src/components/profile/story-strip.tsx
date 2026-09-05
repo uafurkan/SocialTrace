@@ -5,6 +5,7 @@ import { Download, X } from "lucide-react";
 
 import type { Story } from "@/lib/domain/types";
 import { mediaDownloadUrl } from "@/lib/media-download-url";
+import { proxiedMediaUrl } from "@/lib/media-proxy";
 import { NotAvailable } from "@/components/profile/not-available";
 
 function timeLeft(expiresAt: string): string {
@@ -36,7 +37,7 @@ export function StoryStrip({ stories }: { stories: Story[] }) {
           >
             {story.thumbnailUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={story.thumbnailUrl} alt="" className="size-full object-cover" loading="lazy" />
+              <img src={proxiedMediaUrl(story.thumbnailUrl)} alt="" className="size-full object-cover" loading="lazy" />
             ) : null}
             <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-xs font-medium text-white">
               {timeLeft(story.expiresAt)}
@@ -57,7 +58,7 @@ export function StoryStrip({ stories }: { stories: Story[] }) {
               <video src={active.mediaUrl} controls autoPlay className="max-h-[80vh] w-full rounded-card" />
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={active.mediaUrl} alt="" className="max-h-[80vh] w-full rounded-card object-contain" />
+              <img src={proxiedMediaUrl(active.mediaUrl)} alt="" className="max-h-[80vh] w-full rounded-card object-contain" />
             )}
             <div className="mt-3 flex items-center justify-between">
               <span className="text-sm text-white/80">{timeLeft(active.expiresAt)}</span>

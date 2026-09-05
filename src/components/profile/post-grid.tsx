@@ -6,6 +6,7 @@ import { Download, Heart, MessageCircle, LayoutGrid, List, Play } from "lucide-r
 import type { Post } from "@/lib/domain/types";
 import { Button } from "@/components/ui/button";
 import { mediaDownloadUrl } from "@/lib/media-download-url";
+import { proxiedMediaUrl } from "@/lib/media-proxy";
 import { formatCount } from "@/lib/utils";
 import { PostEngagementModal } from "@/components/profile/post-engagement-modal";
 
@@ -49,7 +50,7 @@ export function PostGrid({ posts }: { posts: Post[] }) {
             >
               {post.thumbnailUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={post.thumbnailUrl} alt="" className="size-full object-cover" loading="lazy" />
+                <img src={proxiedMediaUrl(post.thumbnailUrl)} alt="" className="size-full object-cover" loading="lazy" />
               ) : null}
               {post.mediaType !== "image" ? (
                 <Play className="absolute right-2 top-2 size-4 text-inverse drop-shadow" aria-hidden="true" />

@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, Download, X } from "lucide-react";
 
 import type { Highlight } from "@/lib/domain/types";
 import { mediaDownloadUrl } from "@/lib/media-download-url";
+import { proxiedMediaUrl } from "@/lib/media-proxy";
 import { NotAvailable } from "@/components/profile/not-available";
 
 export function HighlightGrid({ highlights }: { highlights: Highlight[] }) {
@@ -49,7 +50,7 @@ export function HighlightGrid({ highlights }: { highlights: Highlight[] }) {
             <span className="relative aspect-square w-full overflow-hidden rounded-full border-2 border-border bg-surface-subtle">
               {highlight.coverUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={highlight.coverUrl} alt="" className="size-full object-cover" loading="lazy" />
+                <img src={proxiedMediaUrl(highlight.coverUrl)} alt="" className="size-full object-cover" loading="lazy" />
               ) : null}
             </span>
             <span className="line-clamp-1 text-xs font-medium text-secondary">{highlight.title}</span>
@@ -69,7 +70,7 @@ export function HighlightGrid({ highlights }: { highlights: Highlight[] }) {
               <video src={activeItem.mediaUrl} controls autoPlay className="max-h-[80vh] w-full rounded-card" />
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={activeItem.mediaUrl} alt="" className="max-h-[80vh] w-full rounded-card object-contain" />
+              <img src={proxiedMediaUrl(activeItem.mediaUrl)} alt="" className="max-h-[80vh] w-full rounded-card object-contain" />
             )}
 
             {active.items.length > 1 ? (

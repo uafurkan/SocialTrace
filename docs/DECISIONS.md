@@ -825,3 +825,36 @@ there returns a proper `502` with a message instead of leaking a stack
 trace via Next's default error response. Verified profile, reels, and
 stories actors directly against a real account (`nike`) to confirm the
 happy path still works correctly end-to-end.
+
+## Real production bugs after enabling `SOCIAL_PROVIDER=apify`: avatars/thumbnails not loading, Reels/Stories/etc. crashing
+
+Two more real, live-account bugs surfaced once Apify traffic actually
+flowed in production (`dinememento`):
+
+1. **Avatars and post/story/highlight thumbnails silently fell back to
+   initials/blank tiles.** The `avatarUrl`/`thumbnailUrl`/`mediaUrl`
+   values from Apify are real, valid, non-expired `fbcdn.net`/
+   `cdninstagram.com` URLs — confirmed by fetching the exact same URL
+   server-side, which succeeds every time. The failure is client-side
+   only, consistent with an ISP/network-level block on those CDN domains
+   for some visitors (this app's primary audience is in Turkey, where
+   intermittent throttling of Meta CDN domains is a known, documented
+   phenomenon) rather than anything wrong with the URL itself. Fixed by
+   routing every such `<img>` through a new inline proxy route
+   (`src/app/api/v1/media/proxy/route.ts`, host-allowlisted the same way
+   as the existing download proxy) via `src/lib/media-proxy.ts`'s
+   `proxiedMediaUrl()` — the browser only ever talks to socialtrace.co;
+   the CDN fetch happens server-to-server from Vercel, which isn't
+   subject to the same client-network restriction. Non-Instagram hosts
+   (e.g. `picsum.photos` from the mock provider) pass through unproxied.
+2. **Reels/Stories/Posts/etc. tabs hit the generic `error.tsx` crash
+   screen instead of loading or showing an honest empty state.** Traced
+   to Vercel's serverless execution timeout, not a code exception —
+   `safeProviderCall` only catches a *thrown* error, not a platform-level
+   timeout kill. Reproduced locally: a single `getProfile` call against a
+   real account took ~11s of a 24.6s total request; Apify's
+   `run-sync-get-dataset-items` calls routinely run 10-25+ seconds, well
+   past Vercel Hobby's default 10s function limit. Fixed by adding
+   `export const maxDuration = 60;` (Hobby's practical max) to every
+   route that can reach a provider call — see
+   `docs/PROVIDER_CONTRACT.md`'s "Serverless function timeouts" section.

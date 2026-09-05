@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { BadgeCheck, Loader2, X } from "lucide-react";
 
 import type { Comment, Liker } from "@/lib/domain/types";
+import { proxiedMediaUrl } from "@/lib/media-proxy";
 import { formatCount } from "@/lib/utils";
 
 interface EngagementResponse {
@@ -87,7 +88,7 @@ export function PostEngagementModal({ permalink, onClose }: { permalink: string;
                   <li key={liker.username} className="flex items-center gap-2">
                     {liker.avatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={liker.avatarUrl} alt="" className="size-8 shrink-0 rounded-full object-cover" />
+                      <img src={proxiedMediaUrl(liker.avatarUrl)} alt="" className="size-8 shrink-0 rounded-full object-cover" />
                     ) : (
                       <span className="size-8 shrink-0 rounded-full bg-surface-subtle" />
                     )}

@@ -4,6 +4,8 @@ import { provider } from "@/lib/providers";
 import { PostGrid } from "@/components/profile/post-grid";
 import { NotAvailable } from "@/components/profile/not-available";
 
+export const maxDuration = 60;
+
 export default async function ProfileReelsPage(props: { params: Promise<{ username: string }> }) {
   const params = await props.params;
   const profile = await requireProfile(params.username);

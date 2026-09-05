@@ -4,6 +4,8 @@ import { listSnapshots } from "@/lib/snapshot/capture";
 import { NotAvailable } from "@/components/profile/not-available";
 import { SnapshotComparer } from "@/components/profile/snapshot-comparer";
 
+export const maxDuration = 60;
+
 export default async function ProfileComparePage(props: { params: Promise<{ username: string }> }) {
   const params = await props.params;
   const profile = await requireProfile(params.username);

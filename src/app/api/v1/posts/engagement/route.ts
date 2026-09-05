@@ -11,6 +11,8 @@ import { provider } from "@/lib/providers";
  * grid eagerly fetching its own engagement data (which would multiply the
  * Apify bill by however many posts are on screen).
  */
+export const maxDuration = 60;
+
 const ENGAGEMENT_RATE_LIMIT = 30;
 const ENGAGEMENT_RATE_WINDOW_MS = 10 * 60 * 1000;
 const ALLOWED_HOSTS = new Set(["www.instagram.com", "instagram.com"]);

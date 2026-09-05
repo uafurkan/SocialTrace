@@ -4,6 +4,8 @@ import { listSnapshots } from "@/lib/snapshot/capture";
 import { NotAvailable } from "@/components/profile/not-available";
 import { SnapshotHistory } from "@/components/profile/snapshot-history";
 
+export const maxDuration = 60;
+
 export default async function ProfileHistoryPage(props: { params: Promise<{ username: string }> }) {
   const params = await props.params;
   const profile = await requireProfile(params.username);

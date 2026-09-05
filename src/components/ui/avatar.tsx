@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { avatarInitials, avatarPaletteIndex } from "@/lib/avatar-color";
+import { proxiedMediaUrl } from "@/lib/media-proxy";
 import { cn } from "@/lib/utils";
 
 const SIZE_CLASSES = {
@@ -50,7 +51,7 @@ export function Avatar({ username, displayName, avatarUrl, size = "md", classNam
       {showImage ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={avatarUrl}
+          src={proxiedMediaUrl(avatarUrl)}
           alt=""
           loading="lazy"
           className="size-full object-cover"

@@ -8,6 +8,12 @@ import { ProfileHeader } from "@/components/profile/profile-header";
 import { ProfileTabs } from "@/components/profile/profile-tabs";
 import { AdSlot } from "@/components/ads/ad-slot";
 
+// Apify actor calls (requireProfile, and every tab below this layout) can
+// take well past Vercel's default serverless timeout — this was
+// confirmed causing real "Something went wrong" crashes on Reels/Stories/
+// etc. in production (see docs/PROVIDER_CONTRACT.md).
+export const maxDuration = 60;
+
 interface ProfileLayoutProps {
   children: React.ReactNode;
   params: Promise<{ username: string }>;

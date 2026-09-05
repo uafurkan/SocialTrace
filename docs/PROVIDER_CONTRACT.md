@@ -53,6 +53,22 @@ Follower/following generation is capped at 5,000 in-memory users per
 profile regardless of the fake `followerCount`, to keep the mock fast —
 this is a mock-only limitation, not a modeled "coverage" number.
 
+## Serverless function timeouts (`maxDuration`)
+
+Apify actor runs (`run-sync-get-dataset-items`) routinely take 10-25+
+seconds — confirmed directly (`fetchApifyProfile("dinememento")` took
+~11s of a 24.6s total request). Vercel's default serverless execution
+limit (10s on Hobby) is shorter than that, and a function killed mid-run
+renders as a generic, unhelpful crash (the `error.tsx` boundary), not the
+honest "couldn't load" empty states `safeProviderCall` is meant to
+produce — those only catch an actual thrown error, not a platform-level
+timeout kill. Every route that can reach a provider call (all
+`profile/[username]/**/page.tsx` and `layout.tsx`, plus
+`/api/v1/profiles/[profileId]/{followers,following}` and
+`/api/v1/posts/engagement`) sets `export const maxDuration = 60;` —
+Vercel's practical max on Hobby — so a slow actor run gets the time it
+needs instead of triggering a platform timeout.
+
 ## Real implementation: `ApifyInstagramProvider`
 
 `src/lib/providers/apify/`. Uses [Apify](https://apify.com) actors over
