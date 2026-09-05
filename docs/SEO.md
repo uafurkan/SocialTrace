@@ -73,5 +73,68 @@ no sense).
   username history, engagement calculator, etc. have no real feature
   behind them yet — a landing page would be a scaled-content page in
   the exact sense §45 forbids.
-- **OG image generation**. Static metadata only for now.
 - **International SEO** (spec §116) — English only.
+
+## Multi-engine technical SEO (Google, Bing, Yandex)
+
+Added to make the site properly indexable and shareable, not just by
+Google:
+
+- `src/app/opengraph-image.png` (Next.js's file-convention for the App
+  Router) — a real, branded 1200×630 image (logo + tagline), auto-wired
+  by Next.js into both `og:image` and `twitter:image` on every page that
+  doesn't set its own. Closes the "OG image generation" gap noted above.
+- `src/app/layout.tsx`'s root `metadata` gained `openGraph`, `twitter`
+  (`summary_large_image`), and `alternates.canonical` — real values
+  (site name, real description, real URL), not fabricated engagement
+  numbers or claims.
+- `verification` (Google Search Console, Bing Webmaster Tools, Yandex
+  Webmaster) renders each engine's ownership `<meta>` tag only when its
+  token is set (`GOOGLE_SITE_VERIFICATION`/`BING_SITE_VERIFICATION`/
+  `YANDEX_SITE_VERIFICATION` — see `.env.example`), the same opt-in
+  pattern as `SENTRY_DSN`/`SOCIAL_PROVIDER`. Unset, nothing renders.
+  Actually submitting the sitemap in each console/tool is a one-time
+  manual step for whoever owns those accounts — this only adds the
+  capability to prove ownership once they do.
+- `organizationJsonLd()` (`src/lib/seo/json-ld.tsx`) — real, minimal
+  `Organization` markup (name, url, logo) on the home page, following
+  the same "no fabricated data" rule as every other JSON-LD helper here.
+
+None of this needs a real Instagram data provider to be legitimate — it
+describes the site itself, which is real regardless of `SOCIAL_PROVIDER`.
+
+## Declined: a "doorway page" for misspelled search queries
+
+Asked to build a page that would target a wide net of misspelled/typo
+search queries so it ranks in Google/Bing/Yandex/Yahoo, and redirect
+whoever lands on it into the app — declined, not implemented. This is a
+doorway page by definition (a page whose only purpose is to rank for
+queries it doesn't meaningfully answer, then funnel the visitor
+elsewhere), which:
+
+- **Directly contradicts a decision this project already made twice**
+  (this file's "Deliberately not in this slice" section, and
+  `docs/KNOWN_LIMITATIONS.md`'s "avoids the doorway-page anti-pattern"
+  note on `/tools`) — spec §45/§57 call this out by name as the thing to
+  avoid, and the whole SEO slice was built around only shipping pages
+  with real content behind them.
+- **Violates every named engine's own guidelines** — Google's spam
+  policies, Bing Webmaster Guidelines, and Yandex's webmaster
+  requirements all define doorway/gateway pages as manipulative and
+  grounds for a manual action or de-indexing, which risks the *entire*
+  site's search visibility, not just the fake page's.
+- **Doesn't actually work as pitched.** A single ghost page cannot
+  simultaneously rank for "all typo variants" of arbitrary queries —
+  search engines rank pages for what they're actually about, and stuffing
+  keyword variants onto a page you plan to redirect people away from
+  reads as spam to a crawler, not as topical relevance.
+
+What legitimate typo-handling already exists and was left as-is:
+`src/app/not-found.tsx` gives anyone who lands on a broken/mistyped URL
+a real search box and a link home rather than a dead end, and
+`extractUsername()` (`src/lib/profile-link.ts`) already tolerates an `@`
+prefix and both bare-username and full-profile-URL input. If there's a
+specific, real point of confusion (e.g. people misspelling the site's
+own name), the honest fix is a real redirect from that exact known
+misspelling to the real page — not a page built to rank for many queries
+it isn't really about.

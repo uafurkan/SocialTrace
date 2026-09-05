@@ -30,6 +30,22 @@ export function websiteJsonLd() {
   };
 }
 
+/**
+ * Real, minimal Organization markup — name/url/logo only, describing the
+ * site itself. No fabricated contact info, social profiles, or founder
+ * data (spec §53 "do not fabricate structured data" — the same rule this
+ * file's other helpers already follow).
+ */
+export function organizationJsonLd() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: SITE_NAME,
+    url: SITE_URL,
+    logo: `${SITE_URL}/icon.png`,
+  };
+}
+
 interface BreadcrumbItem {
   name: string;
   path: string;

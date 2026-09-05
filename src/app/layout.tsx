@@ -9,13 +9,40 @@ import { copy } from "@/lib/copy";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
+const defaultTitle = `${copy.brand.name} — ${copy.brand.descriptor}`;
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://socialtrace.example.com"),
   title: {
-    default: `${copy.brand.name} — ${copy.brand.descriptor}`,
+    default: defaultTitle,
     template: `%s — ${copy.brand.name}`,
   },
   description: copy.home.heroSubhead,
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    siteName: copy.brand.name,
+    title: defaultTitle,
+    description: copy.home.heroSubhead,
+    url: "/",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: defaultTitle,
+    description: copy.home.heroSubhead,
+  },
+  // Each is only rendered as a <meta> tag when the corresponding env var is
+  // set — same opt-in pattern as every other real integration in this
+  // project (SOCIAL_PROVIDER, SENTRY_DSN, ...). See .env.example.
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION || undefined,
+    yandex: process.env.YANDEX_SITE_VERIFICATION || undefined,
+    other: process.env.BING_SITE_VERIFICATION
+      ? { "msvalidate.01": process.env.BING_SITE_VERIFICATION }
+      : undefined,
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
