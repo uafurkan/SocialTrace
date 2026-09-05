@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { AdSlot } from "@/components/ads/ad-slot";
 
 export const metadata: Metadata = {
   title: "Tools",
@@ -78,6 +79,9 @@ export default function ToolsPage() {
           );
         })}
       </div>
+
+      {/* Below the full tool grid — never between cards or above them. */}
+      <AdSlot placementId={102} className="mt-12" />
     </div>
   );
 }

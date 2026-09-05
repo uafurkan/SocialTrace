@@ -28,16 +28,28 @@ import { NextRequest, NextResponse } from "next/server";
  * HTML, so a script/style CSP doesn't apply to them, and skipping the
  * nonce generation there avoids pointless per-request overhead on the
  * highest-traffic paths.
+ *
+ * frame-src/connect-src only widen to any https origin when
+ * NEXT_PUBLIC_EZOIC_ENABLED=true (see docs/ADS.md) — Ezoic's ad exchanges
+ * serve creatives from a large, non-enumerable set of ad-server domains
+ * in cross-origin iframes and make their own bidding/tracking requests,
+ * the same "can't allowlist specific hosts" situation as img-src's avatar
+ * CDN allowance above. script-src's 'strict-dynamic' already lets the
+ * nonce'd Ezoic loader pull in whatever child scripts it needs without
+ * widening script-src itself. With ads disabled (the default), the
+ * policy stays at its strict 'self'-only baseline.
  */
 export function middleware(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+  const adsEnabled = process.env.NEXT_PUBLIC_EZOIC_ENABLED === "true";
   const csp = `
     default-src 'self';
     script-src 'self' 'nonce-${nonce}' 'strict-dynamic';
     style-src 'self' 'unsafe-inline';
     img-src 'self' https: data:;
     font-src 'self';
-    connect-src 'self';
+    connect-src 'self'${adsEnabled ? " https:" : ""};
+    frame-src ${adsEnabled ? "https:" : "'self'"};
     object-src 'none';
     base-uri 'self';
     form-action 'self';

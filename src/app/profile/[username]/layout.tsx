@@ -6,6 +6,7 @@ import { resolveIdentityReadOnly } from "@/lib/auth/identity";
 import { isProfileTracked } from "@/lib/tracking/watchlist";
 import { ProfileHeader } from "@/components/profile/profile-header";
 import { ProfileTabs } from "@/components/profile/profile-tabs";
+import { AdSlot } from "@/components/ads/ad-slot";
 
 interface ProfileLayoutProps {
   children: React.ReactNode;
@@ -36,6 +37,9 @@ export default async function ProfileLayout({ children, params }: ProfileLayoutP
         <ProfileTabs username={profile.username} />
         <div className="pt-6">{children}</div>
       </div>
+
+      {/* Below every tab's own content — never interrupts data mid-scroll or sits above the tab bar. */}
+      <AdSlot placementId={103} className="mt-12" />
     </div>
   );
 }

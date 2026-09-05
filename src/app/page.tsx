@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ProfileSearchForm } from "@/components/home/profile-search-form";
 import { HeroChart } from "@/components/home/hero-chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AdSlot } from "@/components/ads/ad-slot";
 import { copy } from "@/lib/copy";
 import { JsonLd, organizationJsonLd, websiteJsonLd } from "@/lib/seo/json-ld";
 
@@ -55,6 +56,9 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Below the fold, past the search box and value cards — never competes with the primary action. */}
+      <AdSlot placementId={101} className="py-10" />
 
       <section className="py-16">
         <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
