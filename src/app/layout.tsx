@@ -58,12 +58,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // dynamically rendered rather than statically prerendered — an accepted
   // cost, since a site where no client-side script runs at all is broken,
   // not merely unoptimized.
-  await headers();
+  const nonce = (await headers()).get("x-nonce");
 
   return (
     <html lang="en" className={inter.variable}>
+      <head>
+        <AdsenseLoader nonce={nonce} />
+      </head>
       <body className="flex min-h-screen flex-col font-sans">
-        <AdsenseLoader />
         <EzoicLoader />
         <SiteHeader />
         <main className="flex-1">{children}</main>
