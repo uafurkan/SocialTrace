@@ -183,3 +183,18 @@ promoted "Story viewer" from "Coming soon" to a real link (it had been
 marked coming soon before the Stories feature shipped, and was never
 revisited) and repurposed the placeholder "Profile viewer" card into the
 new "Anonymous viewer" page. Both routes are in `src/app/sitemap.ts`.
+
+## Real domain: www.socialtrace.co
+
+The placeholder `socialtrace.example.com` used throughout (metadataBase,
+sitemap, robots.txt, JSON-LD `SITE_URL`) is now the real domain,
+`https://www.socialtrace.co`. Canonical URLs, Open Graph URLs, the
+sitemap's URLs, and `robots.ts`'s sitemap pointer all reflect this.
+
+Not done here (Vercel dashboard, not code): actually attaching
+`socialtrace.co`/`www.socialtrace.co` to the Vercel project and choosing
+which of the two is canonical, with the other 301-redirecting to it —
+Vercel's Domains settings do this for you once both are added. Without
+that redirect, the apex (`socialtrace.co`) and `www` host serving the
+same content as two separate URLs would work against the canonical tags
+already in place rather than reinforcing them.

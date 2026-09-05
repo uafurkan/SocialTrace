@@ -1,4 +1,4 @@
-const SITE_URL = "https://socialtrace.example.com";
+const SITE_URL = "https://www.socialtrace.co";
 const SITE_NAME = "SocialTrace";
 
 function escapeForJsonLd(value: unknown): string {

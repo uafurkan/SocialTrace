@@ -13,7 +13,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const defaultTitle = `${copy.brand.name} — ${copy.brand.descriptor}`;
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://socialtrace.example.com"),
+  metadataBase: new URL("https://www.socialtrace.co"),
   title: {
     default: defaultTitle,
     template: `%s — ${copy.brand.name}`,

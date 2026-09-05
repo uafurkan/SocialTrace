@@ -9,7 +9,7 @@ import { HELP_ARTICLES } from "@/lib/seo/help-articles";
  * pages are backed by a real provider (avoids indexing sample/mock URLs).
  */
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = "https://socialtrace.example.com";
+  const base = "https://www.socialtrace.co";
   const now = new Date();
 
   const staticRoutes = [

@@ -7,6 +7,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: "/",
       disallow: ["/api/", "/tracking"],
     },
-    sitemap: "https://socialtrace.example.com/sitemap.xml",
+    sitemap: "https://www.socialtrace.co/sitemap.xml",
   };
 }
