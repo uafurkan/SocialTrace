@@ -26,8 +26,16 @@ const TOOLS: Array<{ title: string; description: string; href?: string }> = [
     description: "One dashboard, per-profile deltas since the last snapshot.",
     href: "/tools/instagram-growth-tracker",
   },
-  { title: "Story viewer", description: "View publicly available story media." },
-  { title: "Profile viewer", description: "Explore a public profile's available data." },
+  {
+    title: "Story viewer",
+    description: "View a public profile's currently active stories anonymously — no account, no login.",
+    href: "/tools/instagram-story-viewer",
+  },
+  {
+    title: "Anonymous viewer",
+    description: "Browse a public profile's posts, reels, stories, highlights, and tagged posts anonymously.",
+    href: "/tools/anonymous-instagram-viewer",
+  },
   { title: "Profile analyzer", description: "Summaries derived from observed public data." },
   { title: "Follower checker", description: "Search an indexed follower dataset." },
   { title: "Following checker", description: "Search an indexed following dataset." },

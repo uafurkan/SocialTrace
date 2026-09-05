@@ -18,6 +18,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/tools/instagram-follower-history",
     "/tools/instagram-follower-compare",
     "/tools/instagram-growth-tracker",
+    "/tools/instagram-story-viewer",
+    "/tools/anonymous-instagram-viewer",
     "/help",
     "/data-methodology",
     "/changelog",

@@ -22,11 +22,14 @@ scaled-content / doorway-page anti-patterns the spec itself calls out
   seeded the FAQ with, plus FAQPage JSON-LD.
 - **`/tools/instagram-follower-history`**,
   **`/tools/instagram-follower-compare`**,
-  **`/tools/instagram-growth-tracker`** (spec §46/§92) — three tool
+  **`/tools/instagram-growth-tracker`**,
+  **`/tools/instagram-story-viewer`**,
+  **`/tools/anonymous-instagram-viewer`** (spec §46/§92) — five tool
   landing pages that each map to a real, working feature in this build
-  (History tab, Compare snapshots view, `/tracking` dashboard). The
-  other tools listed in `/tools` stay honestly labeled "Coming soon"
-  since no dedicated actor/feature backs them yet.
+  (History tab, Compare snapshots view, `/tracking` dashboard, the
+  Stories tab, and the profile viewer as a whole). The other tools
+  listed in `/tools` stay honestly labeled "Coming soon" since no
+  dedicated actor/feature backs them yet.
 
 ## Structured data (spec §53)
 
@@ -68,11 +71,11 @@ no sense).
   excluded from the sitemap until they are backed by real, resolved
   Instagram profiles with a coverage floor high enough to satisfy the
   usefulness threshold spec §47 describes.
-- **The other 10 tool landing pages** listed in `/tools`. Each one
-  requires the underlying feature to exist. Story viewer, bio history,
-  username history, engagement calculator, etc. have no real feature
-  behind them yet — a landing page would be a scaled-content page in
-  the exact sense §45 forbids.
+- **The other tool landing pages** listed in `/tools` (profile analyzer,
+  follower/following checker, following compare, username/bio history,
+  engagement calculator, competitor analyzer). Each requires the
+  underlying feature to exist — none do yet, so a landing page for any
+  of them would be a scaled-content page in the exact sense §45 forbids.
 - **International SEO** (spec §116) — English only.
 
 ## Multi-engine technical SEO (Google, Bing, Yandex)
@@ -149,3 +152,34 @@ there's no content built to rank for unrelated queries, no keyword
 stuffing, and both the redirect source and destination obviously refer
 to the same real site — a legitimate typo-correction, the same category
 as a browser's own "did you mean" for a mistyped domain.
+
+## "Insta anon" / "story viewer anon" search intent — two real landing pages, not a doorway page
+
+Asked to rank for queries like "insta anon," "anon insta," "insta story
+viewer anon," and "anon story viewer." Unlike the misspelled-query
+doorway-page request declined earlier in this file, this is legitimate:
+anonymous, no-login viewing of public Instagram content is this app's
+actual core feature, not an unrelated query being targeted for traffic.
+Added two real tool landing pages following the exact pattern of the
+three that already existed (`ToolLanding` component, breadcrumb + FAQ
+JSON-LD, `alternates.canonical`):
+
+- **`/tools/instagram-story-viewer`** — targets the story-viewer-specific
+  cluster ("story viewer anon," "anon story," "insta story viewer
+  anonymous"). Maps to the real Stories tab
+  (`data-slayer/instagram-stories-scraper`, already shipped).
+- **`/tools/anonymous-instagram-viewer`** — targets the broader cluster
+  ("insta anon," "anon insta," "view instagram anonymously"). Describes
+  the app's full anonymous browsing surface: posts, reels, stories,
+  highlights, tagged posts, and per-post likers/comments.
+
+Both are substantive, distinct pages (different lead copy, different
+`howItWorks`, different FAQ — not the same content repeated under a
+different URL), each honestly states what it can't do (private accounts,
+no archive of expired stories, capped follower/following coverage), and
+neither exists to funnel traffic to unrelated content — the page's
+subject and the feature behind it are the same thing. `/tools/page.tsx`
+promoted "Story viewer" from "Coming soon" to a real link (it had been
+marked coming soon before the Stories feature shipped, and was never
+revisited) and repurposed the placeholder "Profile viewer" card into the
+new "Anonymous viewer" page. Both routes are in `src/app/sitemap.ts`.
