@@ -143,11 +143,25 @@ export async function fetchMembers(username: string, kind: MemberKind, limit: nu
   if (cached) return cached;
 
   const candidates = ACTOR_CHAIN.filter((actor) => !(actor.followersOnly && kind !== "followers"));
+  // Every actor reachable at all (even one returning a clean empty/error
+  // result, e.g. `{ error: "private_account" }` for a private profile) is
+  // a genuine "no accessible members" answer, not an infrastructure
+  // failure — only throw if every single actor call itself errored out.
+  let anyActorReachable = false;
 
   for (const actor of candidates) {
     try {
       const raw = await runApifyActor(actor.actorId, actor.buildInput(username, limit, kind));
-      const normalized = actor.normalize(raw);
+      anyActorReachable = true;
+      // Observed live: at least one actor in this chain (coderx), when it
+      // can't actually access a private account's list, falls back to
+      // returning the queried account's own username as if it were a
+      // member of its own list, instead of a clean empty/error result.
+      // A real account is never its own follower/following — exclude it
+      // defensively regardless of which actor produces this.
+      const normalized = actor
+        .normalize(raw)
+        ?.filter((u) => u.username && u.username.toLowerCase() !== username.toLowerCase());
       if (normalized && normalized.length > 0) {
         memberCache.set(cacheKey, normalized);
         return normalized;
@@ -158,5 +172,9 @@ export async function fetchMembers(username: string, kind: MemberKind, limit: nu
     }
   }
 
+  if (anyActorReachable) {
+    memberCache.set(cacheKey, []);
+    return [];
+  }
   throw new Error(`All follower/following actors failed for ${username} (${kind}).`);
 }

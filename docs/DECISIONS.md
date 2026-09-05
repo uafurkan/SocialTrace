@@ -680,3 +680,37 @@ All four new capabilities (`highlights`, `taggedPosts`, `postEngagement`)
 also got deterministic mock implementations, following the same pattern
 as stories — so the features are fully demoable, and their UI is fully
 exercised by tests, without `SOCIAL_PROVIDER=apify` set.
+
+## Private and small accounts surfaced real fallback-chain bugs
+
+Ran the whole app end-to-end with `SOCIAL_PROVIDER=apify` against real
+accounts of different shapes — a large public one, a small public one
+(`chamath`, ~5K followers), and a small *private* one (`gates`, 386
+followers) — not just calling actors directly. That surfaced three real
+bugs that direct-actor testing had missed, all now fixed:
+
+- `apify/tagged-posts.ts` assumed `taken_at` was always unix seconds;
+  the actor returns it as an ISO string for some items, producing an
+  `Invalid Date` that crashed the whole `/tagged` page with a 500.
+- `apify/reels.ts` didn't check for the reel actor's own
+  `error: "restricted_page"` flag, which it sets on items for a private
+  account while still attaching old cached video/caption data — silently
+  rendering as broken-looking empty tiles rather than being filtered
+  out. Fixed by dropping any item carrying that flag.
+- `apify/followers.ts`'s fallback chain accepted a non-empty array as
+  "success" without checking that its items were real. For the private
+  test account, one chain actor returned a single `{ error:
+  "private_account" }` object (no `username` field) that normalized to
+  a blank-username "ghost" follower, and another (`coderx`) returned the
+  *queried account's own username* as if it were a member of its own
+  list. Both would have rendered as fake follower/following entries.
+  Fixed with two guards: normalized items now require a non-empty
+  `username` that isn't the queried account itself, and the chain only
+  throws (surfacing a real error to the caller) if every actor call
+  itself failed — a private account, where every actor call succeeds
+  but every result is legitimately empty, now returns an honest `[]`
+  instead of a 500.
+
+None of these three showed up testing directly against Apify's API with
+one account (`natgeo`) — they only appeared once a private and a small
+account were run through the app's own pages and API routes.

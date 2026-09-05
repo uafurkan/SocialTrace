@@ -15,6 +15,15 @@ interface ApifyReelItem {
   timestamp?: string;
   url?: string;
   shortCode?: string;
+  /**
+   * Set (e.g. "restricted_page") when the actor could only get partial/
+   * stale data for this item — observed live for a private account,
+   * where it still returned old cached video/caption content alongside
+   * this flag instead of a clean empty result. Not something to render:
+   * a private account's reels aren't reliably public data (spec §1.2),
+   * so these are filtered out rather than shown.
+   */
+  error?: string;
 }
 
 /** Per-process cache, keyed by profile+requested count, so re-paginating doesn't re-run (and re-bill) the actor. */
@@ -33,19 +42,21 @@ export async function fetchApifyReels(username: string, profileId: string, limit
 
   if (!Array.isArray(items)) return cached ?? [];
 
-  const mapped: Post[] = items.map((reel, index) => ({
-    id: `${profileId}_reel_${reel.id ?? index}`,
-    profileId,
-    mediaType: "reel",
-    thumbnailUrl: reel.displayUrl ?? "",
-    mediaUrl: reel.videoUrl || reel.displayUrl || "",
-    permalink: reel.url ?? (reel.shortCode ? `https://www.instagram.com/reel/${reel.shortCode}/` : ""),
-    caption: reel.caption ?? "",
-    likeCount: reel.likesCount ?? 0,
-    commentCount: reel.commentsCount ?? 0,
-    viewCount: reel.videoPlayCount ?? reel.videoViewCount ?? null,
-    postedAt: reel.timestamp ?? new Date().toISOString(),
-  }));
+  const mapped: Post[] = items
+    .filter((reel) => !reel.error)
+    .map((reel, index) => ({
+      id: `${profileId}_reel_${reel.id ?? index}`,
+      profileId,
+      mediaType: "reel" as const,
+      thumbnailUrl: reel.displayUrl ?? "",
+      mediaUrl: reel.videoUrl || reel.displayUrl || "",
+      permalink: reel.url ?? (reel.shortCode ? `https://www.instagram.com/reel/${reel.shortCode}/` : ""),
+      caption: reel.caption ?? "",
+      likeCount: reel.likesCount ?? 0,
+      commentCount: reel.commentsCount ?? 0,
+      viewCount: reel.videoPlayCount ?? reel.videoViewCount ?? null,
+      postedAt: reel.timestamp ?? new Date().toISOString(),
+    }));
 
   reelsCache.set(cacheKey, mapped);
   return mapped;
