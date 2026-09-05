@@ -50,6 +50,13 @@
       "when": 1788599055987,
       "tag": "0006_stale_mentor",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788599752292,
+      "tag": "0007_rename_stripe_to_paddle",
+      "breakpoints": true
     }
   ]
 }

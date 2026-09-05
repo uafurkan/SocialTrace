@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { isDbConfigured, getDb, schema } from "@/lib/db";
 import { resolveIdentityReadOnly } from "@/lib/auth/identity";
 import { PLAN_LIMITS } from "@/lib/billing/plans";
-import { isStripeConfigured } from "@/lib/billing/stripe";
+import { isPaddleConfigured } from "@/lib/billing/paddle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -70,7 +70,7 @@ export default async function AccountPage() {
           <p className="text-sm font-medium text-primary">Upgrade to Pro</p>
           <p className="mt-1 text-sm text-secondary">Unlimited tracked profiles and saved searches.</p>
           <div className="mt-4">
-            {isStripeConfigured() ? (
+            {isPaddleConfigured() ? (
               <UpgradeButton />
             ) : (
               <Button disabled title="Coming soon — billing isn't enabled in this build">
@@ -80,7 +80,7 @@ export default async function AccountPage() {
           </div>
         </div>
       ) : (
-        isStripeConfigured() && (
+        isPaddleConfigured() && (
           <div className="mt-6 rounded-card border border-border bg-surface-subtle p-5">
             <p className="text-sm font-medium text-primary">Manage your subscription</p>
             <p className="mt-1 text-sm text-secondary">Update your payment method, view invoices, or cancel.</p>

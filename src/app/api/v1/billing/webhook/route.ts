@@ -1,77 +1,82 @@
 import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
-import type Stripe from "stripe";
 
 import { getDb, isDbConfigured, schema } from "@/lib/db";
-import { getStripe, isStripeConfigured } from "@/lib/billing/stripe";
-import { planForSubscriptionStatus } from "@/lib/billing/webhook-handlers";
+import { isPaddleConfigured, verifyPaddleWebhookSignature } from "@/lib/billing/paddle";
+import { planForSubscriptionStatus, type PaddleSubscriptionStatus } from "@/lib/billing/webhook-handlers";
 
 /**
  * The only path that ever sets users.plan to "pro" — never trust a
  * client-side "I paid" signal, only a signature-verified event straight
- * from Stripe (docs/BILLING.md). Needs the raw request body (not parsed
- * JSON) for stripe.webhooks.constructEvent's signature check, and must
- * run per-request (no caching) since it's driven entirely by external
- * events.
+ * from Paddle (docs/BILLING.md). Needs the raw request body (not parsed
+ * JSON) for verifyPaddleWebhookSignature's HMAC check, and must run
+ * per-request (no caching) since it's driven entirely by external events.
  */
 export const dynamic = "force-dynamic";
 
-async function setPlanByCustomerId(customerId: string, plan: "free" | "pro", subscriptionId: string | null) {
+interface PaddleWebhookEvent {
+  event_type: string;
+  data: {
+    id: string;
+    customer_id: string;
+    status?: PaddleSubscriptionStatus;
+  };
+}
+
+/**
+ * `subscriptionId` is only passed (and written) by the subscription
+ * events, which are authoritative for it — `transaction.completed` fires
+ * around the same time as `subscription.created` with no reliable
+ * ordering guarantee, so it only ever touches `plan` to avoid a race that
+ * could null out a subscription id the other event just set.
+ */
+async function setPlanByCustomerId(customerId: string, plan: "free" | "pro", subscriptionId?: string | null) {
   const db = getDb();
-  await db
-    .update(schema.users)
-    .set({ plan, stripeSubscriptionId: subscriptionId })
-    .where(eq(schema.users.stripeCustomerId, customerId));
+  const values: Partial<typeof schema.users.$inferInsert> = { plan };
+  if (subscriptionId !== undefined) values.paddleSubscriptionId = subscriptionId;
+  await db.update(schema.users).set(values).where(eq(schema.users.paddleCustomerId, customerId));
 }
 
 export async function POST(request: NextRequest) {
-  if (!isStripeConfigured() || !isDbConfigured()) {
+  if (!isPaddleConfigured() || !isDbConfigured()) {
     return NextResponse.json({ error: "Billing is not configured." }, { status: 501 });
   }
 
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-  const signature = request.headers.get("stripe-signature");
-  if (!webhookSecret || !signature) {
-    return NextResponse.json({ error: "Missing webhook signature." }, { status: 400 });
+  const webhookSecret = process.env.PADDLE_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    return NextResponse.json({ error: "Webhook secret not configured." }, { status: 501 });
   }
 
-  const stripe = getStripe();
   const rawBody = await request.text();
-
-  let event: Stripe.Event;
-  try {
-    event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
-  } catch (error) {
-    console.error("Stripe webhook signature verification failed:", error);
+  const signatureHeader = request.headers.get("paddle-signature");
+  if (!verifyPaddleWebhookSignature(rawBody, signatureHeader, webhookSecret)) {
+    console.error("Paddle webhook signature verification failed.");
     return NextResponse.json({ error: "Invalid signature." }, { status: 400 });
   }
 
+  const event = JSON.parse(rawBody) as PaddleWebhookEvent;
+
   try {
-    switch (event.type) {
-      case "checkout.session.completed": {
-        const session = event.data.object as Stripe.Checkout.Session;
-        const customerId = typeof session.customer === "string" ? session.customer : session.customer?.id;
-        const subscriptionId =
-          typeof session.subscription === "string" ? session.subscription : (session.subscription?.id ?? null);
-        if (customerId) {
-          await setPlanByCustomerId(customerId, "pro", subscriptionId);
-        }
+    switch (event.event_type) {
+      case "transaction.completed": {
+        await setPlanByCustomerId(event.data.customer_id, "pro");
         break;
       }
-      case "customer.subscription.created":
-      case "customer.subscription.updated":
-      case "customer.subscription.deleted": {
-        const subscription = event.data.object as Stripe.Subscription;
-        const customerId = typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id;
-        const plan = event.type === "customer.subscription.deleted" ? "free" : planForSubscriptionStatus(subscription.status);
-        await setPlanByCustomerId(customerId, plan, event.type === "customer.subscription.deleted" ? null : subscription.id);
+      case "subscription.created":
+      case "subscription.updated": {
+        const plan = planForSubscriptionStatus(event.data.status ?? "canceled");
+        await setPlanByCustomerId(event.data.customer_id, plan, event.data.id);
+        break;
+      }
+      case "subscription.canceled": {
+        await setPlanByCustomerId(event.data.customer_id, "free", null);
         break;
       }
       default:
         break;
     }
   } catch (error) {
-    console.error(`Stripe webhook handler failed for ${event.type}:`, error);
+    console.error(`Paddle webhook handler failed for ${event.event_type}:`, error);
     return NextResponse.json({ error: "Webhook handler error." }, { status: 500 });
   }
 

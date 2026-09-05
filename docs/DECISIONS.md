@@ -859,32 +859,59 @@ flowed in production (`dinememento`):
    route that can reach a provider call — see
    `docs/PROVIDER_CONTRACT.md`'s "Serverless function timeouts" section.
 
-## Stripe billing (Phase 6) built, but cannot go live yet
+## Stripe billing (Phase 6) built, replaced with Paddle
 
-Full Stripe integration was built per spec §110 Phase 6 — Checkout,
-Billing Portal, and a signature-verified webhook that's the sole path
-setting `users.plan` to `pro` (see `docs/BILLING.md`). It compiles,
-builds, and passes its unit tests, and is completely inert without
-`STRIPE_SECRET_KEY`/`STRIPE_PRO_PRICE_ID`/`STRIPE_WEBHOOK_SECRET` set,
-the same opt-in pattern as every other integration in this app.
+Full Stripe integration was built first per spec §110 Phase 6 —
+Checkout, Billing Portal, and a signature-verified webhook that's the
+sole path setting `users.plan` to `pro`. It compiled, built, and passed
+its unit tests, and was completely inert without
+`STRIPE_SECRET_KEY`/`STRIPE_PRO_PRICE_ID`/`STRIPE_WEBHOOK_SECRET` set.
 
-It cannot actually be turned on with the account holder's current setup:
+It could not actually be turned on with the account holder's setup:
 **Stripe does not support Turkey as an account country** — you cannot
 create a Stripe account (test or live) as a Turkey-based individual or
 business. This wasn't discoverable until the account holder tried to
-sign up. Two paths forward, neither implemented yet:
+sign up. Two paths were identified: form a Stripe-supported entity (e.g.
+a US LLC via Stripe Atlas), or substitute a processor that accepts
+Turkish sellers directly (iyzico, Paddle, Lemon Squeezy were named as
+candidates). The account holder chose **Paddle**.
 
-1. Form a Stripe-supported entity (e.g. a US LLC via Stripe Atlas, which
-   bundles company formation with a US-entity Stripe account) — the code
-   already written needs zero changes, since it only depends on standard
-   Stripe API keys.
-2. Substitute a different payment processor that accepts Turkish
-   sellers directly — **iyzico** (Turkish, handles TRY natively),
-   **Paddle**, or **Lemon Squeezy** (the latter two are
-   merchant-of-record providers, meaning they handle tax/compliance
-   globally and explicitly support Turkey-based sellers) were named as
-   candidates. Any of these would replace `src/lib/billing/stripe.ts`
-   and the three `/api/v1/billing/*` routes with that processor's
-   equivalent checkout/portal/webhook flow — `src/lib/billing/plans.ts`
-   (the actual limit enforcement) doesn't change either way, since it
-   only reads `users.plan`.
+### Switching to Paddle
+
+The entire Stripe implementation was removed (`src/lib/billing/stripe.ts`,
+the `stripe` npm dependency, and the checkout/portal/webhook routes) and
+replaced with a Paddle equivalent — see `docs/BILLING.md` for the full
+implementation. `src/lib/billing/plans.ts` (the actual limit enforcement)
+did not change at all, since it only ever reads `users.plan` — exactly
+the isolation the original Stripe design doc predicted.
+
+`users.stripeCustomerId`/`stripeSubscriptionId` were renamed (not
+dropped-and-recreated) to `paddleCustomerId`/`paddleSubscriptionId` via a
+hand-written migration (`drizzle/0007_rename_stripe_to_paddle.sql`) —
+`drizzle-kit generate`'s interactive rename-vs-drop prompt can't run in a
+non-TTY environment, so this one was authored directly with
+`ALTER TABLE ... RENAME COLUMN` and applied via the same Neon HTTP-driver
+migrator workaround documented in `docs/DATABASE.md` (the CLI's own `migrate`
+command needs a raw TCP connection this sandbox can't make). The migration
+snapshot (`drizzle/meta/0007_snapshot.json`) was hand-patched to match
+rather than regenerated, so future `drizzle-kit generate` runs diff
+against the correct current state instead of re-discovering this rename.
+
+One real architectural difference from Stripe: **Paddle Billing's
+checkout is JS-based, not a hosted redirect page.** Stripe Checkout is a
+plain `checkout.stripe.com` URL you redirect the browser to — no
+Stripe.js needed at all. Paddle's equivalent is an overlay iframe opened
+by the client-side `@paddle/paddle-js` library
+(`Paddle.Checkout.open({ transactionId })`) against a transaction created
+server-side; there's no way to get a pure hosted checkout URL from the
+API for a direct redirect. This is the one place this app's billing
+needed a client-side vendor library and a CSP change
+(`https://*.paddle.com` added to `frame-src`/`connect-src` when
+`NEXT_PUBLIC_PADDLE_CLIENT_TOKEN` is set) — confirmed against Paddle's
+own Paddle.js and Transactions API documentation before writing the
+integration, not guessed, given the stakes of getting a real payment
+flow wrong. Similarly, Paddle has no single "customer portal" URL like
+Stripe's — self-service links are per-subscription
+(`management_urls.update_payment_method`/`.cancel`, returned on the
+subscription resource itself), so `/api/v1/billing/portal` returns both
+rather than one URL.

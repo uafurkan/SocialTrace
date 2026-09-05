@@ -44,6 +44,13 @@ import { NextRequest, NextResponse } from "next/server";
  * (challenges.cloudflare.com) instead of widening to any https origin —
  * it's independent of the ads flag since bot protection on login/signup
  * shouldn't depend on whether ad monetization is on.
+ *
+ * Paddle checkout (NEXT_PUBLIC_PADDLE_CLIENT_TOKEN, see docs/BILLING.md)
+ * is also a single known vendor, not a non-enumerable ad-exchange set —
+ * `https://*.paddle.com` covers the checkout overlay iframe
+ * (checkout.paddle.com / sandbox-checkout.paddle.com) and Paddle.js's own
+ * API calls, without widening to arbitrary https origins the way ads do.
+ * Independent of the ads/Turnstile flags for the same reason Turnstile is.
  */
 export function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
@@ -61,18 +68,25 @@ export function proxy(request: NextRequest) {
   // integration. script-src doesn't need it explicitly: the nonce'd
   // <Script> loading api.js is trusted directly by nonce match.
   const turnstileEnabled = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
-  const frameSrc = adsEnabled
-    ? "https:"
-    : turnstileEnabled
-      ? "'self' https://challenges.cloudflare.com"
-      : "'self'";
+  const paddleEnabled = Boolean(process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN);
+
+  const extraFrameHosts = [turnstileEnabled && "https://challenges.cloudflare.com", paddleEnabled && "https://*.paddle.com"]
+    .filter(Boolean)
+    .join(" ");
+  const frameSrc = adsEnabled ? "https:" : `'self'${extraFrameHosts ? ` ${extraFrameHosts}` : ""}`;
+
+  const extraConnectHosts = [turnstileEnabled && "https://challenges.cloudflare.com", paddleEnabled && "https://*.paddle.com"]
+    .filter(Boolean)
+    .join(" ");
+  const connectSrc = adsEnabled ? "'self' https:" : `'self'${extraConnectHosts ? ` ${extraConnectHosts}` : ""}`;
+
   const csp = `
     default-src 'self';
     script-src 'self' 'nonce-${nonce}' 'strict-dynamic';
     style-src 'self' 'unsafe-inline';
     img-src 'self' https: data:;
     font-src 'self';
-    connect-src 'self'${adsEnabled ? " https:" : turnstileEnabled ? " https://challenges.cloudflare.com" : ""};
+    connect-src ${connectSrc};
     frame-src ${frameSrc};
     object-src 'none';
     base-uri 'self';

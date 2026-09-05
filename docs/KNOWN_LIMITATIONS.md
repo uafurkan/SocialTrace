@@ -29,26 +29,28 @@ most of `SOCIALTRACE_MASTER_BUILD_SPEC.md`. Explicitly out of scope:
   deliberately no search-as-you-type: a live suggestions box would mean a
   billed Apify call on every keystroke once the real provider is enabled
   — see `docs/SEARCH.md`.
-- **Accounts and plan limits exist; real billing exists but is not
-  live.** Email + password sign-in/sign-up (`/login`, `/signup`, no
-  OAuth, no magic links, no password reset — needs a real email
-  service), and `users.plan` (free/pro) really gates tracked-profile and
-  saved-search counts (free: 10 each) — see `docs/AUTH.md`,
-  `docs/BILLING.md`. Stripe Checkout/Billing Portal/webhook are fully
-  wired (`/api/v1/billing/{checkout,portal,webhook}`) and are the only
-  path that can set `users.plan` to `pro` — but **Stripe does not support
-  Turkey-based accounts**, so this integration cannot actually be
-  activated with the account holder's current setup; it stays inert
-  (env vars unset) until a Stripe-supported entity exists, or a
-  different processor is substituted (iyzico, Paddle, and Lemon Squeezy
-  were discussed as merchant-of-record alternatives that do accept
-  Turkish sellers — none implemented yet). Until then, `/account`'s
-  "Upgrade" is a disabled button and nothing can set a real account to
-  `pro` except editing the database directly. The pricing page is still
-  static copy only. Accounts are optional everywhere — tracking and
-  saved searches work exactly as before for anonymous visitors; logging
-  in only upgrades that scope from "this browser" to "this account"
-  (same rows, no migration, see `docs/AUTH.md`'s identity resolution).
+- **Accounts and plan limits exist; real billing (Paddle) is wired up
+  but running in sandbox mode, not live.** Email + password sign-in/
+  sign-up (`/login`, `/signup`, no OAuth, no magic links, no password
+  reset — needs a real email service), and `users.plan` (free/pro)
+  really gates tracked-profile and saved-search counts (free: 10 each)
+  — see `docs/AUTH.md`, `docs/BILLING.md`. Paddle Checkout, the
+  self-service subscription-management links, and a signature-verified
+  webhook are fully wired (`/api/v1/billing/{checkout,portal,webhook}`)
+  and the webhook is the only path that can set `users.plan` to `pro`.
+  Paddle was chosen specifically because **Stripe does not support
+  Turkey as an account country** (an earlier Stripe implementation was
+  built and then replaced once this was discovered — see
+  `docs/DECISIONS.md`). Going live still needs Paddle's domain-approval
+  and business-verification steps (one-time dashboard work, not code) —
+  until then `PADDLE_ENVIRONMENT` stays on `sandbox`. With any Paddle env
+  var unset, `/account`'s "Upgrade" is a disabled button and nothing can
+  set a real account to `pro` except editing the database directly. The
+  pricing page is still static copy only. Accounts are optional
+  everywhere — tracking and saved searches work exactly as before for
+  anonymous visitors; logging in only upgrades that scope from "this
+  browser" to "this account" (same rows, no migration, see
+  `docs/AUTH.md`'s identity resolution).
 - **Snapshot, diff, and tracking exist (synchronous, bounded,
   coverage-gated, and cookie- or account-identified).**
   `/profile/[username]/history` lists real captured snapshots and can

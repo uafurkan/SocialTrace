@@ -292,17 +292,17 @@ export const users = pgTable(
     passwordHash: text("password_hash").notNull(),
     plan: planEnum("plan").notNull().default("free"),
     // Both null until the user starts a checkout at least once (docs/BILLING.md).
-    // stripeCustomerId is created lazily on first checkout and reused after
-    // that (never a new customer per checkout attempt); stripeSubscriptionId
+    // paddleCustomerId is created lazily on first checkout and reused after
+    // that (never a new customer per checkout attempt); paddleSubscriptionId
     // tracks the current subscription so webhook events can be reconciled
     // even if a customer somehow has more than one over time.
-    stripeCustomerId: text("stripe_customer_id"),
-    stripeSubscriptionId: text("stripe_subscription_id"),
+    paddleCustomerId: text("paddle_customer_id"),
+    paddleSubscriptionId: text("paddle_subscription_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
     normalizedEmailIdx: uniqueIndex("users_normalized_email_idx").on(table.normalizedEmail),
-    stripeCustomerIdIdx: uniqueIndex("users_stripe_customer_id_idx").on(table.stripeCustomerId),
+    paddleCustomerIdIdx: uniqueIndex("users_paddle_customer_id_idx").on(table.paddleCustomerId),
   }),
 );
 

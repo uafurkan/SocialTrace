@@ -10,10 +10,7 @@ describe("planForSubscriptionStatus", () => {
 
   it("treats every other status as free", () => {
     expect(planForSubscriptionStatus("past_due")).toBe("free");
-    expect(planForSubscriptionStatus("unpaid")).toBe("free");
-    expect(planForSubscriptionStatus("canceled")).toBe("free");
-    expect(planForSubscriptionStatus("incomplete")).toBe("free");
-    expect(planForSubscriptionStatus("incomplete_expired")).toBe("free");
     expect(planForSubscriptionStatus("paused")).toBe("free");
+    expect(planForSubscriptionStatus("canceled")).toBe("free");
   });
 });
