@@ -38,18 +38,35 @@ import { NextRequest, NextResponse } from "next/server";
  * nonce'd Ezoic loader pull in whatever child scripts it needs without
  * widening script-src itself. With ads disabled (the default), the
  * policy stays at its strict 'self'-only baseline.
+ *
+ * Turnstile (NEXT_PUBLIC_TURNSTILE_SITE_KEY, see docs/AUTH.md) is a
+ * single known host, so unlike Ezoic it gets an explicit allowlist entry
+ * (challenges.cloudflare.com) instead of widening to any https origin —
+ * it's independent of the ads flag since bot protection on login/signup
+ * shouldn't depend on whether ad monetization is on.
  */
 export function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const adsEnabled = process.env.NEXT_PUBLIC_EZOIC_ENABLED === "true";
+  // Turnstile's challenge widget renders in its own iframe from
+  // challenges.cloudflare.com — that host needs frame-src even with ads
+  // off, since bot protection on login/signup is independent of the ad
+  // integration. script-src doesn't need it explicitly: the nonce'd
+  // <Script> loading api.js is trusted directly by nonce match.
+  const turnstileEnabled = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
+  const frameSrc = adsEnabled
+    ? "https:"
+    : turnstileEnabled
+      ? "'self' https://challenges.cloudflare.com"
+      : "'self'";
   const csp = `
     default-src 'self';
     script-src 'self' 'nonce-${nonce}' 'strict-dynamic';
     style-src 'self' 'unsafe-inline';
     img-src 'self' https: data:;
     font-src 'self';
-    connect-src 'self'${adsEnabled ? " https:" : ""};
-    frame-src ${adsEnabled ? "https:" : "'self'"};
+    connect-src 'self'${adsEnabled ? " https:" : turnstileEnabled ? " https://challenges.cloudflare.com" : ""};
+    frame-src ${frameSrc};
     object-src 'none';
     base-uri 'self';
     form-action 'self';
