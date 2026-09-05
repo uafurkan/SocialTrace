@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { copy } from "@/lib/copy";
+import { TURNSTILE_SITE_KEY, TurnstileWidget } from "@/components/auth/turnstile-widget";
 
 interface AuthFormProps {
   mode: "login" | "signup";
@@ -15,6 +16,7 @@ export function AuthForm({ mode }: AuthFormProps) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -27,7 +29,7 @@ export function AuthForm({ mode }: AuthFormProps) {
       const res = await fetch(`/api/v1/auth/${mode}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, turnstileToken }),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
@@ -70,8 +72,13 @@ export function AuthForm({ mode }: AuthFormProps) {
           onChange={(e) => setPassword(e.target.value)}
         />
       </div>
+      <TurnstileWidget onVerify={setTurnstileToken} />
       {error ? <p className="text-sm text-danger">{error}</p> : null}
-      <Button type="submit" className="w-full" disabled={isSubmitting}>
+      <Button
+        type="submit"
+        className="w-full"
+        disabled={isSubmitting || (Boolean(TURNSTILE_SITE_KEY) && !turnstileToken)}
+      >
         {isSubmitting ? "Please wait…" : mode === "login" ? copy.auth.loginCta : copy.auth.signupCta}
       </Button>
     </form>

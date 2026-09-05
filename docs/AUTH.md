@@ -54,6 +54,25 @@ session. Moving the read into one client-side island keeps the rest of
 the app statically prerendered, at the cost of one extra request and a
 brief loading state in that one header slot.
 
+## Bot protection (Cloudflare Turnstile)
+
+`src/lib/auth/turnstile.ts` + `src/components/auth/turnstile-widget.tsx`.
+Opt-in, same pattern as every other real integration in this app: with
+`TURNSTILE_SECRET_KEY` unset, `verifyTurnstileToken` always returns
+`true` and the widget renders nothing — login/signup behave exactly as
+before Turnstile existed. Configured (both `NEXT_PUBLIC_TURNSTILE_SITE_KEY`
+and `TURNSTILE_SECRET_KEY` set), `AuthForm` renders the challenge widget,
+disables submit until it's solved, and both `/api/v1/auth/signup` and
+`/api/v1/auth/login` verify the token server-side against Cloudflare's
+`siteverify` endpoint before doing any password hashing/DB work — a
+missing or invalid token gets a `403`. Sits alongside, not instead of,
+the existing per-IP rate limiting above. `src/middleware.ts`'s CSP adds
+`challenges.cloudflare.com` to `frame-src`/`connect-src` only when the
+site key is set.
+
+Get the site key + secret key from the Cloudflare dashboard (Turnstile →
+Add site) — free, no other Cloudflare product required.
+
 ## Identity resolution (`src/lib/auth/identity.ts`)
 
 `resolveIdentity` (Route Handlers) / `resolveIdentityReadOnly` (Server
@@ -102,6 +121,9 @@ and its data deleted from the live database afterward.
   limits — a determined attacker with many IPs could still brute-force
   a specific account's password at a low rate. Acceptable for this
   build's threat model, not for production.
+- **Turnstile is off by default.** With no Cloudflare account configured
+  (`TURNSTILE_SECRET_KEY` unset), auth has no bot-specific protection
+  beyond the per-IP rate limits above.
 
 ## When this needs to change
 

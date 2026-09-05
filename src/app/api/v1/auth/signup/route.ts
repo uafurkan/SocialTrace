@@ -6,6 +6,7 @@ import { createSession } from "@/lib/auth/session";
 import { SESSION_COOKIE, SESSION_COOKIE_OPTIONS } from "@/lib/auth/session-cookie";
 import { signupSchema } from "@/lib/auth/validation";
 import { clientIdentifierFor, rateLimit } from "@/lib/rate-limit";
+import { verifyTurnstileToken } from "@/lib/auth/turnstile";
 
 const SIGNUP_RATE_LIMIT = 5;
 const SIGNUP_RATE_WINDOW_MS = 10 * 60 * 1000;
@@ -27,6 +28,11 @@ export async function POST(request: NextRequest) {
   const parsed = signupSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
+  }
+
+  const turnstileOk = await verifyTurnstileToken(parsed.data.turnstileToken, clientIdentifierFor(request));
+  if (!turnstileOk) {
+    return NextResponse.json({ error: "Bot verification failed. Please try again." }, { status: 403 });
   }
 
   try {
