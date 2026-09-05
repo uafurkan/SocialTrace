@@ -26,7 +26,7 @@ interface ApifyTaggedPostItem {
   caption?: { text?: string } | string | null;
   like_count?: number;
   comment_count?: number;
-  taken_at?: number;
+  taken_at?: number | string;
   tagged_user?: ApifyTaggedUser[];
   user?: { username?: string; profile_pic_url?: string; is_verified?: boolean };
 }
@@ -35,6 +35,13 @@ function captionText(caption: ApifyTaggedPostItem["caption"]): string {
   if (!caption) return "";
   if (typeof caption === "string") return caption;
   return caption.text ?? "";
+}
+
+/** The actor has been observed returning `taken_at` as both a unix-seconds number and an ISO string — handle both rather than assuming one. */
+function parseTakenAt(takenAt: number | string | undefined): string {
+  if (takenAt == null) return new Date().toISOString();
+  const date = typeof takenAt === "number" ? new Date(takenAt * 1000) : new Date(takenAt);
+  return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
 }
 
 export async function fetchApifyTaggedPosts(username: string): Promise<TaggedPost[]> {
@@ -58,7 +65,7 @@ export async function fetchApifyTaggedPosts(username: string): Promise<TaggedPos
         caption: captionText(item.caption),
         likeCount: item.like_count ?? 0,
         commentCount: item.comment_count ?? 0,
-        postedAt: new Date((item.taken_at ?? Math.floor(Date.now() / 1000)) * 1000).toISOString(),
+        postedAt: parseTakenAt(item.taken_at),
         authorUsername: item.user?.username ?? "unknown",
         authorAvatarUrl: item.user?.profile_pic_url ?? "",
         authorIsVerified: item.user?.is_verified ?? false,
