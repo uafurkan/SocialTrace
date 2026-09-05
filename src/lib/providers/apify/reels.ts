@@ -6,6 +6,7 @@ const REEL_ACTOR_ID = "apify~instagram-reel-scraper";
 interface ApifyReelItem {
   id: string;
   displayUrl?: string;
+  videoUrl?: string;
   caption?: string;
   likesCount?: number;
   commentsCount?: number;
@@ -35,6 +36,7 @@ export async function fetchApifyReels(username: string, profileId: string, limit
     profileId,
     mediaType: "reel",
     thumbnailUrl: reel.displayUrl ?? "",
+    mediaUrl: reel.videoUrl || reel.displayUrl || "",
     caption: reel.caption ?? "",
     likeCount: reel.likesCount ?? 0,
     commentCount: reel.commentsCount ?? 0,

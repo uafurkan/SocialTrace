@@ -3,7 +3,7 @@
  * on this interface, never on a specific acquisition provider — see
  * spec §1.3 and docs/PROVIDER_CONTRACT.md.
  */
-import type { CursorPage, Post, Profile, SocialUser } from "@/lib/domain/types";
+import type { CursorPage, Post, Profile, SocialUser, Story } from "@/lib/domain/types";
 
 export interface ProviderCapabilities {
   profile: boolean;
@@ -32,6 +32,8 @@ export interface SocialDataProvider {
   getProfile(username: string): Promise<ProviderProfileResult>;
   getPosts(profileId: string, cursor?: string, limit?: number): Promise<CursorPage<Post>>;
   getReels(profileId: string, cursor?: string, limit?: number): Promise<CursorPage<Post>>;
+  /** Currently-active (unexpired) stories only — no pagination, IG stories are naturally few and ephemeral. */
+  getStories(profileId: string): Promise<Story[]>;
   getFollowers(profileId: string, cursor?: string, limit?: number, query?: string): Promise<CursorPage<SocialUser>>;
   getFollowing(profileId: string, cursor?: string, limit?: number, query?: string): Promise<CursorPage<SocialUser>>;
 }

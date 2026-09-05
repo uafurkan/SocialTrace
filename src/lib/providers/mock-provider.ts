@@ -12,7 +12,7 @@
  * what the diff engine (src/lib/diff/) requires before it will compute
  * added/removed members at all (spec §20).
  */
-import type { CoverageStatus, CursorPage, Post, Profile, SocialUser } from "@/lib/domain/types";
+import type { CoverageStatus, CursorPage, Post, Profile, SocialUser, Story } from "@/lib/domain/types";
 import { paginate } from "./paginate";
 import { ProfileNotFoundError, type ProviderCapabilities, type SocialDataProvider } from "./types";
 
@@ -37,6 +37,11 @@ function mulberry32(seed: number) {
 }
 
 const NOT_FOUND_USERNAMES = new Set(["doesnotexist", "notfound"]);
+
+/** Deterministic placeholder image (picsum.photos supports a stable seed) — allowlisted by the media download route. */
+function mockImageUrl(seed: string, size: number): string {
+  return `https://picsum.photos/seed/${encodeURIComponent(seed)}/${size}/${size}`;
+}
 
 interface SeedProfile {
   username: string;
@@ -157,7 +162,7 @@ export class MockSocialDataProvider implements SocialDataProvider {
     profile: true,
     posts: true,
     reels: true,
-    stories: false,
+    stories: true,
     highlights: false,
     followers: true,
     following: true,
@@ -182,18 +187,48 @@ export class MockSocialDataProvider implements SocialDataProvider {
   private buildPosts(profileId: string, mediaType: Post["mediaType"], cursor: string | undefined, limit: number): CursorPage<Post> {
     const rand = mulberry32(hashSeed(profileId + mediaType));
     const total = mediaType === "reel" ? 40 : 120;
-    const all: Post[] = Array.from({ length: total }, (_, i) => ({
-      id: `${profileId}_post_${mediaType}_${i}`,
-      profileId,
-      mediaType: mediaType === "reel" ? "reel" : rand() > 0.7 ? "video" : "image",
-      thumbnailUrl: "",
-      caption: "Post caption preview text goes here.",
-      likeCount: Math.floor(rand() * 50_000),
-      commentCount: Math.floor(rand() * 2_000),
-      viewCount: mediaType === "reel" ? Math.floor(rand() * 1_000_000) : null,
-      postedAt: new Date(Date.now() - i * 86_400_000).toISOString(),
-    }));
+    const all: Post[] = Array.from({ length: total }, (_, i) => {
+      const id = `${profileId}_post_${mediaType}_${i}`;
+      // Deterministic placeholder image so viewing/downloading work end-to-end
+      // in mock mode too — there's no real Instagram media without a real
+      // provider, but the UI shouldn't be a wall of blank tiles either.
+      const image = mockImageUrl(id, 600);
+      return {
+        id,
+        profileId,
+        mediaType: mediaType === "reel" ? "reel" : rand() > 0.7 ? "video" : "image",
+        thumbnailUrl: image,
+        mediaUrl: image,
+        caption: "Post caption preview text goes here.",
+        likeCount: Math.floor(rand() * 50_000),
+        commentCount: Math.floor(rand() * 2_000),
+        viewCount: mediaType === "reel" ? Math.floor(rand() * 1_000_000) : null,
+        postedAt: new Date(Date.now() - i * 86_400_000).toISOString(),
+      };
+    });
     return paginate(all, cursor, limit);
+  }
+
+  async getStories(profileId: string): Promise<Story[]> {
+    const rand = mulberry32(hashSeed(profileId + "stories"));
+    // 0-4 active stories, deterministic per profile — some profiles
+    // legitimately have none, same honesty the real provider gives.
+    const count = Math.floor(rand() * 5);
+    const now = Date.now();
+    return Array.from({ length: count }, (_, i) => {
+      const id = `${profileId}_story_${i}`;
+      const image = mockImageUrl(id, 800);
+      const postedAt = now - i * 3 * 60 * 60 * 1000;
+      return {
+        id,
+        profileId,
+        mediaType: "image",
+        mediaUrl: image,
+        thumbnailUrl: image,
+        postedAt: new Date(postedAt).toISOString(),
+        expiresAt: new Date(postedAt + 24 * 60 * 60 * 1000).toISOString(),
+      };
+    });
   }
 
   async getFollowers(profileId: string, cursor?: string, limit = 100, query?: string) {

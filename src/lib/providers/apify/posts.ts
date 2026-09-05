@@ -7,6 +7,7 @@ interface ApifyPostItem {
   id: string;
   type?: string; // "Image" | "Video" | "Sidecar"
   displayUrl?: string;
+  videoUrl?: string;
   caption?: string;
   likesCount?: number;
   commentsCount?: number;
@@ -37,6 +38,7 @@ export async function fetchApifyPosts(username: string, profileId: string): Prom
     profileId,
     mediaType: post.type === "Video" ? "video" : "image",
     thumbnailUrl: post.displayUrl ?? "",
+    mediaUrl: post.type === "Video" ? post.videoUrl || post.displayUrl || "" : post.displayUrl ?? "",
     caption: post.caption ?? "",
     likeCount: post.likesCount ?? 0,
     commentCount: post.commentsCount ?? 0,

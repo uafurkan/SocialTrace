@@ -80,9 +80,22 @@ most of `SOCIALTRACE_MASTER_BUILD_SPEC.md`. Explicitly out of scope:
   `/api/v1/profiles/[profileId]/export`, generated inside the request and
   capped at 500 items per list. No auth, no job queue, no blob storage, no
   signed/expiring URLs, no JSONL/ZIP/PDF formats — see `docs/EXPORT.md`.
-- **No Stories or Highlights data** — the mock provider's capability flags
-  mark these `false`, and those tabs render "not available in this
-  build."
+- **Stories are real and anonymous (spec-honest), Highlights still aren't.**
+  `/profile/[username]/stories` now shows real, currently-active public
+  stories with no login required (`data-slayer/instagram-stories-scraper`
+  via Apify, `src/lib/providers/apify/stories.ts`) when
+  `SOCIAL_PROVIDER=apify`, or deterministic fake ones from the mock
+  provider otherwise. No pagination or archive — only what's active right
+  now, since Instagram stories are inherently ephemeral (24h) and no actor
+  was evaluated for past/archived stories. Highlights still have no data
+  source at all — that tab renders "not available in this build."
+- **Photos, videos, and reels can be downloaded, not just viewed.** The
+  post/reel grid and the story viewer both have a Download action that
+  proxies the real media file (`/api/v1/media/download`) with a forced
+  attachment download, restricted to Instagram's CDN domains plus the
+  mock provider's placeholder image host. No batch/zip download, no
+  original (non-compressed) quality guarantee beyond whatever rendition
+  the provider returned.
 - **No job queue, Redis, or background workers.**
 - **SEO content pages exist for real features only (spec §45–§97).**
   `/help` (+ 7 articles), `/data-methodology`, `/changelog`, `/faq`, and

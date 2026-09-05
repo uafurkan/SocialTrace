@@ -50,11 +50,24 @@ export interface Post {
   profileId: string;
   mediaType: PostMediaType;
   thumbnailUrl: string;
+  /** Full-resolution downloadable asset (the video file for video/reel, the full image otherwise) — separate from thumbnailUrl, which may be a smaller preview. */
+  mediaUrl: string;
   caption: string;
   likeCount: number;
   commentCount: number;
   viewCount: number | null;
   postedAt: string;
+}
+
+/** A still-active (unexpired) story — spec's stories tab, sourced live with no login required (docs/DECISIONS.md). */
+export interface Story {
+  id: string;
+  profileId: string;
+  mediaType: "image" | "video";
+  mediaUrl: string;
+  thumbnailUrl: string;
+  postedAt: string;
+  expiresAt: string;
 }
 
 /** Spec §19 snapshot metadata, trimmed to what the history UI needs. */

@@ -1,10 +1,11 @@
-import type { CursorPage, Post, SocialUser } from "@/lib/domain/types";
+import type { CursorPage, Post, SocialUser, Story } from "@/lib/domain/types";
 import { paginate } from "../paginate";
 import type { ProviderCapabilities, SocialDataProvider } from "../types";
 import { fetchMembers } from "./followers";
 import { fetchApifyPosts } from "./posts";
 import { MEMBER_FETCH_CAP, fetchApifyProfile } from "./profile";
 import { fetchApifyReels } from "./reels";
+import { fetchApifyStories } from "./stories";
 
 function usernameFromProfileId(profileId: string): string {
   return profileId.replace(/^profile_/, "");
@@ -15,7 +16,7 @@ export class ApifyInstagramProvider implements SocialDataProvider {
     profile: true,
     posts: true,
     reels: true,
-    stories: false,
+    stories: true,
     highlights: false,
     followers: true,
     following: true,
@@ -40,6 +41,11 @@ export class ApifyInstagramProvider implements SocialDataProvider {
     const offset = cursor ? Number.parseInt(cursor, 10) || 0 : 0;
     const all = await fetchApifyReels(username, profileId, offset + limit);
     return paginate(all, cursor, limit);
+  }
+
+  async getStories(profileId: string): Promise<Story[]> {
+    const username = usernameFromProfileId(profileId);
+    return fetchApifyStories(username, profileId);
   }
 
   async getFollowers(profileId: string, cursor?: string, limit = 100, query?: string): Promise<CursorPage<SocialUser>> {

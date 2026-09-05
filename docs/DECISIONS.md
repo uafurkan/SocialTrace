@@ -604,3 +604,34 @@ same database). Root cause not pinned down; worked around by filtering on
 `normalizedUsername` alone, since this build only ever has one platform
 value anyway and the composite key is still enforced at the database
 level for writes. Worth re-testing if this ever becomes multi-platform.
+
+## Stories: found a working "no login" actor, and a real download path
+
+Earlier slices marked stories/highlights out of scope because "no actor
+covers these" (docs/PROVIDER_CONTRACT.md, since revised). Re-checked live
+against Apify's store: `data-slayer/instagram-stories-scraper`
+("Instagram Stories Scraper · No Login") exists, is actively used (~4K
+runs/30 days, ~99% success rate), and was verified directly — a test call
+against a real public account's active stories (no session cookie, no
+login) returned genuine Instagram Stories API records with working CDN
+image URLs, correct expiry timestamps, and an honest
+`{ status: "no_active_stories" }` response for an account with nothing
+active. Wired up as `src/lib/providers/apify/stories.ts`; the mock
+provider gained a parallel `getStories` that generates 0-4 fake stories
+per profile so the feature is fully demoable without the real provider.
+Highlights were not re-investigated — still out of scope.
+
+Downloading the actual media file (not just viewing it) needed a proxy
+route rather than a plain `<a href>` to Instagram's CDN, because the
+`download` attribute doesn't force a save across origins and Instagram's
+URLs are signed/expiring anyway. `/api/v1/media/download` fetches the
+file server-side and re-serves it with `Content-Disposition: attachment`.
+Since this is a public route with no auth, accepting an arbitrary `url`
+would make it an open proxy (SSRF risk) — it only allows Instagram's own
+CDN domains plus the mock provider's placeholder image host
+(`picsum.photos`), rejecting everything else including lookalike
+hostnames. This also meant giving the mock provider actual placeholder
+images (`picsum.photos`, deterministically seeded per post/story id)
+instead of empty `thumbnailUrl` strings — mock mode was otherwise a wall
+of blank tiles, which undercut the "activate viewing" half of this
+feature even before Apify is switched on.

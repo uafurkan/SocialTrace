@@ -10,15 +10,18 @@ interface SocialDataProvider {
   getProfile(username: string): Promise<ProviderProfileResult>;
   getPosts(profileId: string, cursor?: string, limit?: number): Promise<CursorPage<Post>>;
   getReels(profileId: string, cursor?: string, limit?: number): Promise<CursorPage<Post>>;
+  getStories(profileId: string): Promise<Story[]>;
   getFollowers(profileId: string, cursor?: string, limit?: number, query?: string): Promise<CursorPage<SocialUser>>;
   getFollowing(profileId: string, cursor?: string, limit?: number, query?: string): Promise<CursorPage<SocialUser>>;
 }
 ```
 
 `ProviderCapabilities` declares what a given implementation can actually
-do — `stories`/`highlights`/`followerHistory` are `false` on the mock
-provider, and the UI renders an honest "not available" state rather than
-faking that data (spec §154 Feature Capability UI).
+do — `highlights`/`followerHistory` are `false` on both providers, and the
+UI renders an honest "not available" state rather than faking that data
+(spec §154 Feature Capability UI). `stories` is `true` on both: the mock
+provider generates 0-4 deterministic fake ones per profile, and the Apify
+provider fetches real active stories (see below).
 
 ## Current implementation: `MockSocialDataProvider`
 
@@ -91,9 +94,26 @@ nothing costs money unless explicitly opted in.
   view) — so a huge account's coverage badge will correctly show a very
   low percentage the moment its real follower count is known, before its
   follower list is ever fetched.
-- **Not implemented**: stories, highlights, follower history —
-  `capabilities` marks these `false`, same honesty rule as the mock
-  provider.
+- **Stories** (`apify/stories.ts`): `data-slayer/instagram-stories-scraper`
+  ("No Login") — verified live during development against a real public
+  account's active stories: no session cookie needed, returns Instagram's
+  own raw Stories API records (`image_versions`/`video_versions`,
+  `taken_at`/`expiring_at`). A profile with nothing active comes back as
+  `{ username, status: "no_active_stories" }` instead of a story item,
+  which is filtered out — the honest zero-stories case, not a failure.
+  Picks the widest available image/video rendition as both the thumbnail
+  and the downloadable asset. No pagination — a profile realistically
+  never has more than a handful of active (unexpired) stories at once.
+- **Media downloads** (`/api/v1/media/download`, used by the post/reel
+  grid and the story viewer): proxies the actual image/video file with
+  `Content-Disposition: attachment`, restricted to an allowlist of
+  Instagram's CDN domains (`cdninstagram.com`, `fbcdn.net`) plus the mock
+  provider's placeholder image host (`picsum.photos`) — this is a public,
+  unauthenticated route, so an open proxy to arbitrary URLs would be an
+  SSRF hole.
+- **Not implemented**: highlights, follower history — `capabilities`
+  marks these `false`, same honesty rule as the mock provider. No actor
+  was evaluated for highlights in this pass.
 
 ## Adding another provider later
 
