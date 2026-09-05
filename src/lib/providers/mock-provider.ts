@@ -12,7 +12,18 @@
  * what the diff engine (src/lib/diff/) requires before it will compute
  * added/removed members at all (spec §20).
  */
-import type { CoverageStatus, CursorPage, Post, Profile, SocialUser, Story } from "@/lib/domain/types";
+import type {
+  Comment,
+  CoverageStatus,
+  CursorPage,
+  Highlight,
+  Liker,
+  Post,
+  Profile,
+  SocialUser,
+  Story,
+  TaggedPost,
+} from "@/lib/domain/types";
 import { paginate } from "./paginate";
 import { ProfileNotFoundError, type ProviderCapabilities, type SocialDataProvider } from "./types";
 
@@ -163,7 +174,9 @@ export class MockSocialDataProvider implements SocialDataProvider {
     posts: true,
     reels: true,
     stories: true,
-    highlights: false,
+    highlights: true,
+    taggedPosts: true,
+    postEngagement: true,
     followers: true,
     following: true,
     followerHistory: false,
@@ -199,6 +212,7 @@ export class MockSocialDataProvider implements SocialDataProvider {
         mediaType: mediaType === "reel" ? "reel" : rand() > 0.7 ? "video" : "image",
         thumbnailUrl: image,
         mediaUrl: image,
+        permalink: `https://www.instagram.com/p/mock_${id}/`,
         caption: "Post caption preview text goes here.",
         likeCount: Math.floor(rand() * 50_000),
         commentCount: Math.floor(rand() * 2_000),
@@ -227,6 +241,88 @@ export class MockSocialDataProvider implements SocialDataProvider {
         thumbnailUrl: image,
         postedAt: new Date(postedAt).toISOString(),
         expiresAt: new Date(postedAt + 24 * 60 * 60 * 1000).toISOString(),
+      };
+    });
+  }
+
+  async getHighlights(profileId: string): Promise<Highlight[]> {
+    const rand = mulberry32(hashSeed(profileId + "highlights"));
+    const count = Math.floor(rand() * 4); // 0-3 highlights, deterministic per profile
+    const titles = ["Travel", "Behind the Scenes", "Q&A", "Launch Day", "Team"];
+    return Array.from({ length: count }, (_, i) => {
+      const id = `${profileId}_highlight_${i}`;
+      const itemCount = 1 + Math.floor(rand() * 6);
+      return {
+        id,
+        profileId,
+        title: titles[i % titles.length],
+        coverUrl: mockImageUrl(`${id}_cover`, 300),
+        items: Array.from({ length: itemCount }, (_, j) => {
+          const itemId = `${id}_item_${j}`;
+          const image = mockImageUrl(itemId, 800);
+          return {
+            id: itemId,
+            mediaType: "image" as const,
+            mediaUrl: image,
+            thumbnailUrl: image,
+            postedAt: new Date(Date.now() - (i * itemCount + j) * 7 * 86_400_000).toISOString(),
+          };
+        }),
+      };
+    });
+  }
+
+  async getTaggedPosts(profileId: string): Promise<TaggedPost[]> {
+    const rand = mulberry32(hashSeed(profileId + "tagged"));
+    const count = Math.floor(rand() * 9); // 0-8, deterministic
+    return Array.from({ length: count }, (_, i) => {
+      const id = `${profileId}_tagged_${i}`;
+      const image = mockImageUrl(id, 600);
+      const authorId = `user_${Math.floor(rand() * 1e9).toString(36)}`;
+      return {
+        id,
+        mediaType: "image" as const,
+        mediaUrl: image,
+        thumbnailUrl: image,
+        permalink: `https://www.instagram.com/p/mock_${id}/`,
+        caption: "Tagged post caption preview text.",
+        likeCount: Math.floor(rand() * 20_000),
+        commentCount: Math.floor(rand() * 500),
+        postedAt: new Date(Date.now() - i * 3 * 86_400_000).toISOString(),
+        authorUsername: authorId,
+        authorAvatarUrl: mockImageUrl(`${authorId}_avatar`, 100),
+        authorIsVerified: rand() > 0.8,
+      };
+    });
+  }
+
+  async getLikers(permalink: string, limit = 50): Promise<Liker[]> {
+    const rand = mulberry32(hashSeed(permalink + "likers"));
+    return Array.from({ length: limit }, (_, i) => {
+      const uname = `user_${Math.floor(rand() * 1e9).toString(36)}`;
+      return {
+        username: uname,
+        displayName: uname,
+        avatarUrl: mockImageUrl(`${permalink}_liker_${i}`, 100),
+        isVerified: rand() > 0.95,
+        isPrivate: rand() > 0.7,
+      };
+    });
+  }
+
+  async getComments(permalink: string, limit = 30): Promise<Comment[]> {
+    const rand = mulberry32(hashSeed(permalink + "comments"));
+    const sample = ["Love this! ❤️", "🔥🔥🔥", "Amazing shot", "Where is this?", "So good", "😍😍😍", "Incredible!"];
+    return Array.from({ length: limit }, (_, i) => {
+      const uname = `user_${Math.floor(rand() * 1e9).toString(36)}`;
+      return {
+        id: `${permalink}_comment_${i}`,
+        authorUsername: uname,
+        authorAvatarUrl: mockImageUrl(`${permalink}_commenter_${i}`, 100),
+        authorIsVerified: rand() > 0.95,
+        text: sample[Math.floor(rand() * sample.length)],
+        likeCount: Math.floor(rand() * 200),
+        postedAt: new Date(Date.now() - i * 3_600_000).toISOString(),
       };
     });
   }

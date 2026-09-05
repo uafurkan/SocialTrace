@@ -635,3 +635,48 @@ images (`picsum.photos`, deterministically seeded per post/story id)
 instead of empty `thumbnailUrl` strings — mock mode was otherwise a wall
 of blank tiles, which undercut the "activate viewing" half of this
 feature even before Apify is switched on.
+
+## Highlights, Tagged posts, and Likers/Comments: closing the remaining honest gaps
+
+Motivated by a straightforward self-critique — what would a real visitor
+of a "view someone's Instagram anonymously" tool actually expect? Stories
+and downloads existed, but Highlights (an explicit `capabilities: false`
+gap), "who tagged this profile," and "who liked/commented on this post"
+did not, and those are exactly the surfaces such a visitor asks for
+first. Every actor below was found and live-tested against Apify's REST
+API with a real account before writing any integration code, not trusted
+from its store description — two candidates were caught being unreliable
+this way and discarded:
+
+- `data-slayer/instagram-highlights-scraper` returned the *same* hardcoded
+  Nike highlight regardless of which username was passed (confirmed by
+  calling it with three different unrelated usernames and getting
+  identical output each time) — unusable, discarded in favor of
+  `seemuapps/instagram-highlights-scraper`, which returned genuinely
+  different, correct data per profile and — unlike the first actor and
+  several other candidates — resolves each highlight's contained stories
+  in the same call rather than only returning highlight metadata.
+- `data-slayer/instagram-tagged-posts` returned an unrelated, spam-looking
+  post authored by a random account with no connection to the requested
+  username — discarded in favor of
+  `instagram-scraper/instagram-tagged-posts-scraper`, verified live to
+  return posts whose `tagged_user` array genuinely contains the requested
+  profile (checked against a real account, not assumed); that check is
+  additionally re-applied in code as defense in depth against the same
+  failure mode recurring.
+
+Likers (`memo23/instagram-likers-scraper`) and comments (Apify's own
+official `apify/instagram-comment-scraper`, 9M+ runs) are per-*post*, not
+per-profile, so they needed the post's real instagram.com permalink —
+added as a new `permalink` field on `Post`/`TaggedPost` — rather than an
+internal id. Exposing them as a dedicated `/api/v1/posts/engagement`
+route (instead of embedding likers/comments directly in the post grid's
+own data) was deliberate: a profile's post grid can show dozens of posts,
+and eagerly fetching engagement for every one of them would multiply the
+Apify bill by however many posts are on screen. A viewer only pays for
+the one post whose likers/comments they actually click open.
+
+All four new capabilities (`highlights`, `taggedPosts`, `postEngagement`)
+also got deterministic mock implementations, following the same pattern
+as stories — so the features are fully demoable, and their UI is fully
+exercised by tests, without `SOCIAL_PROVIDER=apify` set.

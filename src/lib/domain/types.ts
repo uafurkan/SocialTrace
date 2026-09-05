@@ -52,6 +52,8 @@ export interface Post {
   thumbnailUrl: string;
   /** Full-resolution downloadable asset (the video file for video/reel, the full image otherwise) — separate from thumbnailUrl, which may be a smaller preview. */
   mediaUrl: string;
+  /** The post's real instagram.com/p/... or /reel/... URL — needed to look up likers/comments, which are keyed by post, not by our internal id. */
+  permalink: string;
   caption: string;
   likeCount: number;
   commentCount: number;
@@ -68,6 +70,59 @@ export interface Story {
   thumbnailUrl: string;
   postedAt: string;
   expiresAt: string;
+}
+
+/** One media item saved inside a Highlight — unlike Story, these persist indefinitely, so there's no expiresAt. */
+export interface HighlightItem {
+  id: string;
+  mediaType: "image" | "video";
+  mediaUrl: string;
+  thumbnailUrl: string;
+  postedAt: string;
+}
+
+export interface Highlight {
+  id: string;
+  profileId: string;
+  title: string;
+  coverUrl: string;
+  items: HighlightItem[];
+}
+
+/** A post/reel this profile was tagged in by another account — spec's "who tagged them" surface. */
+export interface TaggedPost {
+  id: string;
+  mediaType: "image" | "video";
+  mediaUrl: string;
+  thumbnailUrl: string;
+  permalink: string;
+  caption: string;
+  likeCount: number;
+  commentCount: number;
+  postedAt: string;
+  authorUsername: string;
+  authorAvatarUrl: string;
+  authorIsVerified: boolean;
+}
+
+/** One entry in the likers list for a specific post/reel. */
+export interface Liker {
+  username: string;
+  displayName: string;
+  avatarUrl: string;
+  isVerified: boolean;
+  isPrivate: boolean;
+}
+
+/** One comment on a specific post/reel. */
+export interface Comment {
+  id: string;
+  authorUsername: string;
+  authorAvatarUrl: string;
+  authorIsVerified: boolean;
+  text: string;
+  likeCount: number;
+  postedAt: string;
 }
 
 /** Spec §19 snapshot metadata, trimmed to what the history UI needs. */

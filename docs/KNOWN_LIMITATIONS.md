@@ -80,15 +80,27 @@ most of `SOCIALTRACE_MASTER_BUILD_SPEC.md`. Explicitly out of scope:
   `/api/v1/profiles/[profileId]/export`, generated inside the request and
   capped at 500 items per list. No auth, no job queue, no blob storage, no
   signed/expiring URLs, no JSONL/ZIP/PDF formats — see `docs/EXPORT.md`.
-- **Stories are real and anonymous (spec-honest), Highlights still aren't.**
-  `/profile/[username]/stories` now shows real, currently-active public
-  stories with no login required (`data-slayer/instagram-stories-scraper`
-  via Apify, `src/lib/providers/apify/stories.ts`) when
-  `SOCIAL_PROVIDER=apify`, or deterministic fake ones from the mock
-  provider otherwise. No pagination or archive — only what's active right
-  now, since Instagram stories are inherently ephemeral (24h) and no actor
-  was evaluated for past/archived stories. Highlights still have no data
-  source at all — that tab renders "not available in this build."
+- **Stories, Highlights, Tagged posts, and post Likers/Comments are all
+  real and anonymous (spec-honest) now — no login required for any of
+  them.** `/profile/[username]/stories` shows real, currently-active
+  public stories (`data-slayer/instagram-stories-scraper`,
+  `src/lib/providers/apify/stories.ts`) — no pagination or archive, only
+  what's active right now, since stories are inherently ephemeral (24h)
+  and no actor was evaluated for past/archived ones.
+  `/profile/[username]/highlights` shows real saved highlight reels and
+  their contents (`seemuapps/instagram-highlights-scraper`,
+  `src/lib/providers/apify/highlights.ts`) — no pagination.
+  `/profile/[username]/tagged` shows real posts/reels the profile was
+  tagged in by other accounts
+  (`instagram-scraper/instagram-tagged-posts-scraper`,
+  `src/lib/providers/apify/tagged-posts.ts`) — capped at 24 results, no
+  pagination. Clicking a post/reel's like or comment count opens who
+  liked it and what was said
+  (`memo23/instagram-likers-scraper` + `apify/instagram-comment-scraper`,
+  `src/lib/providers/apify/likers.ts` + `comments.ts`, exposed via
+  `/api/v1/posts/engagement`) — capped at 50 likers / 30 comments per
+  post, fetched on demand per post rather than eagerly for a whole grid.
+  All four fall back to deterministic mock data with the mock provider.
 - **Photos, videos, and reels can be downloaded, not just viewed.** The
   post/reel grid and the story viewer both have a Download action that
   proxies the real media file (`/api/v1/media/download`) with a forced

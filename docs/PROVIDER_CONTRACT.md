@@ -11,17 +11,25 @@ interface SocialDataProvider {
   getPosts(profileId: string, cursor?: string, limit?: number): Promise<CursorPage<Post>>;
   getReels(profileId: string, cursor?: string, limit?: number): Promise<CursorPage<Post>>;
   getStories(profileId: string): Promise<Story[]>;
+  getHighlights(profileId: string): Promise<Highlight[]>;
+  getTaggedPosts(profileId: string): Promise<TaggedPost[]>;
+  getLikers(permalink: string, limit?: number): Promise<Liker[]>;
+  getComments(permalink: string, limit?: number): Promise<Comment[]>;
   getFollowers(profileId: string, cursor?: string, limit?: number, query?: string): Promise<CursorPage<SocialUser>>;
   getFollowing(profileId: string, cursor?: string, limit?: number, query?: string): Promise<CursorPage<SocialUser>>;
 }
 ```
 
 `ProviderCapabilities` declares what a given implementation can actually
-do — `highlights`/`followerHistory` are `false` on both providers, and the
-UI renders an honest "not available" state rather than faking that data
-(spec §154 Feature Capability UI). `stories` is `true` on both: the mock
-provider generates 0-4 deterministic fake ones per profile, and the Apify
-provider fetches real active stories (see below).
+do — `followerHistory` is `false` on both providers, and the UI renders an
+honest "not available" state rather than faking that data (spec §154
+Feature Capability UI). `stories`, `highlights`, `taggedPosts`, and
+`postEngagement` (likers + comments) are all `true` on both providers: the
+mock provider generates deterministic fake data for each, and the Apify
+provider fetches the real thing (see below). `getLikers`/`getComments`
+take the post's own `permalink` (its real instagram.com URL, now part of
+the `Post`/`TaggedPost` domain types) rather than an internal profileId,
+since likers/comments are keyed by post, not by profile.
 
 ## Current implementation: `MockSocialDataProvider`
 
@@ -111,9 +119,29 @@ nothing costs money unless explicitly opted in.
   provider's placeholder image host (`picsum.photos`) — this is a public,
   unauthenticated route, so an open proxy to arbitrary URLs would be an
   SSRF hole.
-- **Not implemented**: highlights, follower history — `capabilities`
-  marks these `false`, same honesty rule as the mock provider. No actor
-  was evaluated for highlights in this pass.
+- **Highlights** (`apify/highlights.ts`):
+  `seemuapps/instagram-highlights-scraper` — verified live against real
+  public accounts. Unlike several competing actors that only return
+  highlight *metadata* (title/cover/count with no way to actually view the
+  saved stories inside), this one resolves each highlight's full `stories`
+  array in the same call. No pagination — a profile's highlight reels
+  don't grow fast enough to need it.
+- **Tagged posts** (`apify/tagged-posts.ts`):
+  `instagram-scraper/instagram-tagged-posts-scraper` — verified live
+  against a real account (confirmed the target profile actually appears
+  in each result's `tagged_user` array, not just echoed input); results
+  are filtered again in code to the same check as defense in depth. No
+  pagination, capped at 24 results per profile per call.
+- **Post likers + comments** (`apify/likers.ts`, `apify/comments.ts`,
+  `/api/v1/posts/engagement`): `memo23/instagram-likers-scraper` and
+  Apify's own official `apify/instagram-comment-scraper` — both take a
+  post/reel's real permalink URL, not an internal id. Exposed through a
+  small dedicated route rather than baked into the post grid response,
+  so a profile's whole post grid doesn't eagerly bill Apify once per
+  visible post — a viewer only pays for the one post whose likers/
+  comments they actually open.
+- **Not implemented**: follower history — `capabilities.followerHistory`
+  stays `false`, same honesty rule as the mock provider.
 
 ## Adding another provider later
 

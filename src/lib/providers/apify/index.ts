@@ -1,11 +1,15 @@
-import type { CursorPage, Post, SocialUser, Story } from "@/lib/domain/types";
+import type { Comment, CursorPage, Highlight, Liker, Post, SocialUser, Story, TaggedPost } from "@/lib/domain/types";
 import { paginate } from "../paginate";
 import type { ProviderCapabilities, SocialDataProvider } from "../types";
+import { fetchApifyComments } from "./comments";
 import { fetchMembers } from "./followers";
+import { fetchApifyHighlights } from "./highlights";
+import { fetchApifyLikers } from "./likers";
 import { fetchApifyPosts } from "./posts";
 import { MEMBER_FETCH_CAP, fetchApifyProfile } from "./profile";
 import { fetchApifyReels } from "./reels";
 import { fetchApifyStories } from "./stories";
+import { fetchApifyTaggedPosts } from "./tagged-posts";
 
 function usernameFromProfileId(profileId: string): string {
   return profileId.replace(/^profile_/, "");
@@ -17,7 +21,9 @@ export class ApifyInstagramProvider implements SocialDataProvider {
     posts: true,
     reels: true,
     stories: true,
-    highlights: false,
+    highlights: true,
+    taggedPosts: true,
+    postEngagement: true,
     followers: true,
     following: true,
     followerHistory: false,
@@ -46,6 +52,24 @@ export class ApifyInstagramProvider implements SocialDataProvider {
   async getStories(profileId: string): Promise<Story[]> {
     const username = usernameFromProfileId(profileId);
     return fetchApifyStories(username, profileId);
+  }
+
+  async getHighlights(profileId: string): Promise<Highlight[]> {
+    const username = usernameFromProfileId(profileId);
+    return fetchApifyHighlights(username, profileId);
+  }
+
+  async getTaggedPosts(profileId: string): Promise<TaggedPost[]> {
+    const username = usernameFromProfileId(profileId);
+    return fetchApifyTaggedPosts(username);
+  }
+
+  async getLikers(permalink: string, limit?: number): Promise<Liker[]> {
+    return fetchApifyLikers(permalink, limit);
+  }
+
+  async getComments(permalink: string, limit?: number): Promise<Comment[]> {
+    return fetchApifyComments(permalink, limit);
   }
 
   async getFollowers(profileId: string, cursor?: string, limit = 100, query?: string): Promise<CursorPage<SocialUser>> {

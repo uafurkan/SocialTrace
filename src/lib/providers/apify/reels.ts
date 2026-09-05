@@ -13,6 +13,8 @@ interface ApifyReelItem {
   videoPlayCount?: number;
   videoViewCount?: number;
   timestamp?: string;
+  url?: string;
+  shortCode?: string;
 }
 
 /** Per-process cache, keyed by profile+requested count, so re-paginating doesn't re-run (and re-bill) the actor. */
@@ -37,6 +39,7 @@ export async function fetchApifyReels(username: string, profileId: string, limit
     mediaType: "reel",
     thumbnailUrl: reel.displayUrl ?? "",
     mediaUrl: reel.videoUrl || reel.displayUrl || "",
+    permalink: reel.url ?? (reel.shortCode ? `https://www.instagram.com/reel/${reel.shortCode}/` : ""),
     caption: reel.caption ?? "",
     likeCount: reel.likesCount ?? 0,
     commentCount: reel.commentsCount ?? 0,

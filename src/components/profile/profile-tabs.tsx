@@ -15,6 +15,7 @@ const TABS = [
   { slug: "reels", label: "Reels" },
   { slug: "stories", label: "Stories" },
   { slug: "highlights", label: "Highlights" },
+  { slug: "tagged", label: "Tagged" },
   { slug: "followers", label: "Followers" },
   { slug: "following", label: "Following" },
   { slug: "history", label: "History" },

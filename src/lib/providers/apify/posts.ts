@@ -13,6 +13,8 @@ interface ApifyPostItem {
   commentsCount?: number;
   videoViewCount?: number;
   timestamp?: string;
+  url?: string;
+  shortCode?: string;
 }
 
 interface ApifyProfileWithPosts {
@@ -39,6 +41,7 @@ export async function fetchApifyPosts(username: string, profileId: string): Prom
     mediaType: post.type === "Video" ? "video" : "image",
     thumbnailUrl: post.displayUrl ?? "",
     mediaUrl: post.type === "Video" ? post.videoUrl || post.displayUrl || "" : post.displayUrl ?? "",
+    permalink: post.url ?? (post.shortCode ? `https://www.instagram.com/p/${post.shortCode}/` : ""),
     caption: post.caption ?? "",
     likeCount: post.likesCount ?? 0,
     commentCount: post.commentsCount ?? 0,
