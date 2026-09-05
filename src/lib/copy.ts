@@ -14,7 +14,6 @@ export const copy = {
     track: "Track",
     compare: "Compare",
     reports: "Reports",
-    api: "API",
     pricing: "Pricing",
     signIn: "Sign in",
     signUp: "Sign up",

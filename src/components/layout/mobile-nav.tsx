@@ -11,7 +11,6 @@ import { TrackNavBadge } from "@/components/layout/track-nav-badge";
 const links = [
   { href: "/#explore", label: copy.nav.explore, badge: false },
   { href: "/tracking", label: copy.nav.track, badge: true },
-  { href: "/api", label: copy.nav.api, badge: false },
   { href: "/pricing", label: copy.nav.pricing, badge: false },
 ];
 
