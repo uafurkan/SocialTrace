@@ -575,3 +575,32 @@ the production deployment pinned to the last commit before it).
 Fixed by changing the schedule to `0 4 * * *` (once a day). If a tighter
 check interval is ever needed, it requires upgrading the Vercel project
 off the Hobby plan first — not just editing `vercel.json`.
+
+## Profile lookup cache: a TTL, not a "did it change" check
+
+A real provider (Apify) bills per call, and most homepage searches are
+one-shot visitors looking up the same handful of popular profiles. "Only
+re-fetch if the profile actually changed" isn't something a cache can
+decide in advance — the only way to know something changed is to fetch it
+— so `src/lib/cache/profile-cache.ts` does the practical equivalent: every
+`provider.getProfile` result is upserted into a new `profile_cache` table
+(platform + normalized username -> the exact `Profile` JSON returned,
+cached verbatim rather than reconstructed from columns, since coverage
+fields are provider-specific derived values), and a lookup within
+`PROFILE_CACHE_TTL_HOURS` (default 6) is served from that row instead of
+calling the provider again. Falls back to calling the provider directly
+when `DATABASE_URL` isn't set, same as every other DB-backed feature here.
+This only wraps the passive "search/view a profile" path
+(`src/lib/server/profile.ts`) — explicit actions that need the current
+truth (snapshot capture, export, track, saved searches) still call the
+provider directly and are unaffected.
+
+Found live while building this: filtering the cache table by
+`and(eq(platform, "instagram"), eq(normalizedUsername, username))`
+spuriously matched zero rows inside the Next.js dev server specifically —
+each condition matched fine individually, and the exact same combined
+query worked correctly outside Next.js (a standalone script against the
+same database). Root cause not pinned down; worked around by filtering on
+`normalizedUsername` alone, since this build only ever has one platform
+value anyway and the composite key is still enforced at the database
+level for writes. Worth re-testing if this ever becomes multi-platform.

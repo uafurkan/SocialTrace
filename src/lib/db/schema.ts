@@ -8,6 +8,7 @@ import {
   bigint,
   boolean,
   index,
+  jsonb,
   numeric,
   pgEnum,
   pgTable,
@@ -78,6 +79,31 @@ export const socialUsers = pgTable(
       table.platform,
       table.normalizedUsername,
     ),
+  }),
+);
+
+/**
+ * Cost-control cache for `provider.getProfile` (see
+ * src/lib/cache/profile-cache.ts): every profile lookup — a plain search,
+ * not just an explicit "Track"/snapshot action — upserts a row here.
+ * Within `PROFILE_CACHE_TTL_HOURS` (docs/DECISIONS.md), the next lookup of
+ * the same profile is served from `data` instead of re-hitting the real
+ * provider, which is what actually costs money (Apify bills per call).
+ * `data` is the exact `Profile` object the provider returned — cached
+ * verbatim rather than reconstructed from columns, since coverage fields
+ * are provider-specific derived values, not something this cache should
+ * try to recompute.
+ */
+export const profileCache = pgTable(
+  "profile_cache",
+  {
+    platform: platformEnum("platform").notNull(),
+    normalizedUsername: text("normalized_username").notNull(),
+    data: jsonb("data").notNull(),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.platform, table.normalizedUsername] }),
   }),
 );
 

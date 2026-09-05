@@ -17,15 +17,18 @@ most of `SOCIALTRACE_MASTER_BUILD_SPEC.md`. Explicitly out of scope:
   so nothing costs money by default. When enabled: follower/following
   lists are capped at 200 real users per profile per kind (Apify bills
   per result), reels come from a dedicated actor
-  (`apify/instagram-reel-scraper`), and every request re-hits Apify
-  except a same-process in-memory cache for pagination — there is no
-  durable cache, no persistence to the Postgres schema yet, and no
-  retry/backoff tuning beyond falling through to the next actor in the
-  chain. The homepage box takes a full username or a profile link and
-  makes exactly one lookup on submit — there is deliberately no
-  search-as-you-type: a live suggestions box would mean a billed Apify
-  call on every keystroke once the real provider is enabled — see
-  `docs/SEARCH.md`.
+  (`apify/instagram-reel-scraper`), and there is no retry/backoff tuning
+  beyond falling through to the next actor in the chain. A profile lookup
+  (not follower/following lists) is now cached in Postgres for
+  `PROFILE_CACHE_TTL_HOURS` (default 6 — see
+  `src/lib/cache/profile-cache.ts`, `docs/DECISIONS.md`) when
+  `DATABASE_URL` is set, so repeat searches for the same profile within
+  that window don't re-bill Apify; without a database it still re-hits
+  the provider every time. The homepage box takes a full username or a
+  profile link and makes exactly one lookup on submit — there is
+  deliberately no search-as-you-type: a live suggestions box would mean a
+  billed Apify call on every keystroke once the real provider is enabled
+  — see `docs/SEARCH.md`.
 - **Accounts and plan limits exist; real billing does not.** Email +
   password sign-in/sign-up (`/login`, `/signup`, no OAuth, no magic
   links, no password reset — needs a real email service), and
