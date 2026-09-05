@@ -46,6 +46,11 @@ const nextConfig = {
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          // Explicit in app code rather than relying solely on the host
+          // (Vercel) to add it at the edge — makes the guarantee portable
+          // to any future hosting target. 2 years, all subdomains, and
+          // eligible for browser HSTS preload lists.
+          { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
         ],
       },
     ];
