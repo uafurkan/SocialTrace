@@ -51,19 +51,49 @@ deliberately not part of it — see "Not in this slice" below.
 
 `src/middleware.ts` sets a real, non-trivial CSP on every HTML response
 (matcher excludes `/api/*`, `_next/static`, `_next/image`, favicon —
-non-HTML responses a script/style CSP doesn't apply to). Confirmed live
-via a real browser (Playwright) with zero CSP violations across the
-homepage, client-side navigation, and the hero chart's Framer Motion
-animation:
+non-HTML responses a script/style CSP doesn't apply to):
 
 - `script-src 'self' 'nonce-<random>' 'strict-dynamic'` — a fresh nonce
   every request, following [Next.js's documented CSP pattern](https://nextjs.org/docs/app/building-your-application/configuring/content-security-policy).
-  Next.js auto-applies this nonce to its own App Router hydration
-  scripts; no `headers()`/`cookies()` read in a Server Component was
-  needed to thread it through, which matters because that would have
-  broken static generation the same way it did for `AccountMenu`
-  (`docs/AUTH.md`) — middleware runs in front of both static and dynamic
-  responses without affecting which is which.
+
+**Found live, much later, from a real user report of the homepage search
+box silently doing nothing on Enter: this had never actually worked.**
+The claim this doc previously made here — that Next.js auto-applies the
+middleware's nonce to its own script tags with no `headers()` read
+needed — was wrong, and had apparently never been checked against a real
+browser. Confirmed by running the production build (`next build` +
+`next start`) behind Playwright and reading actual console output: every
+single script tag Next.js rendered had no `nonce` attribute at all, so
+`'strict-dynamic'` (which disables the `'self'` host-based fallback once
+present) blocked 100% of them — the framework chunks, the page chunks,
+and the inline RSC-hydration payload scripts. This meant **zero
+client-side JavaScript ever ran on any page, in production, since this
+CSP shipped** — every button, form, and client component was inert; the
+homepage search form's `onSubmit` handler (`preventDefault` +
+`router.push`) never attached, so pressing Enter fell through to the
+browser's native HTML form submission (a plain GET to `/`), which is
+exactly the "nothing happens" the user saw.
+
+The actual mechanism (verified against Next.js 14.2.35): Next.js does
+not parse its own `Content-Security-Policy` response header to discover
+the nonce. It only threads a nonce into the script tags it renders when
+some Server Component in the render tree calls `headers()` during that
+request — that's the signal that opts the request into per-request
+(dynamic) rendering and gives Next a request-scoped place to read
+`x-nonce` from. `src/app/layout.tsx` had never done this, so the nonce
+middleware generated was completely unused. Fixed by calling `headers()`
+unconditionally in `RootLayout`. Re-verified the same way: the CSP
+header's nonce now matches every script tag's `nonce` attribute, zero
+CSP violations in the console, and the homepage search form correctly
+navigates to `/profile/<username>` on Enter.
+
+This does cost the static generation this project had otherwise
+protected carefully (`docs/AUTH.md`'s `AccountMenu` client-island
+workaround) — `headers()` in the root layout forces every page under it
+to render per-request rather than being prerendered at build time (the
+`next build` output changed from mostly `○` to mostly `ƒ`). That's an
+accepted, deliberate trade: a static page that ships zero working
+JavaScript isn't a working page.
 - `style-src 'self' 'unsafe-inline'` — the one deliberate loosening.
   Framer Motion (the homepage hero chart) sets inline `style` attributes
   directly for its transforms; nonce'ing every one of those isn't

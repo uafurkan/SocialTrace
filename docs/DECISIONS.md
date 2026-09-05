@@ -765,3 +765,35 @@ right now" into one response. That's an acceptable honesty trade for an
 inherently ephemeral (24h), always-empty-most-of-the-time dataset: both
 cases mean the same thing to a viewer ("nothing to show right now"), so
 no code change was needed here.
+
+## Critical fix: the CSP nonce was never actually applied — all client JS was inert
+
+A user report ("typing a username on the homepage and pressing Enter does
+nothing") led to finding that the Content Security Policy added in the
+production-hardening slice had a bug present since it shipped: Next.js
+never applies the per-request nonce `src/middleware.ts` generates unless
+some Server Component in the tree calls `headers()` during render, and
+nothing did. Every script tag Next.js rendered — framework chunks, page
+chunks, inline RSC hydration payloads — shipped with no `nonce` attribute,
+and `'strict-dynamic'` in `script-src` blocks the plain `'self'` fallback
+once present. The practical effect, confirmed live against a real
+production build (`next build` + `next start`) with Playwright reading
+actual browser console output: **zero client-side JavaScript ran on any
+page** — every form, button, and interactive component was dead, with no
+visible error to a user beyond "nothing happens." The homepage search
+form's Enter-to-submit fell back to a native, unhandled HTML form GET,
+exactly matching the report.
+
+Fixed by calling `headers()` unconditionally in `src/app/layout.tsx`'s
+`RootLayout` — the documented trigger for Next.js to read the nonce and
+thread it into the scripts it emits. Verified by re-checking the built
+HTML directly: the CSP header's nonce now matches every script tag's
+`nonce` attribute, and the same Playwright repro (type a username, press
+Enter) now correctly navigates to the profile page. See
+`docs/PRODUCTION_HARDENING.md` for the corrected account of this
+mechanism — the doc previously (and incorrectly) claimed this had been
+"confirmed live... with zero CSP violations," which had evidently never
+actually been checked in a real browser. The fix costs the static
+prerendering most pages previously had (`next build`'s output is now
+mostly `ƒ` instead of `○`), an accepted trade since a statically served
+page with no working JavaScript is not a functioning page.
