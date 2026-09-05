@@ -748,3 +748,20 @@ chain reaches first:
   `.results`. This one would not have been caught by private-account
   testing alone — it needed a public-account comparison to notice the
   actor was dead weight regardless of privacy.
+
+## Stories actor: private accounts don't need a separate code path
+
+Tested `data-slayer/instagram-stories-scraper` directly against the
+private test account (`gates`) plus two public accounts (`chamath`,
+`instagram`) end-to-end through `fetchApifyStories`, not just the raw
+API. All three — private or not — came back as the same
+`{ username, stories_count: 0, status: "no_active_stories" }` shape the
+existing `isStoryItem` filter already treats as "nothing to show," and
+`fetchApifyStories` correctly returned `[]` for both. Unlike followers/
+reels/tagged-posts, this actor never emits a distinct
+`error: "private_account"` signal — it appears to collapse "can't see
+this account's stories" and "this account genuinely has none active
+right now" into one response. That's an acceptable honesty trade for an
+inherently ephemeral (24h), always-empty-most-of-the-time dataset: both
+cases mean the same thing to a viewer ("nothing to show right now"), so
+no code change was needed here.
