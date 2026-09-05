@@ -5,9 +5,11 @@ import { redirect } from "next/navigation";
 import { isDbConfigured, getDb, schema } from "@/lib/db";
 import { resolveIdentityReadOnly } from "@/lib/auth/identity";
 import { PLAN_LIMITS } from "@/lib/billing/plans";
+import { isStripeConfigured } from "@/lib/billing/stripe";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { UpgradeButton, ManageBillingButton } from "@/components/billing/checkout-button";
 
 export const metadata: Metadata = {
   title: "Account",
@@ -66,15 +68,28 @@ export default async function AccountPage() {
       {identity.account.plan === "free" ? (
         <div className="mt-6 rounded-card border border-border bg-surface-subtle p-5">
           <p className="text-sm font-medium text-primary">Upgrade to Pro</p>
-          <p className="mt-1 text-sm text-secondary">
-            Unlimited tracked profiles and saved searches. No payment processing is wired up in this
-            build yet — see docs/BILLING.md.
-          </p>
-          <Button className="mt-4" disabled title="Coming soon — billing isn't enabled in this build">
-            Upgrade — coming soon
-          </Button>
+          <p className="mt-1 text-sm text-secondary">Unlimited tracked profiles and saved searches.</p>
+          <div className="mt-4">
+            {isStripeConfigured() ? (
+              <UpgradeButton />
+            ) : (
+              <Button disabled title="Coming soon — billing isn't enabled in this build">
+                Upgrade — coming soon
+              </Button>
+            )}
+          </div>
         </div>
-      ) : null}
+      ) : (
+        isStripeConfigured() && (
+          <div className="mt-6 rounded-card border border-border bg-surface-subtle p-5">
+            <p className="text-sm font-medium text-primary">Manage your subscription</p>
+            <p className="mt-1 text-sm text-secondary">Update your payment method, view invoices, or cancel.</p>
+            <div className="mt-4">
+              <ManageBillingButton />
+            </div>
+          </div>
+        )
+      )}
 
       <p className="mt-8 text-sm text-secondary">
         Tracked profiles and saved searches made while signed in follow this account across browsers

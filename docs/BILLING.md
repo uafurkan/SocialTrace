@@ -1,39 +1,76 @@
 # Billing
 
-Spec §31's plan model, with **real limit enforcement and no real payment
-processing** — an explicit choice (the user asked for plan/limit infra
-without Stripe when accounts were added). There is nothing to be honest
-about hiding here: the account page says outright that upgrading is
-"coming soon" and no payment form exists anywhere in the product.
+Spec §31's plan model, now with **real Stripe payment processing** behind
+it (Phase 6 of `SOCIALTRACE_MASTER_BUILD_SPEC.md`'s release phases —
+previously this was limit-enforcement-only, see git history for that
+slice).
 
 ## What's implemented
 
-- **`users.plan`** (`free` | `pro`, default `free`) — `src/lib/db/schema.ts`.
-- **`PLAN_LIMITS`** (`src/lib/billing/plans.ts`):
+- **`users.plan`** (`free` | `pro`, default `free`) plus
+  `stripeCustomerId`/`stripeSubscriptionId` (both nullable, set lazily on
+  first checkout) — `src/lib/db/schema.ts`.
+- **`PLAN_LIMITS`** (`src/lib/billing/plans.ts`, unchanged from before):
   ```ts
   free: { maxTrackedProfiles: 10, maxSavedSearches: 10 }
   pro:  { maxTrackedProfiles: Infinity, maxSavedSearches: Infinity }
   ```
-- **Real enforcement**, not cosmetic: `trackProfile`
-  (`src/lib/tracking/watchlist.ts`) and `createSavedSearch`
-  (`src/lib/tracking/saved-searches.ts`) both accept an optional `plan`
-  argument. When present (i.e. the caller is a logged-in account, not an
-  anonymous visitor — see `docs/AUTH.md`'s identity resolution), the
-  current count for that scope is checked against the plan's limit
-  before inserting; over the limit throws `PlanLimitError`, which the
-  API routes turn into a `403` with a message naming the plan, the
-  limit, and what to do (untrack something, or upgrade). Verified live:
-  tracked 11 profiles as a fresh `free`-plan account — the first 10
-  succeeded, the 11th returned `403` with the expected message; `/account`
-  correctly showed `10 / 10`.
-- **Anonymous visitors are never limited.** There's no plan to enforce
-  against someone who hasn't made an account — limiting them would be an
-  arbitrary product restriction with no billing story behind it, not a
-  real plan boundary. This matches the homepage's own claim: "No account
-  required for basic public exploration."
-- **`/account`** shows the plan badge, current usage vs. limit for both
-  resources, and a disabled "Upgrade — coming soon" button with a title
-  attribute explaining why, rather than a fake checkout flow.
+  Real enforcement in `trackProfile`/`createSavedSearch`, exactly as
+  before — see the "Why a duplicate re-track/re-save doesn't
+  false-positive" note below, unchanged.
+- **Checkout** (`/api/v1/billing/checkout`, `POST`) — requires a
+  logged-in account. Creates (or reuses) a Stripe customer for that
+  user, then a Stripe-hosted Checkout Session (`mode: "subscription"`,
+  the one `STRIPE_PRO_PRICE_ID` price) and returns its URL. The account
+  page's "Upgrade to Pro" button just redirects the browser there — no
+  Stripe.js/Elements anywhere in this app, so the CSP (`src/proxy.ts`)
+  needed zero changes for this.
+- **Billing portal** (`/api/v1/billing/portal`, `POST`) — for an account
+  that already has a Stripe customer, opens Stripe's hosted Billing
+  Portal (cancel, change card, view invoices). Requires the portal to be
+  configured once in the Stripe dashboard (see setup steps below).
+- **Webhook** (`/api/v1/billing/webhook`, `POST`) — the *only* path that
+  ever sets `users.plan` to `"pro"`. Verifies the Stripe signature
+  (`STRIPE_WEBHOOK_SECRET`) against the raw request body before trusting
+  anything in it — a client-side "I paid" callback is never trusted on
+  its own. Handles:
+  - `checkout.session.completed` → sets the account (matched by
+    `client_reference_id`, but written by Stripe customer id) to `pro`
+    and records the new `stripeSubscriptionId`.
+  - `customer.subscription.updated`/`.created` → re-derives the plan from
+    the subscription's current `status` via
+    `planForSubscriptionStatus()` (`src/lib/billing/webhook-handlers.ts`,
+    unit tested) — only `active`/`trialing` count as Pro; `past_due`,
+    `unpaid`, `incomplete`, `incomplete_expired`, and `paused` all revert
+    to `free` rather than leaving an unpaid account on Pro.
+  - `customer.subscription.deleted` → sets `free`, clears
+    `stripeSubscriptionId`.
+- **`/account`** shows the plan badge, usage vs. limit for both
+  resources, and — when `STRIPE_SECRET_KEY` is set — a real "Upgrade to
+  Pro" button (free plan) or "Manage billing" button (Pro plan);
+  otherwise the same disabled "coming soon" button as before, so nothing
+  breaks in an environment that hasn't configured Stripe.
+
+## Setup (Stripe dashboard + env)
+
+1. **Create the Product/Price.** Stripe dashboard → Products → add a
+   recurring price for Pro (monthly or annual, your call) → copy its
+   price id (`price_...`) into `STRIPE_PRO_PRICE_ID`.
+2. **Set `STRIPE_SECRET_KEY`** from Developers → API keys (test mode
+   first — `sk_test_...`).
+3. **Create the webhook endpoint.** Developers → Webhooks → add endpoint
+   pointing at `https://<your-domain>/api/v1/billing/webhook`, subscribe
+   it to `checkout.session.completed`, `customer.subscription.created`,
+   `customer.subscription.updated`, `customer.subscription.deleted`.
+   Copy its signing secret into `STRIPE_WEBHOOK_SECRET` — without this,
+   checkout completes on Stripe's side but this app never finds out and
+   the account stays on `free`.
+4. **Enable the Billing Portal** once, in test mode too: Settings →
+   Billing → Customer portal → Activate (Stripe requires at least one
+   manual activation before the API can create portal sessions).
+5. Only once all of the above is live in production should you switch
+   from `sk_test_...`/test-mode price/webhook to the live-mode
+   equivalents.
 
 ## Why a duplicate re-track/re-save doesn't false-positive at the limit
 
@@ -47,28 +84,17 @@ the limit check entirely when it does, since the subsequent
 
 ## What's NOT implemented
 
-- **No payment processing at all.** No Stripe, no other processor, no
-  checkout page, no webhook handling, no invoices. This was explicit —
-  "plan/limit infra only, no payment" was the option chosen when asked.
-- **No way to actually become a `pro` user.** `users.plan` can only be
-  set directly in the database right now (e.g. for manual testing) —
-  there's no UI or API path that changes it, on purpose, since building
-  one without real payment behind it would mean either a fake "upgrade"
-  that grants Pro for free (misleading) or a partially-built payment
-  flow that doesn't charge anyone (worse than not having it).
-- **No usage overage handling** beyond a hard block — no grace period,
-  no soft-limit warning banner before the limit is hit.
-- **No annual/monthly distinction, no trial period, no invoicing** — the
-  plan model is binary (`free`/`pro`) because that's what a limits-only
-  system needs; the richer plan/pricing shape from spec §31 assumes real
-  billing.
-
-## When this needs to change
-
-Real billing needs a payment processor (Stripe was the one discussed) —
-that's a separate, explicit decision involving real API keys and real
-money, not something to wire up speculatively. When it's added: a
-webhook handler updates `users.plan` on subscription events, an
-upgrade/downgrade UI replaces the disabled button on `/account`, and the
-limit-enforcement code in `src/lib/billing/plans.ts` doesn't need to
-change at all — it already reads `users.plan` as the source of truth.
+- **No annual/monthly plan picker** — one price, one Pro tier, matching
+  the binary `free`/`pro` plan model. Multiple prices/tiers would need a
+  plan-selection UI and a richer `PLAN_LIMITS` shape.
+- **No usage overage handling** beyond a hard block — no grace period, no
+  soft-limit warning banner before the limit is hit, no proration
+  handling beyond what Stripe Checkout/Portal do automatically.
+- **No invoices UI in this app** — invoices/receipts are viewed entirely
+  in Stripe's hosted Billing Portal, not mirrored into `/account`.
+- **No test coverage for the webhook route itself** (signature
+  verification, DB writes) — only the pure `planForSubscriptionStatus()`
+  mapping is unit tested; the route needs a real Stripe webhook secret
+  and a live database to test end-to-end (verified manually against
+  Stripe CLI's `stripe trigger`/`stripe listen` instead — see Stripe's
+  own webhook-testing docs).

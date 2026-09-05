@@ -43,6 +43,13 @@
       "when": 1788566679363,
       "tag": "0005_polite_natasha_romanoff",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788599055987,
+      "tag": "0006_stale_mentor",
+      "breakpoints": true
     }
   ]
 }

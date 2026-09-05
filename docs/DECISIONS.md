@@ -858,3 +858,33 @@ flowed in production (`dinememento`):
    `export const maxDuration = 60;` (Hobby's practical max) to every
    route that can reach a provider call — see
    `docs/PROVIDER_CONTRACT.md`'s "Serverless function timeouts" section.
+
+## Stripe billing (Phase 6) built, but cannot go live yet
+
+Full Stripe integration was built per spec §110 Phase 6 — Checkout,
+Billing Portal, and a signature-verified webhook that's the sole path
+setting `users.plan` to `pro` (see `docs/BILLING.md`). It compiles,
+builds, and passes its unit tests, and is completely inert without
+`STRIPE_SECRET_KEY`/`STRIPE_PRO_PRICE_ID`/`STRIPE_WEBHOOK_SECRET` set,
+the same opt-in pattern as every other integration in this app.
+
+It cannot actually be turned on with the account holder's current setup:
+**Stripe does not support Turkey as an account country** — you cannot
+create a Stripe account (test or live) as a Turkey-based individual or
+business. This wasn't discoverable until the account holder tried to
+sign up. Two paths forward, neither implemented yet:
+
+1. Form a Stripe-supported entity (e.g. a US LLC via Stripe Atlas, which
+   bundles company formation with a US-entity Stripe account) — the code
+   already written needs zero changes, since it only depends on standard
+   Stripe API keys.
+2. Substitute a different payment processor that accepts Turkish
+   sellers directly — **iyzico** (Turkish, handles TRY natively),
+   **Paddle**, or **Lemon Squeezy** (the latter two are
+   merchant-of-record providers, meaning they handle tax/compliance
+   globally and explicitly support Turkey-based sellers) were named as
+   candidates. Any of these would replace `src/lib/billing/stripe.ts`
+   and the three `/api/v1/billing/*` routes with that processor's
+   equivalent checkout/portal/webhook flow — `src/lib/billing/plans.ts`
+   (the actual limit enforcement) doesn't change either way, since it
+   only reads `users.plan`.
