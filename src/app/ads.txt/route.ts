@@ -1,18 +1,18 @@
 import { NextResponse } from "next/server";
 
 /**
- * Ad partners (Ezoic included) require ads.txt to list this domain's
- * authorized sellers. Content is pasted verbatim from the Ezoic dashboard
- * (Settings > Ads.txt Manager) via env — not fabricated here — so unset
- * means no file, same opt-in pattern as every other integration in this
- * app rather than a guessed/placeholder value.
+ * Ezoic's own onboarding docs (Ads.txt Setup) specify a 301 redirect to
+ * their Ads.txt Manager as the standard non-WordPress integration —
+ * Ezoic keeps the authorized-sellers list current there, so redirecting
+ * beats copy-pasting a static snapshot that goes stale. The target URL
+ * (site-id-specific, e.g. https://srv.adstxtmanager.com/19390/socialtrace.co)
+ * comes from env, not fabricated here — unset means no redirect, same
+ * opt-in pattern as every other integration in this app.
  */
 export async function GET() {
-  const content = process.env.EZOIC_ADS_TXT;
-  if (!content) {
+  const target = process.env.EZOIC_ADS_TXT_URL;
+  if (!target) {
     return new NextResponse("Not found", { status: 404 });
   }
-  return new NextResponse(content, {
-    headers: { "Content-Type": "text/plain" },
-  });
+  return NextResponse.redirect(target, 301);
 }

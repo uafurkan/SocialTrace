@@ -7,9 +7,12 @@ app looks and behaves exactly as it did before this was added.
 
 ## What's wired up
 
-- **`src/components/ads/ezoic-loader.tsx`** — loads Ezoic's standalone
-  script (`sa.min.js`) once, in the root layout, only when
-  `NEXT_PUBLIC_EZOIC_ENABLED=true`.
+- **`src/components/ads/ezoic-loader.tsx`** — loads Ezoic's full official
+  header script set, in order (Ezoic's "Site Integration" docs), once in
+  the root layout, only when `NEXT_PUBLIC_EZOIC_ENABLED=true`: the two
+  consent/privacy scripts (`cmp.gatekeeperconsent.com`,
+  `the.gatekeeperconsent.com`), the `ezstandalone` init snippet, the
+  standalone ad script (`sa.min.js`), then `ezoicanalytics.com/analytics.js`.
 - **`src/components/ads/ad-slot.tsx`** (`<AdSlot placementId={N} />`) —
   one in-content placeholder. Renders the `ezoic-pub-ad-placeholder-{N}`
   div Ezoic's script looks for and pushes the `showAds(N)` call. Each
@@ -36,9 +39,12 @@ app looks and behaves exactly as it did before this was added.
   Stories), never re-triggers it. Off unless
   `NEXT_PUBLIC_AD_GATE_ENABLED=true` **and** ads are enabled; with either
   unset, search navigates straight through as before.
-- **`src/app/ads.txt/route.ts`** — serves `EZOIC_ADS_TXT` (pasted
-  verbatim from the Ezoic dashboard's Ads.txt Manager) at `/ads.txt`.
-  Unset → 404, rather than serving a guessed/placeholder file.
+- **`src/app/ads.txt/route.ts`** — 301-redirects `/ads.txt` to
+  `EZOIC_ADS_TXT_URL` (the exact URL Ezoic's dashboard gives you in its
+  "Ads.txt Setup" step, e.g. `https://srv.adstxtmanager.com/19390/socialtrace.co`)
+  — the officially recommended non-WordPress integration, so Ezoic's
+  authorized-sellers list stays live-updated instead of a static
+  snapshot going stale. Unset → 404, rather than guessing a URL.
 - **`src/middleware.ts`'s CSP** — `connect-src`/`frame-src` only widen to
   `https:` when `NEXT_PUBLIC_EZOIC_ENABLED=true`; the strict `'self'`-only
   baseline (`docs/PRODUCTION_HARDENING.md`) is unchanged with ads off.
@@ -51,10 +57,14 @@ app looks and behaves exactly as it did before this was added.
 Two things this codebase cannot do for you, both one-time account setup:
 
 1. **Add the site and get your real placement IDs.** Sign up at
-   ezoic.com, add this domain, go through their Ad Tester placement flow,
-   and it'll tell you which number to give each `<AdSlot placementId={N}>`
-   above (the `101`/`102`/`103` here are placeholders — replace them to
-   match what Ezoic assigns once you've placed them in their tool).
+   ezoic.com (note: Ezoic requires 250,000 active users/month for regular
+   approval — a new site needs their Incubator Program or an alternate ad
+   network until it clears that threshold), add this domain, go through
+   their Ad Tester placement flow, and it'll tell you which number to
+   give each `<AdSlot placementId={N}>` above (the `100`/`102`/`103`/`104`
+   here are placeholders — replace them to match what Ezoic assigns once
+   you've placed them in their tool). Also set `EZOIC_ADS_TXT_URL` to the
+   exact redirect URL their "Ads.txt Setup" step gives you.
 2. **Content-category exclusion (+18 / adult, gambling).** This is a
    publisher-level setting in Ezoic's own dashboard — Settings → Privacy
    & Compliance (or Monetization → Ad Tester → "Blocked Categories",
