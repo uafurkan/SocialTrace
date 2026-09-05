@@ -13,6 +13,11 @@ export async function GET(request: NextRequest, { params }: { params: { profileI
   const query = searchParams.get("q") ?? undefined;
   const limit = Math.min(Number(searchParams.get("limit")) || 60, 100);
 
-  const page = await provider.getFollowers(params.profileId, cursor, limit, query);
-  return NextResponse.json(page);
+  try {
+    const page = await provider.getFollowers(params.profileId, cursor, limit, query);
+    return NextResponse.json(page);
+  } catch (error) {
+    console.error("Followers lookup failed:", error);
+    return NextResponse.json({ error: "Couldn't load followers right now. Try again shortly." }, { status: 502 });
+  }
 }

@@ -797,3 +797,31 @@ actually been checked in a real browser. The fix costs the static
 prerendering most pages previously had (`next build`'s output is now
 mostly `ƒ` instead of `○`), an accepted trade since a statically served
 page with no working JavaScript is not a functioning page.
+
+## SOCIAL_PROVIDER=apify enabled in production; uncaught provider errors were crashing whole pages
+
+Production was enabled for real data (`SOCIAL_PROVIDER=apify` +
+`APIFY_API_TOKEN` set on Vercel), replacing the deterministic mock data
+every profile previously showed regardless of the real Instagram account
+searched. Immediately after, a real profile hit the global error boundary
+("Something went wrong") instead of rendering.
+
+Root cause: `src/app/profile/[username]/{posts,reels,stories,highlights,tagged}/page.tsx`
+each `await`ed a provider call with no error handling. The mock provider
+never throws except for a handled "not found" case, so this was invisible
+in development; a real external API (Apify) can and does fail
+transiently — actor errors, rate limits, timeouts on large accounts — and
+every such failure propagated as an uncaught exception straight to the
+root `error.tsx`, which has no idea which tab or account triggered it and
+just shows a generic message.
+
+Fixed with `src/lib/server/safe-provider-call.ts` (`safeProviderCall`),
+wrapping each of those five page's provider call so a real failure
+degrades to the existing `<NotAvailable>` empty state with a specific,
+honest message ("couldn't load right now — try again shortly") instead of
+crashing the page. Applied the same try/catch pattern to the
+followers/following/post-engagement API routes so a provider failure
+there returns a proper `502` with a message instead of leaking a stack
+trace via Next's default error response. Verified profile, reels, and
+stories actors directly against a real account (`nike`) to confirm the
+happy path still works correctly end-to-end.

@@ -43,6 +43,11 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const [likers, comments] = await Promise.all([provider.getLikers(permalink), provider.getComments(permalink)]);
-  return NextResponse.json({ likers, comments });
+  try {
+    const [likers, comments] = await Promise.all([provider.getLikers(permalink), provider.getComments(permalink)]);
+    return NextResponse.json({ likers, comments });
+  } catch (error) {
+    console.error("Post engagement lookup failed:", error);
+    return NextResponse.json({ error: "Couldn't load engagement data right now. Try again shortly." }, { status: 502 });
+  }
 }
