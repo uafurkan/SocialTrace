@@ -16,6 +16,13 @@ import { ProfileNotFoundError } from "@/lib/providers";
  */
 export const SCHEDULED_CAPTURE_BATCH_LIMIT = 25;
 
+/**
+ * Usernames the automatic capture cron must never touch, regardless of
+ * whether they end up tracked/saved by a user — even if that means an
+ * otherwise-eligible profile just never gets an automatic snapshot.
+ */
+const CAPTURE_EXCLUDED_USERNAMES = new Set(["uafurkn", "oilive.co"]);
+
 export interface ScheduledCaptureResult {
   attempted: string[];
   succeeded: string[];
@@ -46,6 +53,9 @@ async function listProfilesNeedingCapture(limit: number): Promise<string[]> {
   const usernames = new Set<string>();
   for (const row of trackedResult.rows as Array<{ username: string }>) usernames.add(row.username);
   for (const row of searchedResult.rows as Array<{ username: string }>) usernames.add(row.username);
+  for (const excluded of usernames) {
+    if (CAPTURE_EXCLUDED_USERNAMES.has(excluded.toLowerCase())) usernames.delete(excluded);
+  }
   return [...usernames].slice(0, limit);
 }
 
