@@ -1,21 +1,21 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Search } from "lucide-react";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AdGateOverlay, useAdGate } from "@/components/ads/ad-gate";
 import { copy } from "@/lib/copy";
 import { extractUsername } from "@/lib/profile-link";
 
 const inputSchema = z.string().min(1, "Enter a username or profile link");
 
 export function ProfileSearchForm({ size = "default" }: { size?: "default" | "compact" }) {
-  const router = useRouter();
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const { pending, navigate, continueNavigation } = useAdGate();
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -33,13 +33,15 @@ export function ProfileSearchForm({ size = "default" }: { size?: "default" | "co
     }
 
     setError(null);
-    router.push(`/profile/${encodeURIComponent(username)}`);
+    // Gated (once per username per session) — see src/components/ads/ad-gate.tsx.
+    navigate(`/profile/${encodeURIComponent(username)}`, `profile:${username.toLowerCase()}`);
   }
 
   const isCompact = size === "compact";
 
   return (
     <form onSubmit={handleSubmit} className="w-full">
+      {pending ? <AdGateOverlay onContinue={continueNavigation} /> : null}
       <div
         className={
           isCompact

@@ -15,17 +15,27 @@ app looks and behaves exactly as it did before this was added.
   div Ezoic's script looks for and pushes the `showAds(N)` call. Each
   `placementId` must match the number you assign to that position in the
   Ezoic dashboard's Ad Tester when you place it there.
-- **Three placements, chosen to be non-intrusive on both mobile and
-  desktop** (in normal document flow, no sticky/anchor/interstitial,
-  reserved `min-height` so the ad loading in doesn't shift surrounding
-  content, and a small "Advertisement" label above each so it's never
-  mistaken for real content):
-  - Home page (`101`) — below the hero and value cards, well past the
-    search box so it never competes with the primary action.
+- **Three static placements**, in normal document flow (no
+  sticky/anchor), reserved `min-height` so the ad loading in doesn't shift
+  surrounding content, and a small "Advertisement" label above each so
+  it's never mistaken for real content:
+  - Home page, search area (`100`) — directly below the search form and
+    its helper text, not overlapping the input or submit button.
   - Tools index (`102`) — below the full tool grid.
-  - Profile page (`103`) — below every tab's content, at the very bottom
-    of the profile layout, so it never interrupts a follower list or post
-    grid mid-scroll.
+  - Profile page, results area (`103`) — below every tab's content, at
+    the very bottom of the profile layout, so it never interrupts a
+    follower list or post grid mid-scroll.
+- **A click-to-continue ad gate** (`src/components/ads/ad-gate.tsx`,
+  placement `104`) between submitting a search and landing on the profile
+  result — a real modal with an ad slot and a "Continue" button that only
+  enables after a few seconds, never an auto-redirect and never a button
+  that overlaps the ad itself (avoids accidental/invalid ad clicks, which
+  every ad network's terms prohibit). Gated per username, once per
+  30-minute session window (`sessionStorage`) — re-searching the same
+  profile, or switching tabs once you're already on it (including
+  Stories), never re-triggers it. Off unless
+  `NEXT_PUBLIC_AD_GATE_ENABLED=true` **and** ads are enabled; with either
+  unset, search navigates straight through as before.
 - **`src/app/ads.txt/route.ts`** — serves `EZOIC_ADS_TXT` (pasted
   verbatim from the Ezoic dashboard's Ads.txt Manager) at `/ads.txt`.
   Unset → 404, rather than serving a guessed/placeholder file.

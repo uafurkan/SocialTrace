@@ -38,7 +38,10 @@ export function AdSlot({ placementId, className }: { placementId: number; classN
   return (
     <div className={`mx-auto w-full max-w-3xl px-4 sm:px-6 ${className ?? ""}`}>
       <p className="mb-1 text-center text-[10px] font-medium uppercase tracking-wide text-muted">Advertisement</p>
-      <div id={`ezoic-pub-ad-placeholder-${placementId}`} className="min-h-[100px] sm:min-h-[250px]" />
+      <div
+        id={`ezoic-pub-ad-placeholder-${placementId}`}
+        className="min-h-[100px] rounded-card border border-dashed border-border-strong bg-surface-subtle sm:min-h-[250px]"
+      />
     </div>
   );
 }

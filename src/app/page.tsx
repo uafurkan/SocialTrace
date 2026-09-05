@@ -37,6 +37,8 @@ export default function HomePage() {
                 .
               </p>
             </div>
+            {/* Right below the search form, never overlapping the input or button itself. */}
+            <AdSlot placementId={100} className="mt-6 !max-w-none !px-0" />
           </div>
           <HeroChart />
         </div>
@@ -56,9 +58,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* Below the fold, past the search box and value cards — never competes with the primary action. */}
-      <AdSlot placementId={101} className="py-10" />
 
       <section className="py-16">
         <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
