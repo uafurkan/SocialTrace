@@ -4,7 +4,8 @@ import { DatasetHeader } from "@/components/followers/dataset-header";
 import { MemberList } from "@/components/followers/member-list";
 import { copy } from "@/lib/copy";
 
-export default async function ProfileFollowingPage({ params }: { params: { username: string } }) {
+export default async function ProfileFollowingPage(props: { params: Promise<{ username: string }> }) {
+  const params = await props.params;
   const profile = await requireProfile(params.username);
   return (
     <div>

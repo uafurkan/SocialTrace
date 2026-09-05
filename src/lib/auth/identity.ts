@@ -54,7 +54,7 @@ export function resolveIdentity(request: NextRequest): Promise<RequestIdentity> 
  * a fresh anonymous visitor id computed here is only used for that one
  * render (e.g. "you have 0 tracked profiles"), not persisted.
  */
-export function resolveIdentityReadOnly(): Promise<RequestIdentity> {
-  const store = cookies();
+export async function resolveIdentityReadOnly(): Promise<RequestIdentity> {
+  const store = await cookies();
   return resolveIdentityCore(store.get(SESSION_COOKIE)?.value, store.get(VISITOR_COOKIE)?.value);
 }

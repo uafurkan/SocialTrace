@@ -10,10 +10,11 @@ import { AdSlot } from "@/components/ads/ad-slot";
 
 interface ProfileLayoutProps {
   children: React.ReactNode;
-  params: { username: string };
+  params: Promise<{ username: string }>;
 }
 
-export async function generateMetadata({ params }: { params: { username: string } }): Promise<Metadata> {
+export async function generateMetadata(props: { params: Promise<{ username: string }> }): Promise<Metadata> {
+  const params = await props.params;
   const profile = await getProfileByUsername(params.username);
   if (!profile) return { title: "Profile not found" };
   return {
@@ -22,7 +23,10 @@ export async function generateMetadata({ params }: { params: { username: string 
   };
 }
 
-export default async function ProfileLayout({ children, params }: ProfileLayoutProps) {
+export default async function ProfileLayout(props: ProfileLayoutProps) {
+  const { children } = props;
+  const params = await props.params;
+
   const profile = await requireProfile(params.username);
 
   const dbAvailable = isDbConfigured();

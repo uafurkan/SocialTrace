@@ -4,7 +4,8 @@ import { provider } from "@/lib/providers";
 import { NotAvailable } from "@/components/profile/not-available";
 import { StoryStrip } from "@/components/profile/story-strip";
 
-export default async function ProfileStoriesPage({ params }: { params: { username: string } }) {
+export default async function ProfileStoriesPage(props: { params: Promise<{ username: string }> }) {
+  const params = await props.params;
   const profile = await requireProfile(params.username);
 
   if (!provider.capabilities.stories) {

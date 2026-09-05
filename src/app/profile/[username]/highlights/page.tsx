@@ -4,7 +4,8 @@ import { provider } from "@/lib/providers";
 import { NotAvailable } from "@/components/profile/not-available";
 import { HighlightGrid } from "@/components/profile/highlight-grid";
 
-export default async function ProfileHighlightsPage({ params }: { params: { username: string } }) {
+export default async function ProfileHighlightsPage(props: { params: Promise<{ username: string }> }) {
+  const params = await props.params;
   const profile = await requireProfile(params.username);
 
   if (!provider.capabilities.highlights) {

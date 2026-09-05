@@ -12,7 +12,6 @@ interface JsonLdProps {
 
 export function JsonLd({ id, data }: JsonLdProps) {
   return (
-    // eslint-disable-next-line react/no-danger -- JSON-LD requires raw script content; escaped via escapeForJsonLd above.
     <script
       id={id}
       type="application/ld+json"

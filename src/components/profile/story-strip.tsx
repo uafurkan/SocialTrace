@@ -54,7 +54,6 @@ export function StoryStrip({ stories }: { stories: Story[] }) {
         >
           <div className="relative max-h-full max-w-sm" onClick={(e) => e.stopPropagation()}>
             {active.mediaType === "video" ? (
-              // eslint-disable-next-line jsx-a11y/media-has-caption
               <video src={active.mediaUrl} controls autoPlay className="max-h-[80vh] w-full rounded-card" />
             ) : (
               // eslint-disable-next-line @next/next/no-img-element

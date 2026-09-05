@@ -2,7 +2,8 @@ import { requireProfile } from "@/lib/server/profile";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCount } from "@/lib/utils";
 
-export default async function ProfileOverviewPage({ params }: { params: { username: string } }) {
+export default async function ProfileOverviewPage(props: { params: Promise<{ username: string }> }) {
+  const params = await props.params;
   const profile = await requireProfile(params.username);
 
   return (

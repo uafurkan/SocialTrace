@@ -69,7 +69,6 @@ export function MemberList({ profileId, username, kind, dbAvailable }: MemberLis
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profileId, kind, query, filter]);
 
   async function loadMore() {

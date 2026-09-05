@@ -6,14 +6,15 @@ import { JsonLd, articleJsonLd, breadcrumbJsonLd } from "@/lib/seo/json-ld";
 import { HELP_ARTICLES, getHelpArticle } from "@/lib/seo/help-articles";
 
 interface Params {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
 export function generateStaticParams() {
   return HELP_ARTICLES.map((article) => ({ slug: article.slug }));
 }
 
-export function generateMetadata({ params }: Params): Metadata {
+export async function generateMetadata(props: Params): Promise<Metadata> {
+  const params = await props.params;
   const article = getHelpArticle(params.slug);
   if (!article) return { title: "Help article not found" };
   return {
@@ -23,7 +24,8 @@ export function generateMetadata({ params }: Params): Metadata {
   };
 }
 
-export default function HelpArticlePage({ params }: Params) {
+export default async function HelpArticlePage(props: Params) {
+  const params = await props.params;
   const article = getHelpArticle(params.slug);
   if (!article) notFound();
 

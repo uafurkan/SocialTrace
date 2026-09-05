@@ -4,7 +4,8 @@ import { listChanges } from "@/lib/diff/changes";
 import { NotAvailable } from "@/components/profile/not-available";
 import { ChangesList } from "@/components/profile/changes-list";
 
-export default async function ProfileChangesPage({ params }: { params: { username: string } }) {
+export default async function ProfileChangesPage(props: { params: Promise<{ username: string }> }) {
+  const params = await props.params;
   const profile = await requireProfile(params.username);
 
   if (!isDbConfigured()) {

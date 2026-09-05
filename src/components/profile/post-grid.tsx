@@ -155,7 +155,9 @@ export function PostGrid({ posts }: { posts: Post[] }) {
         </div>
       )}
 
-      {openPermalink ? <PostEngagementModal permalink={openPermalink} onClose={() => setOpenPermalink(null)} /> : null}
+      {openPermalink ? (
+        <PostEngagementModal key={openPermalink} permalink={openPermalink} onClose={() => setOpenPermalink(null)} />
+      ) : null}
     </div>
   );
 }

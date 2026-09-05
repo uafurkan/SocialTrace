@@ -39,7 +39,7 @@ import { NextRequest, NextResponse } from "next/server";
  * widening script-src itself. With ads disabled (the default), the
  * policy stays at its strict 'self'-only baseline.
  */
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const adsEnabled = process.env.NEXT_PUBLIC_EZOIC_ENABLED === "true";
   const csp = `

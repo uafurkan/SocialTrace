@@ -4,7 +4,8 @@ import { provider } from "@/lib/providers";
 import { PostGrid } from "@/components/profile/post-grid";
 import { NotAvailable } from "@/components/profile/not-available";
 
-export default async function ProfilePostsPage({ params }: { params: { username: string } }) {
+export default async function ProfilePostsPage(props: { params: Promise<{ username: string }> }) {
+  const params = await props.params;
   const profile = await requireProfile(params.username);
   const page = await safeProviderCall(() => provider.getPosts(profile.id, undefined, 24));
   if (!page) {

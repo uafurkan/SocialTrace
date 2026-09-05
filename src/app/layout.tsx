@@ -46,7 +46,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // Reading headers() here is required for Next.js to pick up and apply the
   // per-request CSP nonce (src/middleware.ts) to the script tags it emits —
   // without a Server Component in the tree actually calling headers(), Next
@@ -57,7 +57,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   // dynamically rendered rather than statically prerendered — an accepted
   // cost, since a site where no client-side script runs at all is broken,
   // not merely unoptimized.
-  headers();
+  await headers();
 
   return (
     <html lang="en" className={inter.variable}>

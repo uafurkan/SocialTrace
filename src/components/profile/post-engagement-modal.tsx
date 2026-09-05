@@ -18,8 +18,9 @@ export function PostEngagementModal({ permalink, onClose }: { permalink: string;
 
   useEffect(() => {
     let cancelled = false;
-    setData(null);
-    setError(null);
+    // No explicit setData(null)/setError(null) reset here: post-grid.tsx
+    // renders this component with key={permalink}, so a permalink change
+    // remounts it fresh (initial state) rather than reusing this instance.
     fetch(`/api/v1/posts/engagement?permalink=${encodeURIComponent(permalink)}`)
       .then(async (res) => {
         if (!res.ok) throw new Error((await res.json().catch(() => null))?.error ?? "Failed to load");
