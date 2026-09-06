@@ -50,15 +50,32 @@ public video this session:
   behind most free TikTok-downloader sites, returns a watermark-free
   video URL + duration at no Apify cost. Falls back to the yt-dlp actor
   (still reliable for TikTok specifically) only if tikwm is down.
-- **YouTube** — `streamers/youtube-video-downloader` (398K+ runs). Slow:
-  ~54s for a 3.5-minute video in live testing, which is uncomfortably
-  close to the 60s serverless budget (`maxDuration`, `MAX_VIDEO_DURATION_SECONDS`)
-  once the rest of the pipeline (blob fetch, Whisper call, DB write) is
-  added — an accepted, documented risk, not a fixed one; a longer video
-  can realistically time out. Public free alternatives (Piped/Invidious
-  instances) were tried live and were unreliable (401s, empty bodies,
-  dead instances) — rejected in favor of "actually works." **No free
-  embed-style shortcut exists here** (unlike Instagram/Facebook below) —
+- **YouTube** — free primary as before (official timedtext captions, see
+  above), paid fallback now `epctex/youtube-video-downloader` (1.37M
+  total runs, more battle-tested than the actor it replaced), not
+  `streamers/youtube-video-downloader` (kept as a second-level fallback
+  if epctex fails). Found by benchmarking alternatives live: same video,
+  head-to-head, streamers took 60.4s vs. epctex's 21.0s — ~2.9x faster —
+  and epctex always returns a plain, already-muxed `.mp4` rather than an
+  HLS manifest URL for `streamers`'s `audioOnlyUrl` (not always a single
+  fetchable file). Requested at `quality: "360"` since this pipeline only
+  ever needs an audio track, not a specific resolution.
+
+  **Security fix made alongside this**: both this actor's and the
+  TikTok-fallback actor's output need `?token=<APIFY_API_TOKEN>` appended
+  to be fetchable at all (confirmed live: 403 without it). That
+  token-bearing URL is used server-side for Whisper's fetch (`audioUrl`)
+  but is never returned as `videoUrl` — handing it to the browser would
+  leak this project's Apify API token into the page's own network tab
+  for every visitor. Found live while wiring up epctex (the pre-existing
+  TikTok fallback path had the same bug); the live-preview player simply
+  doesn't render for a video from either path now, rather than leaking
+  the token to show it.
+
+  Public free alternatives (Piped/Invidious instances) were tried live
+  and were unreliable (401s, empty bodies, dead instances) — rejected in
+  favor of "actually works." **No free embed-style shortcut exists here**
+  (unlike Instagram/Facebook below) —
   tried live in a later session and confirmed this is a dead end, not an
   unexplored one: `youtube.com/embed/{id}` no longer inlines stream data
   (loaded via JS), the internal `youtubei/v1/player` API returns `LOGIN_

@@ -86,8 +86,15 @@ async function downloadTikTok(sourceUrl: string): Promise<DownloadedAudio | null
   if (!item || item.error || !item.media?.url) return null;
 
   const token = process.env.APIFY_API_TOKEN;
+  // The token-bearing URL is only ever fetched server-side (Whisper reads
+  // audioUrl) — it must never be handed to the browser as videoUrl, or
+  // every visitor's "watch while it transcribes" player would leak this
+  // project's Apify API token in the page's own network tab/HTML. Found
+  // live while wiring up the new YouTube actor below (same bug, this
+  // pre-existing TikTok fallback path had it too) — an attacker reading
+  // it could run up billing or reach other private data on the account.
   const mediaUrl = token ? `${item.media.url}?token=${encodeURIComponent(token)}` : item.media.url;
-  return { audioUrl: mediaUrl, videoUrl: mediaUrl, durationSeconds: item.duration ?? 0, title: item.title ?? "" };
+  return { audioUrl: mediaUrl, videoUrl: token ? null : mediaUrl, durationSeconds: item.duration ?? 0, title: item.title ?? "" };
 }
 
 interface YouTubeItem {
@@ -97,7 +104,55 @@ interface YouTubeItem {
   durationSeconds?: number;
 }
 
+interface YouTubeFastItem {
+  status?: string;
+  error?: string | null;
+  output?: { url?: string };
+  durationSeconds?: number;
+}
+
+/**
+ * New primary YouTube actor, found by researching+benchmarking faster
+ * alternatives to `streamers/youtube-video-downloader` (this project's
+ * only YouTube path until now). Confirmed live, same video, head-to-head:
+ * streamers took 60.4s, epctex took 21.0s — ~2.9x faster — and epctex's
+ * 1.37M total runs (vs. streamers' 398K) make it the more battle-tested
+ * of the two, not just the faster one. "360" quality is intentional:
+ * this pipeline only ever needs audio for Whisper, so the smallest
+ * quality that still has an audio track minimizes both download time and
+ * the actor's per-second cost. Also simpler and more robust than
+ * `streamers`, which can return an HLS manifest URL for `audioOnlyUrl`
+ * (not a single fetchable file) rather than always giving a plain
+ * `downloadedFileUrl` — epctex's `output.url` is always a direct,
+ * already-muxed .mp4 in Apify's own key-value store.
+ */
+const YOUTUBE_FAST_ACTOR_ID = "epctex~youtube-video-downloader";
+
+async function downloadYouTubeFast(sourceUrl: string): Promise<DownloadedAudio | null> {
+  const items = (await runApifyActor(YOUTUBE_FAST_ACTOR_ID, {
+    startUrls: [sourceUrl],
+    quality: "360",
+    storageType: "apify",
+  })) as YouTubeFastItem[];
+  const item = Array.isArray(items) ? items[0] : undefined;
+  if (!item || item.status !== "succeeded" || item.error || !item.output?.url) return null;
+
+  // This actor's Apify key-value-store output requires the API token to
+  // fetch (confirmed live: 403 without it, 200 with) — same as the TikTok
+  // fallback actor's media.url above, unlike `streamers`'s output which
+  // doesn't need one. That token must never reach the browser (see the
+  // comment on the TikTok path above) — audioUrl keeps it for Whisper's
+  // server-side fetch, videoUrl drops to null so the live-preview player
+  // simply doesn't render for this path instead of leaking it.
+  const token = process.env.APIFY_API_TOKEN;
+  const mediaUrl = token ? `${item.output.url}?token=${encodeURIComponent(token)}` : item.output.url;
+  return { audioUrl: mediaUrl, videoUrl: token ? null : mediaUrl, durationSeconds: item.durationSeconds ?? 0, title: "" };
+}
+
 async function downloadYouTube(sourceUrl: string): Promise<DownloadedAudio | null> {
+  const fast = await downloadYouTubeFast(sourceUrl);
+  if (fast) return fast;
+
   const items = (await runApifyActor(YOUTUBE_ACTOR_ID, { videos: [{ url: sourceUrl }] })) as YouTubeItem[];
   const item = Array.isArray(items) ? items[0] : undefined;
   if (!item || !item.downloadedFileUrl) return null;
