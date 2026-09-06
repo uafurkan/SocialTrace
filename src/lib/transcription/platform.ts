@@ -31,10 +31,40 @@ export function detectPlatform(rawUrl: string): TranscriptPlatform | null {
   return null;
 }
 
-/** Canonical cache key for a link — strips tracking params/fragment so `?si=...`-style share links don't fragment the cache. */
+/**
+ * Canonical cache key for a link — strips tracking params/fragment so
+ * `?si=...`-style share links don't fragment the cache, while keeping
+ * whatever query param actually identifies the video.
+ *
+ * This used to unconditionally drop the whole query string, which is safe
+ * for TikTok/Instagram/most Facebook links (the video ID lives in the
+ * path), but YouTube's `watch?v=` URLs — and Facebook's `/watch/?v=`
+ * links — put the *only* identifying value in the query string. Dropping
+ * it collapsed every such URL to the same cache key regardless of which
+ * video it pointed to, so a second, completely different video would get
+ * served the first one's cached transcript. Confirmed live: after
+ * requesting `watch?v=jNQXAC9IVRw`, requesting `watch?v=O-KDKBCPrwA`
+ * returned the first video's cached transcript as if it were a real hit.
+ */
+const ID_QUERY_PARAM_BY_HOST: Record<string, string> = {
+  "youtube.com": "v",
+  "www.youtube.com": "v",
+  "m.youtube.com": "v",
+  "facebook.com": "v",
+  "www.facebook.com": "v",
+  "m.facebook.com": "v",
+};
+
 export function normalizeVideoUrl(rawUrl: string, platform: TranscriptPlatform): string {
   const url = new URL(rawUrl.trim());
-  url.hash = "";
-  url.search = "";
-  return `${platform}:${url.hostname}${url.pathname}`.toLowerCase().replace(/\/+$/, "");
+  const hostname = url.hostname.toLowerCase();
+  const idParam = ID_QUERY_PARAM_BY_HOST[hostname];
+  const idValue = idParam ? url.searchParams.get(idParam) : null;
+  // Only the hostname is safe to lowercase — YouTube/Facebook/TikTok/
+  // Instagram video IDs and shortcodes are case-sensitive (confirmed:
+  // Instagram shortcodes mix upper/lowercase letters meaningfully), so
+  // lowercasing the path or query here would collide two different videos
+  // into the same cache key exactly like the query-stripping bug above.
+  const search = idValue ? `?${idParam}=${idValue}` : "";
+  return `${platform}:${hostname}${url.pathname}${search}`.replace(/\/+$/, "");
 }
