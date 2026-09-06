@@ -191,6 +191,18 @@ sitemap, robots.txt, JSON-LD `SITE_URL`) is now the real domain,
 `https://www.socialtrace.co`. Canonical URLs, Open Graph URLs, the
 sitemap's URLs, and `robots.ts`'s sitemap pointer all reflect this.
 
+## `/transcribe/*` — the transcriber's version of the accepted search-intent pattern
+
+Four real landing pages (`/transcribe/youtube-transcript-generator`,
+`-tiktok-video-to-text`, `-instagram-reel-to-text`,
+`-facebook-video-to-text`), each with genuinely different lead copy,
+`howItWorks`, and FAQ, CTA-ing into the real feature at `/transcribe` —
+the same pattern as the "Insta anon" / "story viewer anon" pages above,
+applied to the video-transcriber product surface. See docs/TRANSCRIBER.md
+for why the homepage itself does not vary by keyword (both a technical
+impossibility for organic search, and something this project already
+decided against even where the data is available).
+
 Not done here (Vercel dashboard, not code): actually attaching
 `socialtrace.co`/`www.socialtrace.co` to the Vercel project and choosing
 which of the two is canonical, with the other 301-redirecting to it —

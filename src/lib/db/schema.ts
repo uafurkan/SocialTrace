@@ -8,6 +8,7 @@ import {
   bigint,
   boolean,
   index,
+  integer,
   jsonb,
   numeric,
   pgEnum,
@@ -25,6 +26,9 @@ export const membershipKindEnum = pgEnum("membership_kind", ["follower", "follow
 export const membershipEventEnum = pgEnum("membership_event", ["added", "removed"]);
 /** Spec §31's plan model, trimmed to what's enforceable without real billing — see docs/BILLING.md. */
 export const planEnum = pgEnum("plan", ["free", "pro"]);
+/** Video transcriber (docs/TRANSCRIBER.md) — "upload" is reserved for a later slice; this build is link-only. */
+export const transcriptPlatformEnum = pgEnum("transcript_platform", ["youtube", "tiktok", "instagram", "facebook", "upload"]);
+export const transcriptStatusEnum = pgEnum("transcript_status", ["processing", "done", "failed"]);
 
 /** Future `profiles` table — see docs/DATA_MODEL.md "Profile" mapping. */
 export const profiles = pgTable(
@@ -348,5 +352,61 @@ export const sessions = pgTable(
   (table) => ({
     tokenHashIdx: uniqueIndex("sessions_token_hash_idx").on(table.tokenHash),
     userIdIdx: index("sessions_user_id_idx").on(table.userId),
+  }),
+);
+
+/**
+ * Video transcriber (docs/TRANSCRIBER.md) — one row per distinct source
+ * video, keyed by a normalized-URL cache key (same single-natural-key
+ * pattern as `providerCache`, chosen for the same reason: avoids this
+ * project's documented `and(eq(...), eq(...))` dev-runtime bug). Written
+ * with `status="processing"` *before* the pipeline runs (an
+ * `ON CONFLICT DO NOTHING` insert) so a second request for the same
+ * viral link finds the in-flight row and waits on it instead of
+ * triggering a second paid download+transcribe run. Only ever updated to
+ * "done" on a full pipeline success — a failed attempt is deleted rather
+ * than left as a permanently-cached failure, so the next request retries
+ * cleanly.
+ */
+export const transcriptCache = pgTable("transcript_cache", {
+  cacheKey: text("cache_key").primaryKey(),
+  platform: transcriptPlatformEnum("platform").notNull(),
+  sourceUrl: text("source_url").notNull(),
+  status: transcriptStatusEnum("status").notNull().default("processing"),
+  language: text("language"),
+  durationSeconds: integer("duration_seconds"),
+  transcriptText: text("transcript_text"),
+  segments: jsonb("segments"),
+  provider: text("provider"),
+  errorReason: text("error_reason"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * One row per transcription request a visitor actually consumed (a fresh
+ * pipeline run, or a cache hit), scoped by `resolveIdentity()`'s
+ * `scopeId` — the same anonymous-cookie-or-account scoping
+ * `watchlistEntries.visitorId` uses. This is what the daily quota
+ * (docs/BILLING.md) and the global daily spend ceiling both count
+ * against, following `assertWithinLimit`'s existing "count matching
+ * rows" convention rather than a separate counter abstraction.
+ * `billed=false` for a cache hit — it still counts against the
+ * per-visitor quota (so repeatedly re-requesting a popular cached video
+ * isn't a free way around the daily cap) but never against the global
+ * spend ceiling, which only cares about rows that actually cost money.
+ */
+export const transcriptionUsage = pgTable(
+  "transcription_usage",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    scopeId: text("scope_id").notNull(),
+    cacheKey: text("cache_key").notNull(),
+    billed: boolean("billed").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    scopeCreatedIdx: index("transcription_usage_scope_created_idx").on(table.scopeId, table.createdAt),
+    createdAtIdx: index("transcription_usage_created_at_idx").on(table.createdAt),
   }),
 );

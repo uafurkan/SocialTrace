@@ -915,3 +915,45 @@ Stripe's — self-service links are per-subscription
 (`management_urls.update_payment_method`/`.cancel`, returned on the
 subscription resource itself), so `/api/v1/billing/portal` returns both
 rather than one URL.
+
+## Video transcriber: a unified download+transcribe pipeline, not per-platform actors
+
+Added `/transcribe` (docs/TRANSCRIBER.md) as a second product surface —
+paste a YouTube/TikTok/Instagram/Facebook link, get a text transcript.
+Rather than using an all-in-one "download + transcribe" actor per
+platform (several exist on Apify), the pipeline decouples download from
+transcription: one universal yt-dlp-based downloader actor
+(`reinventingai/video-or-audio-downloader`, output shape confirmed live
+against a real public TikTok video) covers all four platforms with one
+input shape, feeding into one Groq/OpenAI Whisper transcription step.
+One code path for every platform, instead of four normalizers with
+inconsistent shapes (timestamps, language fields, error conventions all
+differ between the all-in-one actors that were evaluated).
+
+Chose Groq's `whisper-large-v3-turbo` over OpenAI's own Whisper endpoint
+as primary: 9x cheaper ($0.04/audio-hour vs $0.36), ~15s to transcribe an
+hour of audio, and a free tier generous enough to start with no paid
+commitment. OpenAI Whisper is kept as a fallback only, reached solely
+when Groq itself errors — both APIs are request-shape compatible, so this
+is a same-builder fallback (`src/lib/transcription/speech-to-text.ts`),
+not a second integration to maintain.
+
+Added a per-instance semaphore in `src/lib/providers/apify/client.ts`
+(capping in-flight `runApifyActor` calls app-wide at 4) alongside the
+transcriber, since adding a second feature's worth of actor calls onto
+the same Apify account risked worsening the 5-concurrent-run-cap failure
+just fixed for the Instagram viewer (see the "Cache all per-profile Apify
+results" entry above). Benefits every Apify-backed feature, not just
+transcription.
+
+**Declined: making the homepage itself vary by search keyword.** Asked
+whether the homepage could show different content depending on whether a
+visitor searched "insta viewer" vs. "video transcriber." Not implemented,
+for two independent reasons: Google strips the search query from organic
+referrers (has since ~2013 — there's no keyword to read, regardless of
+code), and even where keyword data is available, this project already
+decided the correct pattern twice in `docs/SEO.md` — real, distinct
+landing pages per intent (accepted), not one page reshaping itself
+(declined, doorway-page anti-pattern). `/transcribe/{youtube,tiktok,
+instagram,facebook}-*` are the transcriber's version of that accepted
+pattern — see docs/TRANSCRIBER.md.

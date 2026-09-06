@@ -29,6 +29,33 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// A per-instance semaphore on top of the per-call retry above. The retry
+// alone still lets this instance fire N actor calls at once and race each
+// other for Apify's account-wide concurrent-run cap; queuing here instead
+// keeps this instance's own usage under the cap so it stops contributing to
+// the failure it's also retrying around. Not a true global limit (each
+// serverless instance has its own counter), but Vercel routes bursts to the
+// same warm instance often enough for this to meaningfully help, and it's
+// strictly better than no gate — see docs/DECISIONS.md.
+const MAX_CONCURRENT_ACTOR_RUNS = 4;
+let inFlightActorRuns = 0;
+const actorRunQueue: Array<() => void> = [];
+
+async function acquireActorRunSlot(): Promise<void> {
+  if (inFlightActorRuns < MAX_CONCURRENT_ACTOR_RUNS) {
+    inFlightActorRuns++;
+    return;
+  }
+  await new Promise<void>((resolve) => actorRunQueue.push(resolve));
+  inFlightActorRuns++;
+}
+
+function releaseActorRunSlot(): void {
+  inFlightActorRuns--;
+  const next = actorRunQueue.shift();
+  if (next) next();
+}
+
 async function runApifyActorOnce(actorId: string, input: Record<string, unknown>, token: string): Promise<unknown> {
   const url = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${encodeURIComponent(token)}`;
   const controller = new AbortController();
@@ -60,16 +87,21 @@ export async function runApifyActor(actorId: string, input: Record<string, unkno
     throw new Error("APIFY_API_TOKEN is not set — required when SOCIAL_PROVIDER=apify.");
   }
 
-  for (let attempt = 0; ; attempt++) {
-    try {
-      return await runApifyActorOnce(actorId, input, token);
-    } catch (error) {
-      const canRetry = attempt < CONCURRENCY_LIMIT_RETRY_DELAYS_MS.length;
-      if (!canRetry || !(error instanceof ApifyActorError) || !isConcurrencyLimitError(error.message)) {
-        throw error;
+  await acquireActorRunSlot();
+  try {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await runApifyActorOnce(actorId, input, token);
+      } catch (error) {
+        const canRetry = attempt < CONCURRENCY_LIMIT_RETRY_DELAYS_MS.length;
+        if (!canRetry || !(error instanceof ApifyActorError) || !isConcurrencyLimitError(error.message)) {
+          throw error;
+        }
+        await sleep(CONCURRENCY_LIMIT_RETRY_DELAYS_MS[attempt]);
       }
-      await sleep(CONCURRENCY_LIMIT_RETRY_DELAYS_MS[attempt]);
     }
+  } finally {
+    releaseActorRunSlot();
   }
 }
 

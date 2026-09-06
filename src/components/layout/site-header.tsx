@@ -32,6 +32,9 @@ export function SiteHeader() {
               {copy.nav.track}
               <TrackNavBadge />
             </Link>
+            <Link href="/transcribe" className="hover:text-primary">
+              {copy.nav.transcribe}
+            </Link>
             <Link href="/pricing" className="hover:text-primary">
               {copy.nav.pricing}
             </Link>

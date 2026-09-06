@@ -159,6 +159,16 @@ nothing costs money unless explicitly opted in.
 - **Not implemented**: follower history — `capabilities.followerHistory`
   stays `false`, same honesty rule as the mock provider.
 
+## Video transcriber: a separate, non-`SocialDataProvider` pipeline
+
+`/transcribe` (docs/TRANSCRIBER.md) is not an Instagram feature and
+doesn't implement `SocialDataProvider` — it's a second product surface
+with its own small pipeline (`src/lib/transcription/`), reusing only
+`runApifyActor` (for the universal video/audio downloader actor and the
+last-resort fallback actor) from this provider layer. Its own
+primary/fallback chain is Groq → OpenAI Whisper for the actual
+speech-to-text step, unrelated to Apify entirely.
+
 ## Adding another provider later
 
 1. Implement `SocialDataProvider` against the real source, including
