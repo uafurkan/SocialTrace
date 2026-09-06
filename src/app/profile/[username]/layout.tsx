@@ -7,6 +7,7 @@ import { isProfileTracked } from "@/lib/tracking/watchlist";
 import { ProfileHeader } from "@/components/profile/profile-header";
 import { ProfileTabs } from "@/components/profile/profile-tabs";
 import { AdSlot } from "@/components/ads/ad-slot";
+import { pageMetadata } from "@/lib/seo/metadata";
 
 // Apify actor calls (requireProfile, and every tab below this layout) can
 // take well past Vercel's default serverless timeout — this was
@@ -23,10 +24,11 @@ export async function generateMetadata(props: { params: Promise<{ username: stri
   const params = await props.params;
   const profile = await getProfileByUsername(params.username);
   if (!profile) return { title: "Profile not found" };
-  return {
+  return pageMetadata({
     title: `@${profile.username}`,
     description: `Public profile data for @${profile.username} on SocialTrace: followers, following, posts and history.`,
-  };
+    path: `/profile/${profile.username}`,
+  });
 }
 
 export default async function ProfileLayout(props: ProfileLayoutProps) {

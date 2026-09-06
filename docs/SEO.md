@@ -210,3 +210,66 @@ Vercel's Domains settings do this for you once both are added. Without
 that redirect, the apex (`socialtrace.co`) and `www` host serving the
 same content as two separate URLs would work against the canonical tags
 already in place rather than reinforcing them.
+
+## Site-wide polish pass: the OG-inheritance bug, noindex on private pages, sitemap tiers
+
+A full technical-SEO audit of every page found one real bug and a few
+gaps, ahead of submitting the sitemap to Search Console/Bing Webmaster
+Tools/Yandex Webmaster:
+
+- **Every non-home page was sharing the homepage's social-preview copy.**
+  Next.js's App Router metadata does *not* recompute a parent layout's
+  `openGraph`/`twitter` fields from a child page's own `title`/
+  `description` — only fields the child explicitly sets override the
+  parent's. The root layout (`src/app/layout.tsx`) sets a real
+  `openGraph`/`twitter` block for the homepage; every other page only
+  ever set `title`/`description`/`alternates.canonical`, so linking
+  `/pricing`, `/faq`, `/tools/instagram-story-viewer`, any `/transcribe/*`
+  page, etc. on Twitter/Slack/Discord/iMessage rendered the *homepage's*
+  preview card, not that page's own. Fixed by adding
+  `src/lib/seo/metadata.ts`'s `pageMetadata()` — one helper every page
+  now calls that fills in `openGraph`+`twitter` from the same
+  `title`/`description` it already has — applied to every `page.tsx` and
+  the two dynamic `generateMetadata()` call sites (`profile/[username]/
+  layout.tsx`, `help/[slug]/page.tsx`).
+- **`/account`, `/login`, `/signup`, `/tracking` now carry `robots:
+  {index: false, follow: true}`** (via `pageMetadata()`'s `noIndex`
+  option) instead of relying on `robots.ts`'s `disallow` list.
+  `/tracking` used to be in that disallow list; it's been removed,
+  because a `disallow`'d URL is never crawled at all — a crawler can't
+  see a `noindex` meta tag on a page it's blocked from fetching, so a
+  disallowed-but-linked URL can still surface in search results as a
+  bare, snippet-less entry ("no information is available for this
+  page"). A crawlable `noindex` page is the correct way to keep
+  personalized/no-content pages out of the index without that side
+  effect. Only `/api/` stays in `robots.ts`'s `disallow` — it's not a
+  page a `noindex` tag could attach to.
+- **`/tools` and `/pricing` had generic, thin descriptions** (`"SocialTrace
+  public profile tools."`) — `/tools`'s description now names the five
+  real tools behind it instead of describing nothing.
+- **`sitemap.ts` listed every URL at the same implicit priority with no
+  `changeFrequency`.** Reworked into explicit tiers matching the site's
+  real IA: homepage (1.0, daily) > the two product hubs `/tools` and
+  `/transcribe` (0.9, weekly) > their nine search-intent landing pages
+  (0.7, monthly) > `/pricing` (0.6, monthly) > help/FAQ/methodology (0.5)
+  > changelog (0.4, weekly — changes often but isn't a landing page) >
+  legal (0.2, yearly). These are hints engines are free to ignore, but a
+  flat sitemap gave them no signal at all.
+
+**Not done here, deliberately** — a real content/compliance issue found
+during this pass, not a metadata one: `/privacy` and `/terms` still say
+"this build is a product scaffold using generated sample data — no real
+profile data is collected" from before the Apify provider went live.
+That's no longer accurate (`SOCIAL_PROVIDER=apify` is the production
+provider) and legal-page copy is a substantive content decision, not a
+mechanical SEO fix — flagged for the site owner to rewrite deliberately
+rather than silently edited here.
+
+**Also not done here** — the actual one-time submission steps
+(`GOOGLE_SITE_VERIFICATION`/`BING_SITE_VERIFICATION`/
+`YANDEX_SITE_VERIFICATION` env vars, then adding+verifying the property
+and submitting `https://www.socialtrace.co/sitemap.xml` in each of
+Google Search Console, Bing Webmaster Tools, and Yandex Webmaster) —
+these require the account owner's own login to each console; the code
+side (the verification `<meta>` tags, `robots.ts`'s `sitemap` pointer)
+was already in place before this pass and needed no changes.

@@ -2,17 +2,14 @@ import type { Metadata } from "next";
 
 import { ToolLanding } from "@/components/seo/tool-landing";
 import { JsonLd, breadcrumbJsonLd, faqJsonLd } from "@/lib/seo/json-ld";
+import { pageMetadata } from "@/lib/seo/metadata";
 
 const TITLE = "Anonymous Instagram viewer";
 const DESCRIPTION =
   "Browse a public Instagram profile's posts, reels, stories, highlights, and tagged posts without an account, without logging in, and without the profile knowing.";
 const PATH = "/tools/anonymous-instagram-viewer";
 
-export const metadata: Metadata = {
-  title: TITLE,
-  description: DESCRIPTION,
-  alternates: { canonical: PATH },
-};
+export const metadata: Metadata = pageMetadata({ title: TITLE, description: DESCRIPTION, path: PATH });
 
 const FAQ = [
   {

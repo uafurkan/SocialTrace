@@ -2,17 +2,14 @@ import type { Metadata } from "next";
 
 import { ToolLanding } from "@/components/seo/tool-landing";
 import { JsonLd, breadcrumbJsonLd, faqJsonLd } from "@/lib/seo/json-ld";
+import { pageMetadata } from "@/lib/seo/metadata";
 
 const TITLE = "Instagram follower history";
 const DESCRIPTION =
   "Capture repeated snapshots of a public Instagram profile and see how its follower count changed over time.";
 const PATH = "/tools/instagram-follower-history";
 
-export const metadata: Metadata = {
-  title: TITLE,
-  description: DESCRIPTION,
-  alternates: { canonical: PATH },
-};
+export const metadata: Metadata = pageMetadata({ title: TITLE, description: DESCRIPTION, path: PATH });
 
 const FAQ = [
   {

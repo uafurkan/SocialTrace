@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { JsonLd, articleJsonLd, breadcrumbJsonLd } from "@/lib/seo/json-ld";
+import { pageMetadata } from "@/lib/seo/metadata";
 
 const TITLE = "Data methodology";
 const DESCRIPTION =
@@ -9,11 +10,7 @@ const DESCRIPTION =
 const PATH = "/data-methodology";
 const PUBLISHED = "2026-09-04";
 
-export const metadata: Metadata = {
-  title: TITLE,
-  description: DESCRIPTION,
-  alternates: { canonical: PATH },
-};
+export const metadata: Metadata = pageMetadata({ title: TITLE, description: DESCRIPTION, path: PATH });
 
 export default function DataMethodologyPage() {
   return (

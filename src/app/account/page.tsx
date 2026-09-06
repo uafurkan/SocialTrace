@@ -10,11 +10,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UpgradeButton, ManageBillingButton } from "@/components/billing/checkout-button";
+import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Account",
   description: "Your SocialTrace account, plan, and usage.",
-};
+  path: "/account",
+  noIndex: true,
+});
 
 function formatLimit(value: number): string {
   return Number.isFinite(value) ? String(value) : "Unlimited";

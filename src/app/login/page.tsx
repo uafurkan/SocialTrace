@@ -3,11 +3,14 @@ import Link from "next/link";
 
 import { AuthForm } from "@/components/auth/auth-form";
 import { copy } from "@/lib/copy";
+import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: copy.auth.loginTitle,
   description: copy.auth.loginSubtitle,
-};
+  path: "/login",
+  noIndex: true,
+});
 
 export default function LoginPage() {
   return (

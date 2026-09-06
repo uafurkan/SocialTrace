@@ -4,12 +4,13 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AdSlot } from "@/components/ads/ad-slot";
+import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Tools",
-  description: "SocialTrace public profile tools.",
-  alternates: { canonical: "/tools" },
-};
+  description: "Free Instagram tools: anonymous viewer, story viewer, follower history, follower compare, and growth tracker — no account required.",
+  path: "/tools",
+});
 
 const TOOLS: Array<{ title: string; description: string; href?: string }> = [
   {

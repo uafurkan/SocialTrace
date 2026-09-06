@@ -2,16 +2,13 @@ import type { Metadata } from "next";
 
 import { ToolLanding } from "@/components/seo/tool-landing";
 import { JsonLd, breadcrumbJsonLd, faqJsonLd } from "@/lib/seo/json-ld";
+import { pageMetadata } from "@/lib/seo/metadata";
 
 const TITLE = "YouTube transcript generator";
 const DESCRIPTION = "Paste a YouTube video link and get a text transcript — pulled from its existing captions when available, or generated with speech-to-text otherwise.";
 const PATH = "/transcribe/youtube-transcript-generator";
 
-export const metadata: Metadata = {
-  title: TITLE,
-  description: DESCRIPTION,
-  alternates: { canonical: PATH },
-};
+export const metadata: Metadata = pageMetadata({ title: TITLE, description: DESCRIPTION, path: PATH });
 
 const FAQ = [
   {

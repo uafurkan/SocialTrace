@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
+import { pageMetadata } from "@/lib/seo/metadata";
+
+export const metadata: Metadata = pageMetadata({
   title: "Privacy",
   description: "How SocialTrace handles data.",
-};
+  path: "/privacy",
+});
 
 export default function PrivacyPage() {
   return (

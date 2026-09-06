@@ -3,11 +3,13 @@ import Link from "next/link";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Pricing",
   description: "SocialTrace plans for public profile exploration and tracking.",
-};
+  path: "/pricing",
+});
 
 export default function PricingPage() {
   return (

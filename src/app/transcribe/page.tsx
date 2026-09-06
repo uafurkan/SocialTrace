@@ -2,16 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { JsonLd, breadcrumbJsonLd, faqJsonLd } from "@/lib/seo/json-ld";
+import { pageMetadata } from "@/lib/seo/metadata";
 import { TranscriberWidget } from "@/components/transcriber/transcriber-widget";
 import { copy } from "@/lib/copy";
 
 const PATH = "/transcribe";
 
-export const metadata: Metadata = {
-  title: copy.transcriber.hubTitle,
-  description: copy.transcriber.hubLead,
-  alternates: { canonical: PATH },
-};
+export const metadata: Metadata = pageMetadata({ title: copy.transcriber.hubTitle, description: copy.transcriber.hubLead, path: PATH });
 
 const FAQ = [
   {

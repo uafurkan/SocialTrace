@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { JsonLd, articleJsonLd, breadcrumbJsonLd } from "@/lib/seo/json-ld";
+import { pageMetadata } from "@/lib/seo/metadata";
 import { HELP_ARTICLES, getHelpArticle } from "@/lib/seo/help-articles";
 
 interface Params {
@@ -17,11 +18,11 @@ export async function generateMetadata(props: Params): Promise<Metadata> {
   const params = await props.params;
   const article = getHelpArticle(params.slug);
   if (!article) return { title: "Help article not found" };
-  return {
+  return pageMetadata({
     title: article.title,
     description: article.description,
-    alternates: { canonical: `/help/${article.slug}` },
-  };
+    path: `/help/${article.slug}`,
+  });
 }
 
 export default async function HelpArticlePage(props: Params) {

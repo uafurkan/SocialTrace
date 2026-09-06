@@ -3,17 +3,15 @@ import Link from "next/link";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { JsonLd, breadcrumbJsonLd } from "@/lib/seo/json-ld";
+import { pageMetadata } from "@/lib/seo/metadata";
 import { helpArticlesBySection } from "@/lib/seo/help-articles";
 
 const TITLE = "Help center";
 const DESCRIPTION =
   "How SocialTrace works — snapshots, coverage, tracking, comparisons, and exports, with the same honesty rules applied everywhere.";
+const PATH = "/help";
 
-export const metadata: Metadata = {
-  title: TITLE,
-  description: DESCRIPTION,
-  alternates: { canonical: "/help" },
-};
+export const metadata: Metadata = pageMetadata({ title: TITLE, description: DESCRIPTION, path: PATH });
 
 export default function HelpIndexPage() {
   const sections = helpArticlesBySection();

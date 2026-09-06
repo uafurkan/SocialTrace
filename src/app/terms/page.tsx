@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
+import { pageMetadata } from "@/lib/seo/metadata";
+
+export const metadata: Metadata = pageMetadata({
   title: "Terms",
   description: "Terms of use for SocialTrace.",
-};
+  path: "/terms",
+});
 
 export default function TermsPage() {
   return (

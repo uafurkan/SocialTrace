@@ -7,11 +7,14 @@ import { listSavedSearches } from "@/lib/tracking/saved-searches";
 import { NotAvailable } from "@/components/profile/not-available";
 import { TrackedProfileList } from "@/components/tracking/tracked-profile-list";
 import { SavedSearchList } from "@/components/tracking/saved-search-list";
+import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Tracked profiles",
   description: "Profiles you're tracking on SocialTrace, with follower changes since their last snapshot.",
-};
+  path: "/tracking",
+  noIndex: true,
+});
 
 export default async function TrackingPage() {
   const trackingAvailable = isDbConfigured();

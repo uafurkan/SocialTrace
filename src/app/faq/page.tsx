@@ -1,17 +1,15 @@
 import type { Metadata } from "next";
 
 import { JsonLd, breadcrumbJsonLd, faqJsonLd } from "@/lib/seo/json-ld";
+import { pageMetadata } from "@/lib/seo/metadata";
 import { FAQ_ENTRIES } from "@/lib/seo/faq-entries";
 
 const TITLE = "Frequently asked questions";
 const DESCRIPTION =
   "What SocialTrace does, what it does not do, and how coverage, snapshots, tracking, and exports actually work.";
+const PATH = "/faq";
 
-export const metadata: Metadata = {
-  title: TITLE,
-  description: DESCRIPTION,
-  alternates: { canonical: "/faq" },
-};
+export const metadata: Metadata = pageMetadata({ title: TITLE, description: DESCRIPTION, path: PATH });
 
 export default function FaqPage() {
   return (

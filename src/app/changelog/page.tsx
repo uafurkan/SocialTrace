@@ -1,17 +1,15 @@
 import type { Metadata } from "next";
 
 import { JsonLd, breadcrumbJsonLd } from "@/lib/seo/json-ld";
+import { pageMetadata } from "@/lib/seo/metadata";
 import { CHANGELOG_ENTRIES } from "@/lib/seo/changelog-entries";
 
 const TITLE = "Changelog";
 const DESCRIPTION =
   "What changed and when. Each entry lists a real feature that shipped and what it lets you do.";
+const PATH = "/changelog";
 
-export const metadata: Metadata = {
-  title: TITLE,
-  description: DESCRIPTION,
-  alternates: { canonical: "/changelog" },
-};
+export const metadata: Metadata = pageMetadata({ title: TITLE, description: DESCRIPTION, path: PATH });
 
 export default function ChangelogPage() {
   return (
