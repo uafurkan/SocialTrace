@@ -19,10 +19,20 @@ async function fetchAsBlob(url: string): Promise<Blob> {
   return await res.blob();
 }
 
-/** Reads the yt-dlp local-fallback's own /tmp output instead of fetching a remote URL — see `DownloadedAudio.localAudioPath`. */
+/**
+ * Reads the yt-dlp local-fallback's own /tmp output instead of fetching a
+ * remote URL — see `DownloadedAudio.localAudioPath`. The file's real
+ * extension varies (yt-dlp's `audioFormat: "best"` keeps the source
+ * codec's container whenever possible rather than always transcoding to
+ * m4a — see the speed comment on `downloadWithYtDlp`), so the MIME type
+ * has to be read off the actual filename, not assumed — `speech-to-text.
+ * ts`'s `extensionFor()` picks the upload filename off this same field.
+ */
 async function readLocalAudioAsBlob(path: string): Promise<Blob> {
   const buffer = await readFile(path);
-  return new Blob([buffer], { type: "audio/m4a" });
+  const ext = path.split(".").pop()?.toLowerCase() ?? "";
+  const type = ext === "mp3" ? "audio/mpeg" : ext ? `audio/${ext}` : "audio/mp4";
+  return new Blob([buffer], { type });
 }
 
 /**

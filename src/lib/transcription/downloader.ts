@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { unlink } from "node:fs/promises";
+import { readdir, unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import ffmpegPath from "ffmpeg-static";
@@ -327,36 +327,55 @@ async function downloadFacebook(sourceUrl: string): Promise<DownloadedAudio | nu
  * all, so it still works when every paid dependency is down or exhausted.
  * Returns `null` (never throws) on any failure so the caller's existing
  * `download_failed` handling covers this path too.
+ *
+ * **Speed**: the first version of this function made two full yt-dlp
+ * invocations (one metadata-only `dumpSingleJson`, one separate download)
+ * — each one re-fetches and re-parses the source page, doubling network
+ * round-trips for no benefit. It also let yt-dlp pick its *default*
+ * format (best video+audio muxed) and then had ffmpeg throw the video
+ * away and transcode audio to m4a — downloading a full video stream and
+ * re-encoding it just to get audio Whisper never needed the video track
+ * for. Fixed by: (1) one invocation, with `printJson` reading the info
+ * straight off the same run that also downloads; (2) `format:
+ * "bestaudio/best"` so yt-dlp only ever fetches an audio-only stream when
+ * the platform has one (far smaller download); (3) `audioFormat: "best"`
+ * instead of `"m4a"` so ffmpeg remuxes without transcoding whenever the
+ * source codec is already Whisper-compatible, only transcoding as a last
+ * resort. Both audio-only fetch and skip-transcode are the two biggest
+ * levers on wall-clock time for this path, confirmed live (see
+ * docs/TRANSCRIBER.md).
  */
 async function downloadWithYtDlp(sourceUrl: string): Promise<DownloadedAudio | null> {
-  const outPath = join(tmpdir(), `transcribe-${randomUUID()}.m4a`);
+  const prefix = `transcribe-${randomUUID()}`;
+  const outTemplate = join(tmpdir(), `${prefix}.%(ext)s`);
   try {
     const info = (await ytdlp(sourceUrl, {
-      dumpSingleJson: true,
-      noWarnings: true,
-      skipDownload: true,
-      ffmpegLocation: ffmpegPath ?? undefined,
-    })) as { duration?: number; title?: string };
-
-    await ytdlp(sourceUrl, {
-      output: outPath,
+      output: outTemplate,
+      format: "bestaudio/best",
       extractAudio: true,
-      audioFormat: "m4a",
+      audioFormat: "best",
       ffmpegLocation: ffmpegPath ?? undefined,
       noWarnings: true,
       noPlaylist: true,
-    });
+      quiet: true,
+      printJson: true,
+    })) as { duration?: number; title?: string };
+
+    const files = await readdir(tmpdir());
+    const match = files.find((f) => f.startsWith(prefix));
+    if (!match) return null;
 
     return {
       audioUrl: "",
       videoUrl: null,
       durationSeconds: info.duration ?? 0,
       title: info.title ?? "",
-      localAudioPath: outPath,
+      localAudioPath: join(tmpdir(), match),
     };
   } catch (error) {
     console.warn("[transcription] yt-dlp local fallback failed:", error);
-    await unlink(outPath).catch(() => {});
+    const leftovers = await readdir(tmpdir()).catch(() => []);
+    await Promise.all(leftovers.filter((f) => f.startsWith(prefix)).map((f) => unlink(join(tmpdir(), f)).catch(() => {})));
     return null;
   }
 }

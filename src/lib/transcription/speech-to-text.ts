@@ -30,6 +30,8 @@ function extensionFor(contentType: string): string {
   if (contentType.includes("webm")) return "webm";
   if (contentType.includes("wav")) return "wav";
   if (contentType.includes("m4a") || contentType.includes("mp4a")) return "m4a";
+  if (contentType.includes("opus") || contentType.includes("ogg")) return "ogg";
+  if (contentType.includes("mpeg")) return "mp3";
   return "mp3";
 }
 
