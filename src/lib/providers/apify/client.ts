@@ -15,13 +15,21 @@ export class ApifyActorError extends Error {
   }
 }
 
-/** Runs an Apify actor synchronously and returns its dataset items (raw, unnormalized). */
-export async function runApifyActor(actorId: string, input: Record<string, unknown>): Promise<unknown> {
-  const token = process.env.APIFY_API_TOKEN;
-  if (!token) {
-    throw new Error("APIFY_API_TOKEN is not set — required when SOCIAL_PROVIDER=apify.");
-  }
+// The Apify account has a plan-level cap on concurrent actor runs. Several
+// tabs/visitors hitting different actors at once routinely exceeds it — this
+// is a transient resource conflict, not a real failure, so it's worth a
+// couple of short retries instead of failing the whole page immediately.
+const CONCURRENCY_LIMIT_RETRY_DELAYS_MS = [2_000, 4_000];
 
+function isConcurrencyLimitError(message: string): boolean {
+  return message.includes("concurrent Actor runs");
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function runApifyActorOnce(actorId: string, input: Record<string, unknown>, token: string): Promise<unknown> {
   const url = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${encodeURIComponent(token)}`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), APIFY_TIMEOUT_MS);
@@ -42,6 +50,26 @@ export async function runApifyActor(actorId: string, input: Record<string, unkno
     return body;
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+/** Runs an Apify actor synchronously and returns its dataset items (raw, unnormalized). */
+export async function runApifyActor(actorId: string, input: Record<string, unknown>): Promise<unknown> {
+  const token = process.env.APIFY_API_TOKEN;
+  if (!token) {
+    throw new Error("APIFY_API_TOKEN is not set — required when SOCIAL_PROVIDER=apify.");
+  }
+
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await runApifyActorOnce(actorId, input, token);
+    } catch (error) {
+      const canRetry = attempt < CONCURRENCY_LIMIT_RETRY_DELAYS_MS.length;
+      if (!canRetry || !(error instanceof ApifyActorError) || !isConcurrencyLimitError(error.message)) {
+        throw error;
+      }
+      await sleep(CONCURRENCY_LIMIT_RETRY_DELAYS_MS[attempt]);
+    }
   }
 }
 

@@ -38,6 +38,11 @@ export function ProfileTabs({ username }: ProfileTabsProps) {
           <Link
             key={tab.label}
             href={href}
+            // Each tab's data comes from its own Apify actor call. Default
+            // Link prefetching was firing all of these in parallel just from
+            // landing on the profile page, which alone exceeded the Apify
+            // account's 5-concurrent-actor-run cap and crashed the active tab.
+            prefetch={false}
             aria-current={isActive ? "page" : undefined}
             className={cn(
               "flex min-h-[44px] shrink-0 items-center whitespace-nowrap border-b-2 border-transparent px-3.5 text-sm font-medium text-secondary transition-colors hover:text-primary",
