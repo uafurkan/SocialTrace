@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { isDbConfigured } from "@/lib/db";
 import { EmailAlreadyRegisteredError, createUser } from "@/lib/auth/users";
+import { issueVerificationCode } from "@/lib/auth/email-verification";
 import { createSession } from "@/lib/auth/session";
 import { SESSION_COOKIE, SESSION_COOKIE_OPTIONS } from "@/lib/auth/session-cookie";
 import { signupSchema } from "@/lib/auth/validation";
@@ -37,6 +38,13 @@ export async function POST(request: NextRequest) {
 
   try {
     const user = await createUser(parsed.data.email, parsed.data.password);
+    // Best-effort: the account is real and usable either way. A failure
+    // here (no RESEND_API_KEY configured, Resend down) means the user
+    // just sees "unverified" on /account and can hit resend once email
+    // sending is actually configured — never blocks signup itself.
+    await issueVerificationCode(user.id, user.email).catch((error) => {
+      console.error("[signup] failed to send verification email:", error);
+    });
     const { token, expiresAt } = await createSession(user.id);
     const response = NextResponse.json({ user });
     response.cookies.set(SESSION_COOKIE, token, { ...SESSION_COOKIE_OPTIONS, expires: expiresAt });

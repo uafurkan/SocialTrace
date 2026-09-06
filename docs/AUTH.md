@@ -12,7 +12,9 @@ section below).
 
 - **`users`** (`src/lib/db/schema.ts`): `email`, `normalizedEmail`
   (unique-indexed, lowercased/trimmed — case-insensitive login),
-  `passwordHash`, `plan` (`free` | `pro`, defaults to `free`).
+  `passwordHash`, `plan` (`free` | `pro`, defaults to `free`),
+  `emailVerified` + the code/expiry/attempts/sent-at fields behind it
+  (see "Email verification" below).
 - **`sessions`**: `userId`, `tokenHash`, `expiresAt`. The session token
   set in the `st_session` cookie is never written to the database — only
   its SHA-256 hash (`src/lib/auth/session.ts`'s `hashSessionToken`) is,
@@ -104,14 +106,56 @@ state on every pathname change rather than only once on mount).
 Screenshotted `/login` and the post-login `/account` page. Test account
 and its data deleted from the live database afterward.
 
+## Email verification
+
+`src/lib/auth/email-verification.ts` + `src/lib/email/resend.ts`. Signup
+issues a 6-digit numeric code (`crypto.randomInt`, cryptographically
+secure — not `Math.random`) and emails it via Resend's REST API (no SDK,
+same direct-fetch style as every other integration here). Security
+choices, all mirroring patterns already established elsewhere in this
+file:
+
+- **The code itself is never persisted** — only its SHA-256 hash
+  (`users.email_verification_code_hash`), the same reasoning as
+  `passwordHash`/`sessions.tokenHash`: a leaked database row alone can't
+  complete verification.
+- **Constant-time comparison** (`crypto.timingSafeEqual` on the two
+  hashes) rather than `===`, so response timing can't leak how many
+  leading hex characters of the correct hash a guess matched.
+- **10-minute expiry, 5-attempt cap per issued code**
+  (`email_verification_attempts`, reset to 0 whenever a fresh code is
+  issued) — bounds how much of a 6-digit (1,000,000-value) code space a
+  single code can be brute-forced against before it's forced to rotate
+  anyway.
+- **60-second resend cooldown** (`email_verification_sent_at`) — blocks
+  a resend-spam-click loop from both hammering Resend's API and handing
+  an attacker a longer brute-force window (each new code resets the
+  attempt counter, so *rapid* resends would otherwise be a way around
+  the 5-attempt cap, not a defense).
+- **Session-authenticated, rate-limited routes.** `POST
+  /api/v1/auth/verify-email` (10/10min) and `POST
+  /api/v1/auth/resend-verification` (5/10min) both require an existing
+  session — verification is something you do to your own already-created
+  account, not a public endpoint.
+- **Best-effort on signup, never blocking.** `POST /api/v1/auth/signup`
+  calls `issueVerificationCode` and swallows any failure (Resend down,
+  `RESEND_API_KEY` unset) — the account is real and fully usable either
+  way; an unverified user just sees an "Unverified" badge + a resend
+  option on `/account` (`src/components/auth/email-verification-card.tsx`)
+  instead of being blocked from signing up at all.
+- **Nothing is gated on verification yet** — no feature currently checks
+  `emailVerified`. This ships the primitive (a real, secure verify-your-
+  email loop) without yet deciding what, if anything, requires it —
+  that's a product decision for later, not a technical limitation now.
+
 ## What's NOT implemented
 
 - **No OAuth, no magic links.** Only method built was email + password,
   per explicit choice.
-- **No password reset / email verification.** Would need a real email
-  delivery service (Resend, SendGrid, ...), which this build doesn't
-  have — same missing piece as tracking's notification channel
-  (`docs/TRACKING.md`).
+- **No password reset.** Same missing piece as tracking's notification
+  channel (`docs/TRACKING.md`) used to be before email verification
+  shipped — Resend is now wired up, so a reset-password email flow could
+  reuse the same `sendEmail` helper; just not built yet.
 - **No account deletion, no email change.**
 - **No CSRF token.** The session cookie is `sameSite: lax`, which blocks
   cross-site POST form submission from top-level navigation, but a

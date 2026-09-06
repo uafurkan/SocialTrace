@@ -25,6 +25,7 @@ export interface AccountUser {
   id: string;
   email: string;
   plan: "free" | "pro";
+  emailVerified: boolean;
 }
 
 export async function createUser(email: string, password: string): Promise<AccountUser> {
@@ -42,7 +43,12 @@ export async function createUser(email: string, password: string): Promise<Accou
   const [row] = await db
     .insert(schema.users)
     .values({ email: email.trim(), normalizedEmail, passwordHash })
-    .returning({ id: schema.users.id, email: schema.users.email, plan: schema.users.plan });
+    .returning({
+      id: schema.users.id,
+      email: schema.users.email,
+      plan: schema.users.plan,
+      emailVerified: schema.users.emailVerified,
+    });
   return row;
 }
 
@@ -55,6 +61,7 @@ export async function verifyCredentials(email: string, password: string): Promis
       id: schema.users.id,
       email: schema.users.email,
       plan: schema.users.plan,
+      emailVerified: schema.users.emailVerified,
       passwordHash: schema.users.passwordHash,
     })
     .from(schema.users)
@@ -65,5 +72,5 @@ export async function verifyCredentials(email: string, password: string): Promis
   const valid = await verifyPassword(password, row.passwordHash);
   if (!valid) throw new InvalidCredentialsError();
 
-  return { id: row.id, email: row.email, plan: row.plan };
+  return { id: row.id, email: row.email, plan: row.plan, emailVerified: row.emailVerified };
 }

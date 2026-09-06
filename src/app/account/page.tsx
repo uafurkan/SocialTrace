@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UpgradeButton, ManageBillingButton } from "@/components/billing/checkout-button";
+import { EmailVerificationCard } from "@/components/auth/email-verification-card";
 import { pageMetadata } from "@/lib/seo/metadata";
 
 export const metadata: Metadata = pageMetadata({
@@ -48,9 +49,14 @@ export default async function AccountPage() {
       <Card className="mt-6">
         <CardHeader className="flex flex-row items-center justify-between gap-2">
           <CardTitle className="text-base">{identity.account.email}</CardTitle>
-          <Badge variant={identity.account.plan === "pro" ? "brand" : "neutral"}>
-            {identity.account.plan === "pro" ? "Pro" : "Free"} plan
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant={identity.account.emailVerified ? "neutral" : "warning"}>
+              {identity.account.emailVerified ? "Verified" : "Unverified"}
+            </Badge>
+            <Badge variant={identity.account.plan === "pro" ? "brand" : "neutral"}>
+              {identity.account.plan === "pro" ? "Pro" : "Free"} plan
+            </Badge>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4 text-sm text-secondary">
           <div className="flex items-center justify-between">
@@ -67,6 +73,8 @@ export default async function AccountPage() {
           </div>
         </CardContent>
       </Card>
+
+      {!identity.account.emailVerified && <EmailVerificationCard />}
 
       {identity.account.plan === "free" ? (
         <div className="mt-6 rounded-card border border-border bg-surface-subtle p-5">

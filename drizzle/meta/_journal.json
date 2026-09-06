@@ -71,6 +71,13 @@
       "when": 1788683885700,
       "tag": "0009_romantic_cable",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788686735926,
+      "tag": "0010_wakeful_black_queen",
+      "breakpoints": true
     }
   ]
 }

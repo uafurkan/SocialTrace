@@ -317,6 +317,22 @@ export const users = pgTable(
     normalizedEmail: text("normalized_email").notNull(),
     passwordHash: text("password_hash").notNull(),
     plan: planEnum("plan").notNull().default("free"),
+    // Email verification (docs/AUTH.md). The code itself is never stored —
+    // only its SHA-256 hash (emailVerificationCodeHash), same reasoning as
+    // passwordHash/sessions.tokenHash: a leaked database row alone
+    // shouldn't be enough to complete verification. Null hash/expiry means
+    // no code is currently outstanding. emailVerificationAttempts counts
+    // wrong guesses against the *current* code and resets to 0 whenever a
+    // new code is issued — caps brute-forcing a 6-digit code before its
+    // 10-minute expiry forces a fresh one anyway.
+    emailVerified: boolean("email_verified").notNull().default(false),
+    emailVerificationCodeHash: text("email_verification_code_hash"),
+    emailVerificationExpiresAt: timestamp("email_verification_expires_at", { withTimezone: true }),
+    emailVerificationAttempts: integer("email_verification_attempts").notNull().default(0),
+    // Resend cooldown anchor — separate from expiresAt because a code can
+    // still be valid (not expired) while we still want to refuse a resend
+    // spam-click for another N seconds.
+    emailVerificationSentAt: timestamp("email_verification_sent_at", { withTimezone: true }),
     // Both null until the user starts a checkout at least once (docs/BILLING.md).
     // paddleCustomerId is created lazily on first checkout and reused after
     // that (never a new customer per checkout attempt); paddleSubscriptionId

@@ -9,6 +9,7 @@ export interface SessionUser {
   id: string;
   email: string;
   plan: "free" | "pro";
+  emailVerified: boolean;
 }
 
 /**
@@ -43,6 +44,7 @@ export async function getSessionUserByToken(token: string | undefined): Promise<
       userId: schema.users.id,
       email: schema.users.email,
       plan: schema.users.plan,
+      emailVerified: schema.users.emailVerified,
       expiresAt: schema.sessions.expiresAt,
     })
     .from(schema.sessions)
@@ -51,7 +53,7 @@ export async function getSessionUserByToken(token: string | undefined): Promise<
     .limit(1);
 
   if (!row || row.expiresAt <= new Date()) return null;
-  return { id: row.userId, email: row.email, plan: row.plan };
+  return { id: row.userId, email: row.email, plan: row.plan, emailVerified: row.emailVerified };
 }
 
 export function getSessionUser(request: NextRequest): Promise<SessionUser | null> {
