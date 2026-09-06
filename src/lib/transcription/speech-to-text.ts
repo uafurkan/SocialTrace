@@ -65,23 +65,39 @@ async function transcribeWith(
 }
 
 /**
+ * Groq's free tier caps requests/audio-seconds per day *per key* — so
+ * multiple Groq keys (round-robin on failure) buys more free daily
+ * capacity than a single key, before ever touching a paid fallback.
+ * `GROQ_API_KEY` is required; `GROQ_API_KEY_2`/`GROQ_API_KEY_3` are
+ * optional extra keys tried in order after the first one errors
+ * (rate-limited, down, etc.) — same "try next" shape as the Apify
+ * follower-scraper fallback chain.
+ */
+function groqKeys(): string[] {
+  return [process.env.GROQ_API_KEY, process.env.GROQ_API_KEY_2, process.env.GROQ_API_KEY_3].filter(
+    (key): key is string => Boolean(key),
+  );
+}
+
+/**
  * Groq primary (9x cheaper than OpenAI's own endpoint, generous free
- * tier — docs/TRANSCRIBER.md), OpenAI Whisper as the fallback only when
- * Groq itself errors (down, rate-limited, key missing) — mirrors
- * `runApifyActor`'s "try primary, fall back on a real failure" shape.
- * Both unconfigured (no keys at all) throws immediately, same
+ * tier — docs/TRANSCRIBER.md), tried across every configured Groq key
+ * before falling back to OpenAI Whisper (only reached once all Groq keys
+ * error) — mirrors `runApifyActor`'s "try primary, fall back on a real
+ * failure" shape. Nothing configured at all throws immediately, same
  * "opt-in real integration" pattern as every other provider in this app.
  */
 export async function transcribeAudio(audioBlob: Blob, language?: string): Promise<SpeechToTextResult> {
-  const groqKey = process.env.GROQ_API_KEY;
+  const keys = groqKeys();
   const openaiKey = process.env.OPENAI_API_KEY;
 
-  if (groqKey) {
+  let lastError: unknown;
+  for (const key of keys) {
     try {
-      return await transcribeWith(GROQ_URL, groqKey, GROQ_MODEL, "groq", audioBlob, language);
+      return await transcribeWith(GROQ_URL, key, GROQ_MODEL, "groq", audioBlob, language);
     } catch (error) {
-      if (!openaiKey) throw error;
-      console.warn("[transcription] Groq failed, falling back to OpenAI:", error);
+      lastError = error;
+      console.warn("[transcription] a Groq key failed, trying next:", error);
     }
   }
 
@@ -89,5 +105,6 @@ export async function transcribeAudio(audioBlob: Blob, language?: string): Promi
     return await transcribeWith(OPENAI_URL, openaiKey, OPENAI_MODEL, "openai", audioBlob, language);
   }
 
-  throw new Error("Neither GROQ_API_KEY nor OPENAI_API_KEY is set — required for transcription.");
+  if (lastError) throw lastError;
+  throw new Error("No GROQ_API_KEY (or OPENAI_API_KEY) is set — required for transcription.");
 }
