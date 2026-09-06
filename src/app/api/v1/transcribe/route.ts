@@ -34,6 +34,17 @@ interface TranscriptResultPayload {
   videoUrl: string | null;
 }
 
+/**
+ * Routes the raw CDN URL through our own /video-proxy instead of handing it
+ * to the browser directly — Instagram/Facebook/TikTok/YouTube CDN links are
+ * hotlink-protected (Referer/User-Agent checks) or lack CORS headers, so a
+ * bare `<video src="{cdn url}">` fails silently in the browser even though
+ * the exact same URL is fetchable server-side (that's how Whisper reads it).
+ */
+function toProxiedVideoUrl(videoUrl: string | null): string | null {
+  return videoUrl ? `/api/v1/transcribe/video-proxy?url=${encodeURIComponent(videoUrl)}` : null;
+}
+
 function toPayload(result: TranscriptResult): TranscriptResultPayload {
   return {
     text: result.text,
@@ -41,7 +52,7 @@ function toPayload(result: TranscriptResult): TranscriptResultPayload {
     language: result.language,
     durationSeconds: result.durationSeconds,
     platform: result.platform,
-    videoUrl: result.videoUrl ?? null,
+    videoUrl: toProxiedVideoUrl(result.videoUrl ?? null),
   };
 }
 
@@ -147,7 +158,7 @@ export async function POST(request: NextRequest) {
         }
 
         const result = await transcribe(url, language, (videoUrl) => {
-          writeEvent(controller, { stage: "transcribing", videoUrl });
+          writeEvent(controller, { stage: "transcribing", videoUrl: toProxiedVideoUrl(videoUrl) ?? "" });
         });
         await db
           .update(schema.transcriptCache)
