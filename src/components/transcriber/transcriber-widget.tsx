@@ -6,7 +6,9 @@ import { Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { copy } from "@/lib/copy";
+import { TRANSCRIPTION_LANGUAGES, TRANSLATION_TARGET_LANGUAGES } from "@/lib/transcription/languages";
 
 interface TranscriptSegment {
   start: number;
@@ -29,15 +31,25 @@ type WidgetState =
   | { status: "done"; result: TranscriptResultPayload }
   | { status: "error"; message: string };
 
+type TranslationState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "done"; text: string; segments: TranscriptSegment[]; languageLabel: string }
+  | { status: "error"; message: string };
+
 /**
  * Reads the API's newline-delimited JSON stream (docs/TRANSCRIBER.md
  * "Speed") instead of polling — each line is one progress/result event.
  */
-async function submitForTranscription(url: string, onEvent: (event: Record<string, unknown>) => void): Promise<void> {
+async function submitForTranscription(
+  url: string,
+  language: string | undefined,
+  onEvent: (event: Record<string, unknown>) => void,
+): Promise<void> {
   const res = await fetch("/api/v1/transcribe", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url }),
+    body: JSON.stringify({ url, language }),
   });
 
   const contentType = res.headers.get("Content-Type") ?? "";
@@ -72,6 +84,67 @@ function formatTimestamp(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+function plainTextOf(text: string, segments: TranscriptSegment[]): string {
+  return segments.length > 0 ? segments.map((s) => s.text).join(" ") : text;
+}
+
+function timestampedTextOf(text: string, segments: TranscriptSegment[]): string {
+  if (segments.length === 0) return text;
+  return segments.map((s) => `[${formatTimestamp(s.start)}] ${s.text}`).join("\n");
+}
+
+function TranscriptBody({
+  text,
+  segments,
+  emptyMessage,
+}: {
+  text: string;
+  segments: TranscriptSegment[];
+  emptyMessage: string;
+}) {
+  const [copiedKind, setCopiedKind] = useState<"text" | "timestamps" | null>(null);
+
+  async function handleCopy(kind: "text" | "timestamps") {
+    const value = kind === "text" ? plainTextOf(text, segments) : timestampedTextOf(text, segments);
+    await navigator.clipboard.writeText(value);
+    setCopiedKind(kind);
+    setTimeout(() => setCopiedKind(null), 2000);
+  }
+
+  if (!text) {
+    return <p className="text-sm text-secondary">{emptyMessage}</p>;
+  }
+
+  return (
+    <>
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Button variant="secondary" size="sm" onClick={() => handleCopy("text")}>
+          {copiedKind === "text" ? <Check className="size-4" aria-hidden="true" /> : <Copy className="size-4" aria-hidden="true" />}
+          {copiedKind === "text" ? copy.transcriber.copiedCta : copy.transcriber.copyCta}
+        </Button>
+        {segments.length > 0 ? (
+          <Button variant="secondary" size="sm" onClick={() => handleCopy("timestamps")}>
+            {copiedKind === "timestamps" ? <Check className="size-4" aria-hidden="true" /> : <Copy className="size-4" aria-hidden="true" />}
+            {copiedKind === "timestamps" ? copy.transcriber.copiedCta : copy.transcriber.copyTimestampsCta}
+          </Button>
+        ) : null}
+      </div>
+      <div className="mt-4 max-h-96 space-y-3 overflow-y-auto text-sm text-primary">
+        {segments.length > 0 ? (
+          segments.map((segment, index) => (
+            <p key={index}>
+              <span className="mr-2 font-mono text-xs text-muted">{formatTimestamp(segment.start)}</span>
+              {segment.text}
+            </p>
+          ))
+        ) : (
+          <p className="whitespace-pre-wrap">{text}</p>
+        )}
+      </div>
+    </>
+  );
+}
+
 export function TranscriberWidget({
   platformHint,
   autoSubmitFromQueryParam,
@@ -81,16 +154,20 @@ export function TranscriberWidget({
   autoSubmitFromQueryParam?: boolean;
 }) {
   const [url, setUrl] = useState("");
+  const [language, setLanguage] = useState("auto");
   const [state, setState] = useState<WidgetState>({ status: "idle" });
-  const [copied, setCopied] = useState(false);
+  const [translateTarget, setTranslateTarget] = useState(TRANSLATION_TARGET_LANGUAGES[0].code);
+  const [translation, setTranslation] = useState<TranslationState>({ status: "idle" });
+  const [activeTab, setActiveTab] = useState<"original" | "translated">("original");
 
   async function runTranscription(targetUrl: string) {
     if (!targetUrl.trim()) return;
     setState({ status: "downloading" });
-    setCopied(false);
+    setTranslation({ status: "idle" });
+    setActiveTab("original");
 
     try {
-      await submitForTranscription(targetUrl.trim(), (event) => {
+      await submitForTranscription(targetUrl.trim(), language === "auto" ? undefined : language, (event) => {
         if (event.stage === "downloading") setState({ status: "downloading" });
         else if (event.stage === "done") setState({ status: "done", result: event.result as TranscriptResultPayload });
         else if (event.stage === "error") setState({ status: "error", message: (event.message as string) ?? copy.transcriber.errorGeneric });
@@ -119,29 +196,64 @@ export function TranscriberWidget({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function handleCopy(text: string) {
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  async function handleTranslate() {
+    if (state.status !== "done") return;
+    const target = TRANSLATION_TARGET_LANGUAGES.find((l) => l.code === translateTarget);
+    if (!target) return;
+
+    setTranslation({ status: "loading" });
+    try {
+      const res = await fetch("/api/v1/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: state.result.text, segments: state.result.segments, targetLanguage: target.code }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error ?? copy.transcriber.translateErrorGeneric);
+      setTranslation({ status: "done", text: body.result.text, segments: body.result.segments ?? [], languageLabel: target.label });
+      setActiveTab("translated");
+    } catch (error) {
+      setTranslation({ status: "error", message: error instanceof Error ? error.message : copy.transcriber.translateErrorGeneric });
+    }
   }
 
   const isBusy = state.status === "downloading" || state.status === "transcribing";
 
   return (
     <div>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row">
-        <Input
-          type="url"
-          required
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder={platformHint ? `Paste a ${platformHint} video link` : copy.transcriber.urlPlaceholder}
-          className="flex-1"
-          aria-label="Video URL"
-        />
-        <Button type="submit" loading={isBusy} disabled={isBusy}>
-          {copy.transcriber.submitCta}
-        </Button>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Input
+            type="url"
+            required
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder={platformHint ? `Paste a ${platformHint} video link` : copy.transcriber.urlPlaceholder}
+            className="flex-1"
+            aria-label="Video URL"
+          />
+          <Button type="submit" loading={isBusy} disabled={isBusy}>
+            {copy.transcriber.submitCta}
+          </Button>
+        </div>
+        <div className="flex flex-col gap-1 sm:max-w-xs">
+          <label htmlFor="transcriber-language" className="text-xs font-medium text-secondary">
+            {copy.transcriber.languageLabel}
+          </label>
+          <select
+            id="transcriber-language"
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+            className="h-10 rounded-button border border-border bg-surface px-3 text-sm text-primary focus-visible:border-brand"
+          >
+            {TRANSCRIPTION_LANGUAGES.map((l) => (
+              <option key={l.code} value={l.code}>
+                {l.label}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-muted">{copy.transcriber.languageHint}</p>
+        </div>
       </form>
 
       {isBusy ? (
@@ -175,31 +287,66 @@ export function TranscriberWidget({
           <Card>
             <CardContent className="pt-6">
               {state.result.text ? (
-                <>
-                  <div className="flex items-center justify-between gap-4">
+                <div className="mb-4 flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
                     <p className="text-sm text-muted">
                       {state.result.language !== "auto" ? `Language: ${state.result.language}` : null}
                     </p>
-                    <Button variant="secondary" size="sm" onClick={() => handleCopy(state.result.text)}>
-                      {copied ? <Check className="size-4" aria-hidden="true" /> : <Copy className="size-4" aria-hidden="true" />}
-                      {copied ? copy.transcriber.copiedCta : copy.transcriber.copyCta}
-                    </Button>
-                  </div>
-                  <div className="mt-4 max-h-96 space-y-3 overflow-y-auto text-sm text-primary">
-                    {state.result.segments.length > 0 ? (
-                      state.result.segments.map((segment, index) => (
-                        <p key={index}>
-                          <span className="mr-2 font-mono text-xs text-muted">{formatTimestamp(segment.start)}</span>
-                          {segment.text}
+                    <div className="mt-2 flex flex-col gap-1 sm:max-w-xs">
+                      <label htmlFor="translate-target" className="text-xs font-medium text-secondary">
+                        {copy.transcriber.translateLabel}
+                      </label>
+                      <div className="flex gap-2">
+                        <select
+                          id="translate-target"
+                          value={translateTarget}
+                          onChange={(e) => setTranslateTarget(e.target.value)}
+                          className="h-10 rounded-button border border-border bg-surface px-3 text-sm text-primary focus-visible:border-brand"
+                        >
+                          {TRANSLATION_TARGET_LANGUAGES.map((l) => (
+                            <option key={l.code} value={l.code}>
+                              {l.label}
+                            </option>
+                          ))}
+                        </select>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          loading={translation.status === "loading"}
+                          disabled={translation.status === "loading"}
+                          onClick={handleTranslate}
+                        >
+                          {translation.status === "loading" ? copy.transcriber.translatingCta : copy.transcriber.translateCta}
+                        </Button>
+                      </div>
+                      {translation.status === "error" ? (
+                        <p className="text-xs text-danger" role="alert">
+                          {translation.message}
                         </p>
-                      ))
-                    ) : (
-                      <p className="whitespace-pre-wrap">{state.result.text}</p>
-                    )}
+                      ) : null}
+                    </div>
                   </div>
-                </>
+                </div>
+              ) : null}
+
+              {translation.status === "done" ? (
+                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "original" | "translated")}>
+                  <TabsList>
+                    <TabsTrigger value="original">{copy.transcriber.tabOriginal}</TabsTrigger>
+                    <TabsTrigger value="translated">
+                      {copy.transcriber.tabTranslated} ({translation.languageLabel})
+                    </TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="original">
+                    <TranscriptBody text={state.result.text} segments={state.result.segments} emptyMessage={copy.transcriber.noSpeech} />
+                  </TabsContent>
+                  <TabsContent value="translated">
+                    <TranscriptBody text={translation.text} segments={translation.segments} emptyMessage={copy.transcriber.noSpeech} />
+                  </TabsContent>
+                </Tabs>
               ) : (
-                <p className="text-sm text-secondary">{copy.transcriber.noSpeech}</p>
+                <TranscriptBody text={state.result.text} segments={state.result.segments} emptyMessage={copy.transcriber.noSpeech} />
               )}
             </CardContent>
           </Card>

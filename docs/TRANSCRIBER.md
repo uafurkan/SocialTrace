@@ -121,10 +121,69 @@ on which keyword a visitor searched. Two independent reasons:
    with genuinely different lead copy, `howItWorks`, and FAQ, all funneling
    into the same real feature via a CTA to `/transcribe`.
 
+## Language selection and translation
+
+Whisper (Groq/OpenAI) auto-detects the spoken language reliably, so
+`language: "auto"` is the UI default and the right choice almost always.
+A manual override (`src/lib/transcription/languages.ts`'s
+`TRANSCRIPTION_LANGUAGES`, ~20 common languages) exists only for the rare
+case where auto-detect visibly picks the wrong language on a short or
+ambiguous clip — it's passed straight through to the existing
+`language` field `POST /api/v1/transcribe` already accepted (no server
+change needed, only the UI was missing).
+
+Translation is a separate, independent step (`src/lib/transcription/
+translate.ts`, `POST /api/v1/translate`) — it takes already-transcribed
+text and asks a chat-completion model (not Whisper) to translate it,
+after the transcript exists, on demand. Same multi-key fallback shape as
+`speech-to-text.ts`: every configured `GROQ_API_KEY`/`_2`/`_3` tried with
+Groq's `llama-3.3-70b-versatile`, then OpenAI's `gpt-4o-mini` if all Groq
+keys fail.
+
+Two translation outputs, requested independently:
+- **Plain text** — the whole transcript translated in one call. Always
+  attempted, always returned if the call succeeds.
+- **Timed segments** — each segment's text translated while keeping its
+  original `start`/`end`, done via numbered-line batches of 50 segments
+  (small batches keep the model reliably returning exactly as many lines
+  as it was given). If a batch doesn't come back with exactly the right
+  line count, that's caught and the timed version is silently omitted
+  (`segments: []`) — the plain translated text still returns. This is an
+  honest degradation, not a bug: a mistimed/misaligned subtitle would be
+  worse than no timed subtitle, so `translateTranscript()` never guesses.
+  Capped at 400 segments (`MAX_SEGMENTS_FOR_TIMED_TRANSLATION`) — beyond
+  that, only the plain-text translation is attempted at all.
+
+Not cached (`transcript_cache` stores only the original transcript) and
+not counted against the transcription daily quota — it's a much cheaper
+call than a full download+Whisper run, protected only by its own looser
+rate limit (`TRANSLATE_RATE_LIMIT`, `src/app/api/v1/translate/route.ts`).
+
+UI: the "done" state shows a language-select + "Translate" control next
+to the transcript; a successful translation adds an Original/Translated
+tab toggle (`Tabs` from `src/components/ui/tabs.tsx`), each tab getting
+its own pair of copy buttons (see below) — translating never replaces or
+discards the original transcript.
+
+## Copy buttons: plain vs. timestamped
+
+Two independent copy actions, both available whenever segments exist
+(`TranscriptBody` in `transcriber-widget.tsx`):
+- **Copy text** — segments joined by spaces (or the raw `text` field when
+  there are no segments), no timestamps — the version someone pastes into
+  a document.
+- **Copy with timestamps** — one line per segment, `[m:ss] text`, sourced
+  from the same `segments` array already rendered on screen (never a
+  separately-fetched or reformatted copy) — the version someone pastes
+  into a video editor's subtitle timeline. Hidden entirely when there are
+  no segments (nothing to copy with timestamps that doesn't exist).
+
 ## Explicitly out of scope this slice
 
 File upload (needs new storage infra — `@vercel/blob` or similar —
 nothing like it exists yet); an async job-queue/worker system (same
 "queuing into nothing" reasoning already used to justify synchronous/
-bounded exports and snapshots); SRT/VTT export and translation; speaker
-diarization (supported by the chosen APIs/actors but adds UI complexity).
+bounded exports and snapshots); SRT/VTT file export (the timestamped-copy
+button above covers the "paste into a subtitle tool" use case without a
+download endpoint); speaker diarization (supported by the chosen APIs/
+actors but adds UI complexity).
