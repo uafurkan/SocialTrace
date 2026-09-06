@@ -57,7 +57,22 @@ public video this session:
   added — an accepted, documented risk, not a fixed one; a longer video
   can realistically time out. Public free alternatives (Piped/Invidious
   instances) were tried live and were unreliable (401s, empty bodies,
-  dead instances) — rejected in favor of "actually works."
+  dead instances) — rejected in favor of "actually works." **No free
+  embed-style shortcut exists here** (unlike Instagram/Facebook below) —
+  tried live in a later session and confirmed this is a dead end, not an
+  unexplored one: `youtube.com/embed/{id}` no longer inlines stream data
+  (loaded via JS), the internal `youtubei/v1/player` API returns `LOGIN_
+  REQUIRED — Sign in to confirm you're not a bot` on the WEB client and a
+  `400 Precondition check failed` on the ANDROID client (both are bot/IP
+  reputation blocks, not a wrong-endpoint problem), and Piped/Invidious
+  instances are still dead on re-check. Unlike Instagram/Facebook, this
+  isn't a "find the right hidden endpoint" gap — Google blocks datacenter
+  IPs at the network level regardless of which client/endpoint is used,
+  so the fix would require residential proxies (what Apify's actor
+  presumably already pays for) or a full headless-browser + PoToken
+  (BotGuard) solution, which is fragile, heavy to maintain, and a more
+  direct ToS risk than the current Apify-actor approach. Don't
+  re-research this without new information — it was checked twice.
 - **Instagram** — free primary, found and confirmed live in a later
   session: Instagram's own public embed page
   (`instagram.com/reel/{code}/embed/captioned/`) is reachable with a plain
