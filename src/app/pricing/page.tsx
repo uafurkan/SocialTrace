@@ -4,6 +4,8 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { pageMetadata } from "@/lib/seo/metadata";
+import { isPaddleConfigured } from "@/lib/billing/paddle";
+import { PLAN_LIMITS } from "@/lib/billing/plans";
 
 export const metadata: Metadata = pageMetadata({
   title: "Pricing",
@@ -12,12 +14,15 @@ export const metadata: Metadata = pageMetadata({
 });
 
 export default function PricingPage() {
+  const paddleConfigured = isPaddleConfigured();
+  const { maxTrackedProfiles, maxSavedSearches } = PLAN_LIMITS.free;
+
   return (
     <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6">
       <h1 className="text-2xl font-semibold text-primary">Pricing</h1>
       <p className="mt-2 text-secondary">
-        No payment processing is enabled in this build (see docs/BILLING.md) — Free is real and
-        enforced today; Pro is not purchasable yet.
+        Free is real and enforced today.{" "}
+        {paddleConfigured ? "Pro is available now." : "Pro isn't purchasable yet."}
       </p>
       <div className="mt-8 grid gap-4 sm:grid-cols-2">
         <Card>
@@ -30,17 +35,27 @@ export default function PricingPage() {
             <Link href="/signup" className="text-brand hover:underline">
               sign up
             </Link>
-            ), up to 10 tracked profiles and 10 saved searches follow you across devices.
+            ), up to {maxTrackedProfiles} tracked profiles and {maxSavedSearches} saved searches follow you
+            across devices.
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Pro</CardTitle>
-            <Badge variant="brand">Coming soon</Badge>
+            <Badge variant="brand">{paddleConfigured ? "Available" : "Coming soon"}</Badge>
           </CardHeader>
           <CardContent className="text-sm text-secondary">
-            Unlimited tracked profiles and saved searches. The limit is already built and
-            enforced — there&apos;s just no way to pay for Pro yet.
+            Unlimited tracked profiles and saved searches.{" "}
+            {paddleConfigured ? (
+              <>
+                <Link href="/signup" className="text-brand hover:underline">
+                  Sign up
+                </Link>{" "}
+                and upgrade from your account page.
+              </>
+            ) : (
+              "The limit is already built and enforced — there's just no way to pay for Pro yet."
+            )}
           </CardContent>
         </Card>
       </div>
