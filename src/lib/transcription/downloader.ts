@@ -116,7 +116,60 @@ interface InstagramItem {
   error?: string;
 }
 
+/**
+ * Free, no-auth, no-Apify-spend primary path for Instagram, discovered by
+ * testing live this session: Instagram's own public embed page
+ * (`/reel/{code}/embed/captioned/`) is reachable from a plain, unauthenticated
+ * request — unlike the raw yt-dlp/graphql paths this project already found
+ * blocked — and its HTML inlines a direct, CORS-open CDN `.mp4` URL plus a
+ * real `video_duration` in its JSON-in-script payload. Confirmed live
+ * against three real reels: ~0.8-1s per fetch, vs. ~35-54s for the
+ * `thenetaji` Apify actor below, and a real duration for the first time
+ * (that actor never returns one). `null` (not thrown) on any failure —
+ * private/deleted reels, or Instagram changing this markup — so the
+ * caller falls through to the paid actor, same pattern as TikTok's
+ * `downloadTikTokFree`.
+ */
+function extractInstagramShortcode(sourceUrl: string): string | null {
+  const match = sourceUrl.match(/instagram\.com\/(?:reel|p|tv)\/([^/?#]+)/i);
+  return match ? match[1] : null;
+}
+
+async function downloadInstagramFree(sourceUrl: string): Promise<DownloadedAudio | null> {
+  const code = extractInstagramShortcode(sourceUrl);
+  if (!code) return null;
+
+  try {
+    const res = await fetch(`https://www.instagram.com/reel/${encodeURIComponent(code)}/embed/captioned/`, {
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+
+    // Instagram inlines this as a JSON string within an already-escaped
+    // JSON blob (confirmed live: the literal bytes are `\"video_url\"`,
+    // backslash-escaped quotes, not plain `"video_url"`) — search for the
+    // unquoted key first, then strip backslashes before matching the value.
+    const idx = html.indexOf("video_url");
+    if (idx === -1) return null;
+    const clean = html.slice(idx, idx + 2000).replace(/\\/g, "");
+    const urlMatch = clean.match(/^video_url":"(https:\/\/[^"]+)"/);
+    if (!urlMatch) return null;
+
+    const durationMatch = html.match(/video_duration\\?":([0-9.]+)/);
+    const duration = durationMatch ? Number.parseFloat(durationMatch[1]) : 0;
+
+    return { audioUrl: urlMatch[1], videoUrl: urlMatch[1], durationSeconds: duration, title: "" };
+  } catch {
+    return null;
+  }
+}
+
 async function downloadInstagram(sourceUrl: string): Promise<DownloadedAudio | null> {
+  const free = await downloadInstagramFree(sourceUrl);
+  if (free) return free;
+
   const items = (await runApifyActor(INSTAGRAM_ACTOR_ID, { codes: [sourceUrl] })) as InstagramItem[];
   const item = Array.isArray(items) ? items[0] : undefined;
   if (!item || item.error || !item.savedFile?.url) return null;
@@ -135,7 +188,43 @@ interface FacebookItem {
   errMsg?: string;
 }
 
+/**
+ * Free, no-auth, no-Apify-spend primary path for Facebook — the same
+ * discovery as Instagram's embed path above, applied to Facebook's public
+ * video embed plugin (`/plugins/video.php?href=<original url>`), which
+ * proxies whatever URL shape the user pasted (watch/?v=, /videos/,
+ * /reel/, share links) without needing to parse an ID ourselves. Confirmed
+ * live: returns a direct, CORS-open `.mp4` (`hd_src`, falling back to
+ * `sd_src`) in under a second, vs. the `apple_yang` Apify actor's
+ * 30-40s+. No duration field found in this payload — left honest at 0,
+ * same as the Apify actor already did when it had no duration either.
+ */
+async function downloadFacebookFree(sourceUrl: string): Promise<DownloadedAudio | null> {
+  try {
+    const res = await fetch(`https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(sourceUrl)}`, {
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+
+    for (const key of ["hd_src", "sd_src"]) {
+      const idx = html.indexOf(key);
+      if (idx === -1) continue;
+      const clean = html.slice(idx, idx + 2000).replace(/\\/g, "");
+      const match = clean.match(/^\w+":"(https:\/\/[^"]+)"/);
+      if (match) return { audioUrl: match[1], videoUrl: match[1], durationSeconds: 0, title: "" };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 async function downloadFacebook(sourceUrl: string): Promise<DownloadedAudio | null> {
+  const free = await downloadFacebookFree(sourceUrl);
+  if (free) return free;
+
   const items = (await runApifyActor(FACEBOOK_ACTOR_ID, { videoUrls: [sourceUrl] })) as FacebookItem[];
   const item = Array.isArray(items) ? items[0] : undefined;
   if (!item || item.errMsg || (!item.audioUrl && !item.videoUrl)) return null;

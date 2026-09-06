@@ -58,11 +58,28 @@ public video this session:
   can realistically time out. Public free alternatives (Piped/Invidious
   instances) were tried live and were unreliable (401s, empty bodies,
   dead instances) — rejected in favor of "actually works."
-- **Instagram** — `thenetaji/instagram-video-downloader` (Reels/Stories).
-  No working no-auth free API was found for Instagram this session.
-- **Facebook** — `apple_yang/facebook-video-audio-downloader`, returning
-  a direct Facebook CDN file — the only actor found (across two sessions
-  of searching) that does.
+- **Instagram** — free primary, found and confirmed live in a later
+  session: Instagram's own public embed page
+  (`instagram.com/reel/{code}/embed/captioned/`) is reachable with a plain
+  unauthenticated request and inlines a direct, CORS-open CDN `.mp4` URL
+  plus a real `video_duration` in its JSON-in-script payload (the video
+  ID/shortcode is extracted from the URL locally, no external call
+  needed for that). This is a genuine, verified 20x+ speedup over the
+  Apify fallback: ~0.8-2.5s per reel vs. 35-54s, confirmed against
+  several real public reels, and it fixes the "duration always 0" gap
+  the Apify path had (that actor never returns one). Falls back to
+  `thenetaji/instagram-video-downloader` (Reels/Stories) only if the
+  embed page has no `video_url` (private/deleted/geo-blocked, or
+  Instagram changing this markup).
+- **Facebook** — free primary, same discovery applied to Facebook's
+  public video embed plugin (`facebook.com/plugins/video.php?href=...`),
+  which proxies whatever URL shape the user pasted (watch/?v=, /videos/,
+  /reel/, share links) and inlines a direct `.mp4` (`hd_src`, falling
+  back to `sd_src`) with no auth. Confirmed live: ~5s vs. 29-35s for the
+  Apify path. No duration field found in this payload — left at 0
+  (honest unknown), same as the Apify actor already did. Falls back to
+  `apple_yang/facebook-video-audio-downloader` only if the embed plugin
+  has no `hd_src`/`sd_src`.
 
 Each downloader also returns a `videoUrl` (the same file, or a
 video-specific one when audio/video are separate) used for the "watch
