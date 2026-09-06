@@ -205,9 +205,28 @@ the binary fix above):
   wired anyway (fails safely to `null`) since TikTok's free `tikwm.com`
   path and Apify actor are both tried first and already cover the
   overwhelming majority of real requests.
-- **Instagram: untested/likely inconsistent** — the one Instagram URL
-  tried needed a login (private or age-gated post), a `null` result
-  either way; public Reels may work but this wasn't confirmed live.
+- **Instagram: strong evidence it works in real deployment, but can't be
+  proven end-to-end from inside this sandbox.** Tested against two real,
+  current public reels (found via live web search, not guessed IDs) —
+  metadata extraction fully succeeded both times: real title, uploader,
+  duration, and a complete list of signed CDN media URLs came back, which
+  only happens if Instagram's page considers the request entirely
+  legitimate. The one remaining failure — `[SSL: CERTIFICATE_VERIFY_
+  FAILED] certificate verify failed: self-signed certificate in
+  certificate chain` on the actual media download — was proven to be a
+  property of *this sandbox*, not of Instagram: a plain `curl` (which
+  trusts this sandbox's own injected CA, used for all its outbound
+  traffic interception) downloaded the exact same signed CDN URL yt-dlp
+  extracted, 200 OK, full file. yt-dlp's bundled `curl_cffi` library uses
+  its own certificate trust store, independent of the system's (tried
+  pointing it at the sandbox's CA via `CURL_CA_BUNDLE`/`SSL_CERT_FILE` —
+  had no effect, a known curl_cffi quirk), so it never trusts this
+  sandbox-only interception certificate. Vercel's production runtime has
+  no such interception layer, so `curl_cffi` would validate Instagram's
+  real, publicly-trusted certificate the same way the plain `curl` test
+  just did. Confirmed **not** an IP-reputation block (unlike YouTube/
+  TikTok above) — Instagram's own response was a complete, valid success,
+  not a rejection.
 
 This is intentionally wired for **all four platforms**, not just
 Facebook — it fails safely (returns `null`, never throws) exactly like
