@@ -40,7 +40,7 @@ export default function TranscribePage() {
         <p className="mt-4 max-w-2xl text-lg text-secondary">{copy.transcriber.hubLead}</p>
 
         <div className="mt-8">
-          <TranscriberWidget />
+          <TranscriberWidget autoSubmitFromQueryParam />
         </div>
 
         <section className="mt-16">

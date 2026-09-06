@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Copy, Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -71,19 +71,25 @@ function formatTimestamp(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-export function TranscriberWidget({ platformHint }: { platformHint?: string }) {
+export function TranscriberWidget({
+  platformHint,
+  autoSubmitFromQueryParam,
+}: {
+  platformHint?: string;
+  /** Reads `?url=` from the current location on mount and submits it automatically — used when the homepage's transcribe tab hands off here. */
+  autoSubmitFromQueryParam?: boolean;
+}) {
   const [url, setUrl] = useState("");
   const [state, setState] = useState<WidgetState>({ status: "idle" });
   const [copied, setCopied] = useState(false);
 
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    if (!url.trim()) return;
+  async function runTranscription(targetUrl: string) {
+    if (!targetUrl.trim()) return;
     setState({ status: "downloading" });
     setCopied(false);
 
     try {
-      await submitForTranscription(url.trim(), (event) => {
+      await submitForTranscription(targetUrl.trim(), (event) => {
         if (event.stage === "downloading") setState({ status: "downloading" });
         else if (event.stage === "done") setState({ status: "done", result: event.result as TranscriptResultPayload });
         else if (event.stage === "error") setState({ status: "error", message: (event.message as string) ?? copy.transcriber.errorGeneric });
@@ -92,6 +98,25 @@ export function TranscriberWidget({ platformHint }: { platformHint?: string }) {
       setState({ status: "error", message: error instanceof Error ? error.message : copy.transcriber.errorGeneric });
     }
   }
+
+  function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    void runTranscription(url);
+  }
+
+  useEffect(() => {
+    if (!autoSubmitFromQueryParam) return;
+    const fromQuery = new URLSearchParams(window.location.search).get("url");
+    if (!fromQuery) return;
+    // Mirrors the URL query param into the input once, on mount, so the
+    // user sees what they pasted on the homepage — not a state/prop sync
+    // this rule is meant to guard against.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setUrl(fromQuery);
+    void runTranscription(fromQuery);
+    // Only ever runs once, on mount — not a dependency-driven re-fetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleCopy(text: string) {
     await navigator.clipboard.writeText(text);
