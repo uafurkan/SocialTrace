@@ -140,9 +140,15 @@ async function downloadFacebook(sourceUrl: string): Promise<DownloadedAudio | nu
   const item = Array.isArray(items) ? items[0] : undefined;
   if (!item || item.errMsg || (!item.audioUrl && !item.videoUrl)) return null;
 
+  // This actor returns "" (not null/undefined) for audioUrl when there's no
+  // separate audio track — confirmed live, so `??` alone would silently keep
+  // the empty string instead of falling back to videoUrl.
+  const audioUrl = item.audioUrl || item.videoUrl;
+  if (!audioUrl) return null;
+
   return {
-    audioUrl: item.audioUrl ?? item.videoUrl!,
-    videoUrl: item.videoUrl ?? null,
+    audioUrl,
+    videoUrl: item.videoUrl || null,
     durationSeconds: item.duration ?? 0,
     title: item.title ?? "",
   };
