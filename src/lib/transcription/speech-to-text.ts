@@ -24,6 +24,15 @@ export interface SpeechToTextResult {
   provider: "groq" | "openai";
 }
 
+/** Whisper endpoints pick their decoder off the filename extension, not the real bytes — sending an mp4/webm file named "audio.mp3" makes some requests fail to decode. Downloaders here return mp4 (YouTube/Instagram/TikTok) or mpeg audio (Facebook), so the extension has to match `audioBlob.type`. */
+function extensionFor(contentType: string): string {
+  if (contentType.includes("mp4")) return "mp4";
+  if (contentType.includes("webm")) return "webm";
+  if (contentType.includes("wav")) return "wav";
+  if (contentType.includes("m4a") || contentType.includes("mp4a")) return "m4a";
+  return "mp3";
+}
+
 async function transcribeWith(
   baseUrl: string,
   apiKey: string,
@@ -33,7 +42,7 @@ async function transcribeWith(
   language?: string,
 ): Promise<SpeechToTextResult> {
   const form = new FormData();
-  form.append("file", audioBlob, "audio.mp3");
+  form.append("file", audioBlob, `audio.${extensionFor(audioBlob.type)}`);
   form.append("model", model);
   form.append("response_format", "verbose_json");
   if (language) form.append("language", language);

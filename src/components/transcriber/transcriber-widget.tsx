@@ -20,6 +20,7 @@ interface TranscriptResultPayload {
   language: string;
   durationSeconds: number;
   platform: string;
+  videoUrl: string | null;
 }
 
 type WidgetState =
@@ -156,37 +157,53 @@ export function TranscriberWidget({
       ) : null}
 
       {state.status === "done" ? (
-        <Card className="mt-6">
-          <CardContent className="pt-6">
-            {state.result.text ? (
-              <>
-                <div className="flex items-center justify-between gap-4">
-                  <p className="text-sm text-muted">
-                    {state.result.language !== "auto" ? `Language: ${state.result.language}` : null}
-                  </p>
-                  <Button variant="secondary" size="sm" onClick={() => handleCopy(state.result.text)}>
-                    {copied ? <Check className="size-4" aria-hidden="true" /> : <Copy className="size-4" aria-hidden="true" />}
-                    {copied ? copy.transcriber.copiedCta : copy.transcriber.copyCta}
-                  </Button>
-                </div>
-                <div className="mt-4 max-h-96 space-y-3 overflow-y-auto text-sm text-primary">
-                  {state.result.segments.length > 0 ? (
-                    state.result.segments.map((segment, index) => (
-                      <p key={index}>
-                        <span className="mr-2 font-mono text-xs text-muted">{formatTimestamp(segment.start)}</span>
-                        {segment.text}
-                      </p>
-                    ))
-                  ) : (
-                    <p className="whitespace-pre-wrap">{state.result.text}</p>
-                  )}
-                </div>
-              </>
-            ) : (
-              <p className="text-sm text-secondary">{copy.transcriber.noSpeech}</p>
-            )}
-          </CardContent>
-        </Card>
+        <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,320px)_1fr]">
+          {state.result.videoUrl ? (
+            <Card className="h-fit lg:sticky lg:top-4">
+              <CardContent className="pt-6">
+                <video
+                  src={state.result.videoUrl}
+                  controls
+                  playsInline
+                  className="w-full rounded-card bg-black"
+                  style={{ maxHeight: 480 }}
+                />
+              </CardContent>
+            </Card>
+          ) : null}
+
+          <Card>
+            <CardContent className="pt-6">
+              {state.result.text ? (
+                <>
+                  <div className="flex items-center justify-between gap-4">
+                    <p className="text-sm text-muted">
+                      {state.result.language !== "auto" ? `Language: ${state.result.language}` : null}
+                    </p>
+                    <Button variant="secondary" size="sm" onClick={() => handleCopy(state.result.text)}>
+                      {copied ? <Check className="size-4" aria-hidden="true" /> : <Copy className="size-4" aria-hidden="true" />}
+                      {copied ? copy.transcriber.copiedCta : copy.transcriber.copyCta}
+                    </Button>
+                  </div>
+                  <div className="mt-4 max-h-96 space-y-3 overflow-y-auto text-sm text-primary">
+                    {state.result.segments.length > 0 ? (
+                      state.result.segments.map((segment, index) => (
+                        <p key={index}>
+                          <span className="mr-2 font-mono text-xs text-muted">{formatTimestamp(segment.start)}</span>
+                          {segment.text}
+                        </p>
+                      ))
+                    ) : (
+                      <p className="whitespace-pre-wrap">{state.result.text}</p>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-secondary">{copy.transcriber.noSpeech}</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       ) : null}
     </div>
   );

@@ -20,6 +20,14 @@ export interface TranscriptResult {
   platform: TranscriptPlatform;
   /** Which step actually produced this: "youtube_captions" | "groq" | "openai" | an actor id — for observability, not shown to the user. */
   provider: string;
+  /**
+   * A real playable file for "watch while you read the transcript" — only
+   * populated on a fresh (non-cached) run, since these are short-lived CDN/
+   * KVS URLs (not persisted to `transcript_cache`, so a cache-hit response
+   * has no video to show — an honest gap, not a bug: re-running the
+   * pipeline is the only way to get a fresh playable URL again).
+   */
+  videoUrl?: string | null;
 }
 
 export type TranscriptionErrorReason =

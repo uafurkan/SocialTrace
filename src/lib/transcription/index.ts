@@ -78,6 +78,7 @@ export async function transcribe(sourceUrl: string, language?: string): Promise<
         durationSeconds: downloaded.durationSeconds,
         platform,
         provider: result.provider,
+        videoUrl: downloaded.videoUrl,
       };
     } catch (error) {
       if (error instanceof TranscriptionError) throw error;

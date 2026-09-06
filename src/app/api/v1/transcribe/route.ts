@@ -30,6 +30,7 @@ interface TranscriptResultPayload {
   language: string;
   durationSeconds: number;
   platform: string;
+  videoUrl: string | null;
 }
 
 function toPayload(result: TranscriptResult): TranscriptResultPayload {
@@ -39,6 +40,7 @@ function toPayload(result: TranscriptResult): TranscriptResultPayload {
     language: result.language,
     durationSeconds: result.durationSeconds,
     platform: result.platform,
+    videoUrl: result.videoUrl ?? null,
   };
 }
 
@@ -107,6 +109,7 @@ export async function POST(request: NextRequest) {
         language: existing.language ?? "auto",
         durationSeconds: existing.durationSeconds ?? 0,
         platform: existing.platform,
+        videoUrl: null,
       },
     });
     if (identity.visitorCookieToIssue) response.cookies.set(VISITOR_COOKIE, identity.visitorCookieToIssue, VISITOR_COOKIE_OPTIONS);
