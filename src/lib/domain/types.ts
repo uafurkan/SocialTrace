@@ -6,7 +6,7 @@
  * mapping exercise, not a redesign.
  */
 
-export type Platform = "instagram";
+export type Platform = "instagram" | "tiktok" | "facebook";
 
 /** Spec §1.2 — every data surface must disclose how complete it is. */
 export interface CoverageStatus {

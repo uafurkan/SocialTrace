@@ -3,14 +3,14 @@
 import { useState } from "react";
 import { Download, Heart, MessageCircle, LayoutGrid, List, Play } from "lucide-react";
 
-import type { Post } from "@/lib/domain/types";
+import type { Platform, Post } from "@/lib/domain/types";
 import { Button } from "@/components/ui/button";
 import { mediaDownloadUrl } from "@/lib/media-download-url";
 import { proxiedMediaUrl } from "@/lib/media-proxy";
 import { formatCount } from "@/lib/utils";
 import { PostEngagementModal } from "@/components/profile/post-engagement-modal";
 
-export function PostGrid({ posts }: { posts: Post[] }) {
+export function PostGrid({ posts, platform = "instagram" }: { posts: Post[]; platform?: Platform }) {
   const [view, setView] = useState<"grid" | "list">("grid");
   const [openPermalink, setOpenPermalink] = useState<string | null>(null);
 
@@ -157,7 +157,7 @@ export function PostGrid({ posts }: { posts: Post[] }) {
       )}
 
       {openPermalink ? (
-        <PostEngagementModal key={openPermalink} permalink={openPermalink} onClose={() => setOpenPermalink(null)} />
+        <PostEngagementModal key={openPermalink} permalink={openPermalink} platform={platform} onClose={() => setOpenPermalink(null)} />
       ) : null}
     </div>
   );

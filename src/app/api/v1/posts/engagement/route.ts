@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import type { Platform } from "@/lib/domain/types";
 import { clientIdentifierFor, rateLimit } from "@/lib/rate-limit";
-import { provider } from "@/lib/providers";
+import { getProvider } from "@/lib/providers";
 
 /**
  * Likers + comments are per-post, not per-profile, so this is a small
@@ -15,26 +16,38 @@ export const maxDuration = 60;
 
 const ENGAGEMENT_RATE_LIMIT = 30;
 const ENGAGEMENT_RATE_WINDOW_MS = 10 * 60 * 1000;
-const ALLOWED_HOSTS = new Set(["www.instagram.com", "instagram.com"]);
+const ALLOWED_HOSTS: Record<Platform, Set<string>> = {
+  instagram: new Set(["www.instagram.com", "instagram.com"]),
+  tiktok: new Set(["www.tiktok.com", "tiktok.com"]),
+  facebook: new Set(["www.facebook.com", "facebook.com", "m.facebook.com"]),
+};
 
-function isAllowedPermalink(url: string): boolean {
+function isAllowedPermalink(url: string, platform: Platform): boolean {
   try {
     const parsed = new URL(url);
-    return parsed.protocol === "https:" && ALLOWED_HOSTS.has(parsed.hostname);
+    return parsed.protocol === "https:" && ALLOWED_HOSTS[platform].has(parsed.hostname);
   } catch {
     return false;
   }
 }
 
+function isPlatform(value: string | null): value is Platform {
+  return value === "instagram" || value === "tiktok" || value === "facebook";
+}
+
 export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const platformParam = searchParams.get("platform");
+  const platform: Platform = isPlatform(platformParam) ? platformParam : "instagram";
+  const provider = getProvider(platform);
+
   if (!provider.capabilities.postEngagement) {
     return NextResponse.json({ error: "Post engagement lookup is not enabled for the current data provider." }, { status: 404 });
   }
 
-  const { searchParams } = new URL(request.url);
   const permalink = searchParams.get("permalink");
-  if (!permalink || !isAllowedPermalink(permalink)) {
-    return NextResponse.json({ error: "A valid instagram.com post permalink is required." }, { status: 400 });
+  if (!permalink || !isAllowedPermalink(permalink, platform)) {
+    return NextResponse.json({ error: "A valid post permalink for the selected platform is required." }, { status: 400 });
   }
 
   const rate = await rateLimit(`post-engagement:${clientIdentifierFor(request)}`, ENGAGEMENT_RATE_LIMIT, ENGAGEMENT_RATE_WINDOW_MS);

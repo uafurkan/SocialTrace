@@ -20,7 +20,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-export const platformEnum = pgEnum("platform", ["instagram"]);
+export const platformEnum = pgEnum("platform", ["instagram", "tiktok", "facebook"]);
 export const mediaTypeEnum = pgEnum("media_type", ["image", "video", "reel"]);
 export const membershipKindEnum = pgEnum("membership_kind", ["follower", "following"]);
 export const membershipEventEnum = pgEnum("membership_event", ["added", "removed"]);

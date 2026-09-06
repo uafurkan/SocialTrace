@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { BadgeCheck, Loader2, X } from "lucide-react";
 
-import type { Comment, Liker } from "@/lib/domain/types";
+import type { Comment, Liker, Platform } from "@/lib/domain/types";
 import { proxiedMediaUrl } from "@/lib/media-proxy";
 import { formatCount } from "@/lib/utils";
 
@@ -12,8 +12,19 @@ interface EngagementResponse {
   comments: Comment[];
 }
 
-export function PostEngagementModal({ permalink, onClose }: { permalink: string; onClose: () => void }) {
-  const [tab, setTab] = useState<"likers" | "comments">("likers");
+export function PostEngagementModal({
+  permalink,
+  platform = "instagram",
+  onClose,
+}: {
+  permalink: string;
+  platform?: Platform;
+  onClose: () => void;
+}) {
+  // TikTok/Facebook have no per-post likers list actor (only comments) —
+  // default straight to the tab that will actually have data.
+  const hasLikers = platform === "instagram";
+  const [tab, setTab] = useState<"likers" | "comments">(hasLikers ? "likers" : "comments");
   const [data, setData] = useState<EngagementResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,7 +33,7 @@ export function PostEngagementModal({ permalink, onClose }: { permalink: string;
     // No explicit setData(null)/setError(null) reset here: post-grid.tsx
     // renders this component with key={permalink}, so a permalink change
     // remounts it fresh (initial state) rather than reusing this instance.
-    fetch(`/api/v1/posts/engagement?permalink=${encodeURIComponent(permalink)}`)
+    fetch(`/api/v1/posts/engagement?permalink=${encodeURIComponent(permalink)}&platform=${platform}`)
       .then(async (res) => {
         if (!res.ok) throw new Error((await res.json().catch(() => null))?.error ?? "Failed to load");
         return res.json() as Promise<EngagementResponse>;
@@ -36,7 +47,7 @@ export function PostEngagementModal({ permalink, onClose }: { permalink: string;
     return () => {
       cancelled = true;
     };
-  }, [permalink]);
+  }, [permalink, platform]);
 
   return (
     <div
@@ -51,13 +62,15 @@ export function PostEngagementModal({ permalink, onClose }: { permalink: string;
       >
         <div className="flex items-center justify-between border-b border-border p-3">
           <div className="flex gap-1">
-            <button
-              type="button"
-              onClick={() => setTab("likers")}
-              className={`rounded-full px-3 py-1 text-sm font-medium ${tab === "likers" ? "bg-brand text-inverse" : "text-secondary hover:bg-surface-subtle"}`}
-            >
-              Likers{data ? ` (${formatCount(data.likers.length)})` : ""}
-            </button>
+            {hasLikers ? (
+              <button
+                type="button"
+                onClick={() => setTab("likers")}
+                className={`rounded-full px-3 py-1 text-sm font-medium ${tab === "likers" ? "bg-brand text-inverse" : "text-secondary hover:bg-surface-subtle"}`}
+              >
+                Likers{data ? ` (${formatCount(data.likers.length)})` : ""}
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => setTab("comments")}

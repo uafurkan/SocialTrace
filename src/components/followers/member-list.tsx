@@ -15,6 +15,10 @@ interface MemberListProps {
   username: string;
   kind: "followers" | "following";
   dbAvailable: boolean;
+  /** Which pagination route to hit — lets non-Instagram platforms reuse this whole component against their own route. */
+  apiBasePath?: string;
+  /** Saved searches only make sense where the snapshot/diff engine also runs (Instagram only, for now) — hides the action entirely elsewhere rather than saving a search that will never get new/removed matches. */
+  supportsSavedSearch?: boolean;
 }
 
 const SAVED_SEARCH_KIND: Record<MemberListProps["kind"], "follower" | "following"> = {
@@ -25,16 +29,29 @@ const SAVED_SEARCH_KIND: Record<MemberListProps["kind"], "follower" | "following
 const FILTERS = ["all", "verified", "new", "removed"] as const;
 type Filter = (typeof FILTERS)[number];
 
-async function fetchPage(profileId: string, kind: MemberListProps["kind"], cursor: string | null, query: string) {
+async function fetchPage(
+  apiBasePath: string,
+  profileId: string,
+  kind: MemberListProps["kind"],
+  cursor: string | null,
+  query: string,
+) {
   const params = new URLSearchParams();
   if (cursor) params.set("cursor", cursor);
   if (query) params.set("q", query);
-  const res = await fetch(`/api/v1/profiles/${profileId}/${kind}?${params.toString()}`);
+  const res = await fetch(`${apiBasePath}/${profileId}/${kind}?${params.toString()}`);
   if (!res.ok) throw new Error("Failed to load list");
   return (await res.json()) as CursorPage<SocialUser>;
 }
 
-export function MemberList({ profileId, username, kind, dbAvailable }: MemberListProps) {
+export function MemberList({
+  profileId,
+  username,
+  kind,
+  dbAvailable,
+  apiBasePath = "/api/v1/profiles",
+  supportsSavedSearch = true,
+}: MemberListProps) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [items, setItems] = useState<SocialUser[]>([]);
@@ -59,7 +76,7 @@ export function MemberList({ profileId, username, kind, dbAvailable }: MemberLis
   useEffect(() => {
     let cancelled = false;
     startTransition(() => {
-      fetchPage(profileId, kind, null, query).then((page) => {
+      fetchPage(apiBasePath, profileId, kind, null, query).then((page) => {
         if (cancelled) return;
         const filtered = filter === "verified" ? page.items.filter((u) => u.isVerified) : page.items;
         setItems(filtered);
@@ -69,11 +86,11 @@ export function MemberList({ profileId, username, kind, dbAvailable }: MemberLis
     return () => {
       cancelled = true;
     };
-  }, [profileId, kind, query, filter]);
+  }, [profileId, kind, query, filter, apiBasePath]);
 
   async function loadMore() {
     if (!nextCursor) return;
-    const page = await fetchPage(profileId, kind, nextCursor, query);
+    const page = await fetchPage(apiBasePath, profileId, kind, nextCursor, query);
     setItems((prev) => [...prev, ...(filter === "verified" ? page.items.filter((u) => u.isVerified) : page.items)]);
     setNextCursor(page.nextCursor);
   }
@@ -104,7 +121,7 @@ export function MemberList({ profileId, username, kind, dbAvailable }: MemberLis
             aria-label={placeholder}
           />
         </div>
-        {dbAvailable && query.trim() ? (
+        {supportsSavedSearch && dbAvailable && query.trim() ? (
           <Button
             variant="tertiary"
             size="sm"

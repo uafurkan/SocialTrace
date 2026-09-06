@@ -1,4 +1,12 @@
-const ALLOWED_MEDIA_HOSTS = ["cdninstagram.com", "fbcdn.net", "picsum.photos"];
+const ALLOWED_MEDIA_HOSTS = [
+  "cdninstagram.com",
+  "fbcdn.net",
+  "picsum.photos",
+  "tiktokcdn.com",
+  "tiktokcdn-us.com",
+  "tiktokv.com",
+  "muscdn.com",
+];
 
 export function isAllowedMediaHost(hostname: string): boolean {
   const lower = hostname.toLowerCase();

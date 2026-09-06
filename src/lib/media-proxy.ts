@@ -9,7 +9,14 @@
  * Other hosts (e.g. picsum.photos from the mock provider) pass through
  * unproxied — no reason to add a hop for a host with no known issue.
  */
-const HOTLINK_RISK_HOSTS = ["cdninstagram.com", "fbcdn.net"];
+const HOTLINK_RISK_HOSTS = [
+  "cdninstagram.com",
+  "fbcdn.net",
+  "tiktokcdn.com",
+  "tiktokcdn-us.com",
+  "tiktokv.com",
+  "muscdn.com",
+];
 
 export function proxiedMediaUrl<T extends string | undefined | null>(url: T): T | string {
   if (!url) return url;

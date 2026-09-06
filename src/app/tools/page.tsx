@@ -38,6 +38,16 @@ const TOOLS: Array<{ title: string; description: string; href?: string }> = [
     description: "Browse a public profile's posts, reels, stories, highlights, and tagged posts anonymously.",
     href: "/tools/anonymous-instagram-viewer",
   },
+  {
+    title: "Anonymous TikTok viewer",
+    description: "Browse a public TikTok profile's videos, comments, and followers anonymously.",
+    href: "/tools/anonymous-tiktok-viewer",
+  },
+  {
+    title: "Anonymous Facebook viewer",
+    description: "Browse a public Facebook Page's posts and comments anonymously.",
+    href: "/tools/anonymous-facebook-viewer",
+  },
   { title: "Profile analyzer", description: "Summaries derived from observed public data." },
   { title: "Follower checker", description: "Search an indexed follower dataset." },
   { title: "Following checker", description: "Search an indexed following dataset." },

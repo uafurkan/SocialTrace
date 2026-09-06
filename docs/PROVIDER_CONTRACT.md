@@ -159,6 +159,79 @@ nothing costs money unless explicitly opted in.
 - **Not implemented**: follower history — `capabilities.followerHistory`
   stays `false`, same honesty rule as the mock provider.
 
+## TikTok and Facebook providers (`apify/tiktok/`, `apify/facebook/`)
+
+Second and third `SocialDataProvider` implementations, added alongside
+Instagram's — reachable via `getProvider(platform)`
+(`src/lib/providers/index.ts`) rather than the single default `provider`
+export, which stays the Instagram instance so every pre-existing call
+site is unaffected. Routed at `/profile/tiktok/[username]` and
+`/profile/facebook/[username]` (not under `/profile/[username]`, to
+avoid a route-collision risk with an Instagram username literally named
+"tiktok" or "facebook", and to leave every already-indexed Instagram URL
+untouched) via their own lean `PlatformProfileHeader` — Track/Compare/
+Export aren't wired up for these two platforms in this slice (they're
+tied to watchlist/snapshot tables that only ever write `platform:
+"instagram"` rows today).
+
+- **TikTok** (`clockworks/tiktok-profile-scraper`,
+  `clockworks/tiktok-followers-scraper`,
+  `clockworks/tiktok-comments-scraper` — the same author's actors,
+  13.5M/177K/13.9M runs respectively, verified live against a real public
+  account this session): profile + videos in one call (`authorMeta` on
+  the first dataset item is the profile, every item is a video/post),
+  followers and following in one call tagged by `connectionType`, and
+  per-video comments. `capabilities.reels` is `false` — TikTok has no
+  separate reels concept, every upload is already a video, so a second
+  "reels" tab would just repeat the same list. `capabilities.stories`/
+  `highlights`/`taggedPosts` are `false` — no actor covers these (TikTok
+  doesn't really have an equivalent to Instagram's saved highlights or
+  tagged-posts feed). `getLikers` returns `[]` — no actor found exposes a
+  per-video likers list, only aggregate like counts, so the engagement
+  modal opens straight to Comments for TikTok (see
+  `post-engagement-modal.tsx`'s `hasLikers` check). A TikTok-liked-videos
+  actor and a reposts actor exist on Apify but both have single/double-
+  digit total runs — too unproven to build a real feature on, so neither
+  is used; this is a deliberate gap, not an oversight.
+- **Facebook** (`apify/facebook-pages-scraper`,
+  `apify/facebook-posts-scraper`, `apify/facebook-comments-scraper` —
+  official Apify actors, 32M/43M/10.6M runs, verified live this session):
+  Page profile (followers/following are real counts; there is no public
+  follower/following *list* for a Facebook Page anywhere, from any tool —
+  Meta simply doesn't expose one, so `capabilities.followers`/`following`
+  are `false` and `getFollowers`/`getFollowing` throw rather than
+  returning a silently-empty page, which would misleadingly look like a
+  page with zero followers instead of "this can't be fetched at all").
+  Posts include real like/comment/share counts and per-post comments, but
+  `mediaUrl` is left empty — no actor tested here returns a direct
+  downloadable video/photo file for Facebook, only the post's own
+  `facebook.com/reel/...` permalink, so the download button is correctly
+  absent rather than linking to a fake "download" that just reopens the
+  post.
+- Both platforms' CDN domains (`tiktokcdn.com`, `tiktokcdn-us.com`,
+  `tiktokv.com`, `muscdn.com`) were added to the existing hotlink-risk
+  proxy allowlist (`src/lib/media-proxy.ts`) and the media
+  download/proxy route's SSRF allowlist
+  (`src/app/api/v1/media/download/utils.ts`) — same reasoning as
+  Instagram/Facebook's own CDN domains already there.
+- `src/lib/cache/profile-cache.ts` (the DB cache in front of
+  `getProvider(platform).getProfile`) previously read/wrote rows keyed by
+  `normalizedUsername` alone, with a comment explaining that filtering by
+  `platform` too via `and(eq(...), eq(...))` had spuriously returned zero
+  rows in the Next.js dev runtime. With only Instagram ever writing rows,
+  that was latent rather than active — a second platform makes it a real
+  collision risk (a TikTok "nike" lookup could serve Instagram's cached
+  "nike" row). Fixed by selecting rows matching `normalizedUsername` and
+  filtering `platform` in JS instead of in the query — same effective
+  result, without the buggy combinator.
+- `src/lib/profile-link.ts`'s `extractUsername` and
+  `src/app/api/v1/posts/engagement/route.ts` both took a `platform`
+  parameter (defaulting to `"instagram"`) instead of being duplicated per
+  platform — the homepage's search widget now has a 3-way Instagram/
+  TikTok/Facebook toggle feeding the same `extractUsername`, and the one
+  engagement route validates the permalink's host and picks the provider
+  per platform.
+
 ## Video transcriber: a separate, non-`SocialDataProvider` pipeline
 
 `/transcribe` (docs/TRANSCRIBER.md) is not an Instagram feature and

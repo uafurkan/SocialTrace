@@ -32,6 +32,8 @@ const ROUTE_TIERS: RouteTier[] = [
   { path: "/tools/instagram-growth-tracker", priority: 0.7, changeFrequency: "monthly" },
   { path: "/tools/instagram-story-viewer", priority: 0.7, changeFrequency: "monthly" },
   { path: "/tools/anonymous-instagram-viewer", priority: 0.7, changeFrequency: "monthly" },
+  { path: "/tools/anonymous-tiktok-viewer", priority: 0.7, changeFrequency: "monthly" },
+  { path: "/tools/anonymous-facebook-viewer", priority: 0.7, changeFrequency: "monthly" },
   { path: "/transcribe/youtube-transcript-generator", priority: 0.7, changeFrequency: "monthly" },
   { path: "/transcribe/tiktok-video-to-text", priority: 0.7, changeFrequency: "monthly" },
   { path: "/transcribe/instagram-reel-to-text", priority: 0.7, changeFrequency: "monthly" },

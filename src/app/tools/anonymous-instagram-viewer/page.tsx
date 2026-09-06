@@ -74,6 +74,8 @@ export default function AnonymousInstagramViewerPage() {
         relatedTools={[
           { href: "/tools/instagram-story-viewer", label: "Instagram story viewer", body: "Jump straight to viewing a profile's currently active stories." },
           { href: "/tools/instagram-growth-tracker", label: "Instagram growth tracker", body: "Track a set of public profiles and see follower deltas over time." },
+          { href: "/tools/anonymous-tiktok-viewer", label: "Anonymous TikTok viewer", body: "The same anonymous browsing experience, for TikTok." },
+          { href: "/tools/anonymous-facebook-viewer", label: "Anonymous Facebook viewer", body: "Browse a public Facebook Page's posts without an account." },
         ]}
         faq={FAQ}
       />
