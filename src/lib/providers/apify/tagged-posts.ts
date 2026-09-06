@@ -1,4 +1,5 @@
 import type { TaggedPost } from "@/lib/domain/types";
+import { withDataCache } from "@/lib/cache/data-cache";
 import { runApifyActor } from "./client";
 
 /**
@@ -45,10 +46,12 @@ function parseTakenAt(takenAt: number | string | undefined): string {
 }
 
 export async function fetchApifyTaggedPosts(username: string): Promise<TaggedPost[]> {
-  const raw = await runApifyActor(TAGGED_POSTS_ACTOR_ID, {
-    instagramUsernames: [username],
-    resultsLimit: DEFAULT_RESULTS_LIMIT,
-  });
+  const raw = await withDataCache(`tagged:${username.toLowerCase()}`, () =>
+    runApifyActor(TAGGED_POSTS_ACTOR_ID, {
+      instagramUsernames: [username],
+      resultsLimit: DEFAULT_RESULTS_LIMIT,
+    }),
+  );
   if (!Array.isArray(raw)) return [];
 
   return (raw as ApifyTaggedPostItem[])

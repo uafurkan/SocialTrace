@@ -1,4 +1,5 @@
 import type { Story } from "@/lib/domain/types";
+import { withDataCache } from "@/lib/cache/data-cache";
 import { runApifyActor } from "./client";
 
 /**
@@ -42,7 +43,7 @@ function isStoryItem(item: ApifyStoryItem): boolean {
 }
 
 export async function fetchApifyStories(username: string, profileId: string): Promise<Story[]> {
-  const raw = await runApifyActor(STORIES_ACTOR_ID, { usernames: [username] });
+  const raw = await withDataCache(`stories:${profileId}`, () => runApifyActor(STORIES_ACTOR_ID, { usernames: [username] }));
   if (!Array.isArray(raw)) return [];
 
   return (raw as ApifyStoryItem[]).filter(isStoryItem).map((item, index) => {

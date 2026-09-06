@@ -1,4 +1,5 @@
 import type { Post } from "@/lib/domain/types";
+import { withDataCache } from "@/lib/cache/data-cache";
 import { runApifyActor } from "./client";
 
 const PROFILE_ACTOR_ID = "apify~instagram-profile-scraper";
@@ -31,9 +32,11 @@ interface ApifyProfileWithPosts {
  * `type === "Video"` — documented as best-effort in docs/KNOWN_LIMITATIONS.md.
  */
 export async function fetchApifyPosts(username: string, profileId: string): Promise<Post[]> {
-  const items = (await runApifyActor(PROFILE_ACTOR_ID, { usernames: [username] })) as ApifyProfileWithPosts[];
-  const item = Array.isArray(items) ? items[0] : undefined;
-  const posts = item?.latestPosts ?? [];
+  const posts = await withDataCache(`posts:${profileId}`, async () => {
+    const items = (await runApifyActor(PROFILE_ACTOR_ID, { usernames: [username] })) as ApifyProfileWithPosts[];
+    const item = Array.isArray(items) ? items[0] : undefined;
+    return item?.latestPosts ?? [];
+  });
 
   return posts.map((post, index) => ({
     id: `${profileId}_post_${post.id ?? index}`,

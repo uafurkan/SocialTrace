@@ -1,4 +1,5 @@
 import type { SocialUser } from "@/lib/domain/types";
+import { withDataCache } from "@/lib/cache/data-cache";
 import { runApifyActor } from "./client";
 
 export type MemberKind = "followers" | "following";
@@ -137,47 +138,44 @@ const ACTOR_CHAIN: ActorAttempt[] = [
   },
 ];
 
-/** Per-process cache so paginating an already-fetched list doesn't re-run (and re-bill) the actor chain. */
-const memberCache = new Map<string, SocialUser[]>();
-
 export async function fetchMembers(username: string, kind: MemberKind, limit: number): Promise<SocialUser[]> {
-  const cacheKey = `${username}:${kind}`;
-  const cached = memberCache.get(cacheKey);
-  if (cached) return cached;
+  // The DB cache (see data-cache.ts) is what makes paginating/revisiting an
+  // already-fetched list not re-run (and re-bill/re-wait-on) this whole
+  // fallback chain — each candidate actor is its own ~10-60s call, so
+  // trying several in sequence on a cache miss can genuinely take minutes.
+  return withDataCache(`members:${kind}:${username.toLowerCase()}`, async () => {
+    const candidates = ACTOR_CHAIN.filter((actor) => !(actor.followersOnly && kind !== "followers"));
+    // Every actor reachable at all (even one returning a clean empty/error
+    // result, e.g. `{ error: "private_account" }` for a private profile) is
+    // a genuine "no accessible members" answer, not an infrastructure
+    // failure — only throw if every single actor call itself errored out.
+    let anyActorReachable = false;
 
-  const candidates = ACTOR_CHAIN.filter((actor) => !(actor.followersOnly && kind !== "followers"));
-  // Every actor reachable at all (even one returning a clean empty/error
-  // result, e.g. `{ error: "private_account" }` for a private profile) is
-  // a genuine "no accessible members" answer, not an infrastructure
-  // failure — only throw if every single actor call itself errored out.
-  let anyActorReachable = false;
-
-  for (const actor of candidates) {
-    try {
-      const raw = await runApifyActor(actor.actorId, actor.buildInput(username, limit, kind));
-      anyActorReachable = true;
-      // Observed live: at least one actor in this chain (coderx), when it
-      // can't actually access a private account's list, falls back to
-      // returning the queried account's own username as if it were a
-      // member of its own list, instead of a clean empty/error result.
-      // A real account is never its own follower/following — exclude it
-      // defensively regardless of which actor produces this.
-      const normalized = actor
-        .normalize(raw)
-        ?.filter((u) => u.username && u.username.toLowerCase() !== username.toLowerCase());
-      if (normalized && normalized.length > 0) {
-        memberCache.set(cacheKey, normalized);
-        return normalized;
+    for (const actor of candidates) {
+      try {
+        const raw = await runApifyActor(actor.actorId, actor.buildInput(username, limit, kind));
+        anyActorReachable = true;
+        // Observed live: at least one actor in this chain (coderx), when it
+        // can't actually access a private account's list, falls back to
+        // returning the queried account's own username as if it were a
+        // member of its own list, instead of a clean empty/error result.
+        // A real account is never its own follower/following — exclude it
+        // defensively regardless of which actor produces this.
+        const normalized = actor
+          .normalize(raw)
+          ?.filter((u) => u.username && u.username.toLowerCase() !== username.toLowerCase());
+        if (normalized && normalized.length > 0) {
+          return normalized;
+        }
+        console.warn(`[apify-provider] actor "${actor.actorId}" returned no usable ${kind} data for ${username}`);
+      } catch (err) {
+        console.warn(`[apify-provider] actor "${actor.actorId}" failed for ${username}:`, err);
       }
-      console.warn(`[apify-provider] actor "${actor.actorId}" returned no usable ${kind} data for ${username}`);
-    } catch (err) {
-      console.warn(`[apify-provider] actor "${actor.actorId}" failed for ${username}:`, err);
     }
-  }
 
-  if (anyActorReachable) {
-    memberCache.set(cacheKey, []);
-    return [];
-  }
-  throw new Error(`All follower/following actors failed for ${username} (${kind}).`);
+    if (anyActorReachable) {
+      return [];
+    }
+    throw new Error(`All follower/following actors failed for ${username} (${kind}).`);
+  });
 }

@@ -1,4 +1,5 @@
 import type { Highlight } from "@/lib/domain/types";
+import { withDataCache } from "@/lib/cache/data-cache";
 import { runApifyActor } from "./client";
 
 /**
@@ -26,7 +27,7 @@ interface ApifyHighlightItem {
 }
 
 export async function fetchApifyHighlights(username: string, profileId: string): Promise<Highlight[]> {
-  const raw = await runApifyActor(HIGHLIGHTS_ACTOR_ID, { usernames: [username] });
+  const raw = await withDataCache(`highlights:${profileId}`, () => runApifyActor(HIGHLIGHTS_ACTOR_ID, { usernames: [username] }));
   if (!Array.isArray(raw)) return [];
 
   return (raw as ApifyHighlightItem[])

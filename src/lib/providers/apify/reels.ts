@@ -1,4 +1,5 @@
 import type { Post } from "@/lib/domain/types";
+import { withDataCache } from "@/lib/cache/data-cache";
 import { runApifyActor } from "./client";
 
 const REEL_ACTOR_ID = "apify~instagram-reel-scraper";
@@ -26,38 +27,30 @@ interface ApifyReelItem {
   error?: string;
 }
 
-/** Per-process cache, keyed by profile+requested count, so re-paginating doesn't re-run (and re-bill) the actor. */
-const reelsCache = new Map<string, Post[]>();
-
 /** Dedicated reels dataset (not approximated from the profile actor's recent posts). */
 export async function fetchApifyReels(username: string, profileId: string, limit: number): Promise<Post[]> {
-  const cacheKey = profileId;
-  const cached = reelsCache.get(cacheKey);
-  if (cached && cached.length >= limit) return cached;
+  return withDataCache(`reels:${profileId}:${limit}`, async () => {
+    const items = (await runApifyActor(REEL_ACTOR_ID, {
+      username: [username],
+      resultsLimit: limit,
+    })) as ApifyReelItem[];
 
-  const items = (await runApifyActor(REEL_ACTOR_ID, {
-    username: [username],
-    resultsLimit: limit,
-  })) as ApifyReelItem[];
+    if (!Array.isArray(items)) return [];
 
-  if (!Array.isArray(items)) return cached ?? [];
-
-  const mapped: Post[] = items
-    .filter((reel) => !reel.error)
-    .map((reel, index) => ({
-      id: `${profileId}_reel_${reel.id ?? index}`,
-      profileId,
-      mediaType: "reel" as const,
-      thumbnailUrl: reel.displayUrl ?? "",
-      mediaUrl: reel.videoUrl || reel.displayUrl || "",
-      permalink: reel.url ?? (reel.shortCode ? `https://www.instagram.com/reel/${reel.shortCode}/` : ""),
-      caption: reel.caption ?? "",
-      likeCount: reel.likesCount ?? 0,
-      commentCount: reel.commentsCount ?? 0,
-      viewCount: reel.videoPlayCount ?? reel.videoViewCount ?? null,
-      postedAt: reel.timestamp ?? new Date().toISOString(),
-    }));
-
-  reelsCache.set(cacheKey, mapped);
-  return mapped;
+    return items
+      .filter((reel) => !reel.error)
+      .map((reel, index) => ({
+        id: `${profileId}_reel_${reel.id ?? index}`,
+        profileId,
+        mediaType: "reel" as const,
+        thumbnailUrl: reel.displayUrl ?? "",
+        mediaUrl: reel.videoUrl || reel.displayUrl || "",
+        permalink: reel.url ?? (reel.shortCode ? `https://www.instagram.com/reel/${reel.shortCode}/` : ""),
+        caption: reel.caption ?? "",
+        likeCount: reel.likesCount ?? 0,
+        commentCount: reel.commentsCount ?? 0,
+        viewCount: reel.videoPlayCount ?? reel.videoViewCount ?? null,
+        postedAt: reel.timestamp ?? new Date().toISOString(),
+      }));
+  });
 }

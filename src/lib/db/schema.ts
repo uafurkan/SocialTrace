@@ -108,6 +108,28 @@ export const profileCache = pgTable(
 );
 
 /**
+ * Same cost-control idea as `profileCache`, generalized to every other
+ * per-profile provider call (posts, reels, stories, highlights, tagged
+ * posts, followers, following) — see src/lib/cache/data-cache.ts. Each of
+ * these was previously re-hit on every single tab click with no caching
+ * at all, which is both an unbounded Apify bill and, per-call latency
+ * being what it is (a full actor run, sometimes a multi-actor fallback
+ * chain), the direct cause of "switching tabs takes minutes" in
+ * production. `cacheKey` encodes both which call this is (e.g. "posts")
+ * and what it varies by (the profile, and anything else like a search
+ * query), e.g. "posts:profile_nike".
+ */
+export const providerCache = pgTable("provider_cache", {
+  // Single column (e.g. "posts:profile_nike") rather than a composite key —
+  // profile-cache.ts documents multi-condition `and(eq(...), eq(...))`
+  // queries spuriously returning zero rows in this project's dev runtime,
+  // so this sidesteps that entirely by never needing more than one `eq()`.
+  cacheKey: text("cache_key").primaryKey(),
+  data: jsonb("data").notNull(),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
  * Future `follower_memberships` / `following_memberships` tables, folded
  * into one table with a `kind` discriminator — both sides share the same
  * shape (profile <-> social_user, first/last seen). `removedAt` is what
