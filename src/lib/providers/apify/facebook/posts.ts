@@ -1,4 +1,5 @@
 import type { Post } from "@/lib/domain/types";
+import { withDataCache } from "@/lib/cache/data-cache";
 import { runApifyActor } from "../client";
 
 const POSTS_ACTOR_ID = "apify~facebook-posts-scraper";
@@ -24,9 +25,10 @@ interface FacebookPostItem {
  */
 export async function fetchApifyFacebookPosts(usernameOrUrl: string, profileId: string, limit: number): Promise<Post[]> {
   const url = usernameOrUrl.startsWith("http") ? usernameOrUrl : `https://www.facebook.com/${usernameOrUrl}`;
-  const items = (await runApifyActor(POSTS_ACTOR_ID, { startUrls: [{ url }], resultsLimit: limit })) as FacebookPostItem[];
-
-  if (!Array.isArray(items)) return [];
+  const items = await withDataCache(`posts:${profileId}`, async () => {
+    const result = (await runApifyActor(POSTS_ACTOR_ID, { startUrls: [{ url }], resultsLimit: limit })) as FacebookPostItem[];
+    return Array.isArray(result) ? result : [];
+  });
 
   return items.map((item, i) => ({
     id: `${profileId}_post_${item.postId ?? i}`,

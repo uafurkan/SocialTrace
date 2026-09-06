@@ -1,4 +1,5 @@
 import type { SocialUser } from "@/lib/domain/types";
+import { withDataCache } from "@/lib/cache/data-cache";
 import { runApifyActor } from "../client";
 
 const FOLLOWERS_ACTOR_ID = "clockworks~tiktok-followers-scraper";
@@ -20,14 +21,15 @@ export async function fetchApifyTikTokMembers(
   kind: "followers" | "following",
   cap: number,
 ): Promise<SocialUser[]> {
-  const items = (await runApifyActor(FOLLOWERS_ACTOR_ID, {
-    profiles: [username],
-    maxFollowersPerProfile: kind === "followers" ? cap : 0,
-    maxFollowingPerProfile: kind === "following" ? cap : 0,
-    shouldDownloadAvatars: false,
-  })) as TikTokConnectionItem[];
-
-  if (!Array.isArray(items)) return [];
+  const items = await withDataCache(`members:${kind}:${username.toLowerCase()}`, async () => {
+    const result = (await runApifyActor(FOLLOWERS_ACTOR_ID, {
+      profiles: [username],
+      maxFollowersPerProfile: kind === "followers" ? cap : 0,
+      maxFollowingPerProfile: kind === "following" ? cap : 0,
+      shouldDownloadAvatars: false,
+    })) as TikTokConnectionItem[];
+    return Array.isArray(result) ? result : [];
+  });
 
   const wantType = kind === "followers" ? "follower" : "following";
   return items

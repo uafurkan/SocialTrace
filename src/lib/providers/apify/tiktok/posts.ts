@@ -1,4 +1,5 @@
 import type { Post } from "@/lib/domain/types";
+import { withDataCache } from "@/lib/cache/data-cache";
 import { runApifyActor } from "../client";
 
 const PROFILE_ACTOR_ID = "clockworks~tiktok-profile-scraper";
@@ -22,16 +23,17 @@ interface TikTokVideoItem {
  * instead, since a duplicate tab would just show the same list twice).
  */
 export async function fetchApifyTikTokPosts(username: string, profileId: string, limit: number): Promise<Post[]> {
-  const items = (await runApifyActor(PROFILE_ACTOR_ID, {
-    profiles: [username],
-    resultsPerPage: limit,
-    shouldDownloadVideos: false,
-    shouldDownloadCovers: false,
-    shouldDownloadSubtitles: false,
-    shouldDownloadSlideshowImages: false,
-  })) as TikTokVideoItem[];
-
-  if (!Array.isArray(items)) return [];
+  const items = await withDataCache(`posts:${profileId}`, async () => {
+    const result = (await runApifyActor(PROFILE_ACTOR_ID, {
+      profiles: [username],
+      resultsPerPage: limit,
+      shouldDownloadVideos: false,
+      shouldDownloadCovers: false,
+      shouldDownloadSubtitles: false,
+      shouldDownloadSlideshowImages: false,
+    })) as TikTokVideoItem[];
+    return Array.isArray(result) ? result : [];
+  });
 
   return items.map((item) => ({
     id: `${profileId}_post_${item.id}`,
