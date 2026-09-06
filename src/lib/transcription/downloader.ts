@@ -154,8 +154,28 @@ async function downloadFacebook(sourceUrl: string): Promise<DownloadedAudio | nu
   };
 }
 
-/** Returns `null` for a clean "this actor couldn't reach it" result (private/deleted/geo-blocked) — the caller decides whether that's fatal or worth a fallback actor. */
+/**
+ * Returns `null` for a clean "this actor couldn't reach it" result
+ * (private/deleted/geo-blocked) — the caller decides whether that's fatal
+ * or worth a fallback actor.
+ *
+ * Rounds `durationSeconds` here, once, for every platform: `transcript_
+ * cache.duration_seconds` is an `integer` column, but at least one actor
+ * (Facebook's `apple_yang` actor, confirmed live) returns a fractional
+ * value (e.g. `74.304`) — writing that straight to Postgres throws
+ * `invalid input syntax for type integer`, which previously meant a
+ * *successful* download+transcription still failed the whole request at
+ * the final DB write, discarding a completed (and already paid-for)
+ * pipeline run. Rounding at this single boundary, rather than inside each
+ * platform's function, means a future actor with the same quirk can't
+ * reintroduce the bug.
+ */
 export async function downloadAudio(sourceUrl: string, platform: TranscriptPlatform): Promise<DownloadedAudio | null> {
+  const result = await downloadAudioUnrounded(sourceUrl, platform);
+  return result ? { ...result, durationSeconds: Math.round(result.durationSeconds) } : null;
+}
+
+async function downloadAudioUnrounded(sourceUrl: string, platform: TranscriptPlatform): Promise<DownloadedAudio | null> {
   switch (platform) {
     case "tiktok":
       return downloadTikTok(sourceUrl);

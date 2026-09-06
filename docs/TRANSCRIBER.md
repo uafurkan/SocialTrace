@@ -65,10 +65,21 @@ public video this session:
   of searching) that does.
 
 Each downloader also returns a `videoUrl` (the same file, or a
-video-specific one when audio/video are separate) used purely for the
-"watch while it transcribes" player in the UI — not persisted to
+video-specific one when audio/video are separate) used for the "watch
+while it transcribes" player in the UI — not persisted to
 `transcript_cache` (these are short-lived CDN/KVS links), so a cache-hit
 response has no video to show.
+
+This is genuinely parallel, not just shown after the fact: `transcribe()`
+takes an optional `onVideoReady` callback (`src/lib/transcription/
+index.ts`) fired the moment the download step succeeds, before the
+(usually slower) Whisper call even starts. `POST /api/v1/transcribe`
+turns that into its own stream event (`{stage: "transcribing", videoUrl}`,
+`src/app/api/v1/transcribe/route.ts`), and the widget renders the video
+player as soon as that event arrives — a user watches the actual video
+while the transcript is still being produced, not only once the whole
+pipeline finishes. Never fires for the YouTube-captions fast-path (no
+video file is downloaded there) or when the download step itself fails.
 
 If the download step succeeds but speech-to-text fails, a last-resort
 independent all-in-one actor (`tictechid/anoxvanzi-transcriber`) is
@@ -153,6 +164,15 @@ Two translation outputs, requested independently:
   worse than no timed subtitle, so `translateTranscript()` never guesses.
   Capped at 400 segments (`MAX_SEGMENTS_FOR_TIMED_TRANSLATION`) — beyond
   that, only the plain-text translation is attempted at all.
+
+  The plain-text translation and every segment batch are fired
+  **concurrently** (`Promise.all`/`allSettled`), not one after another —
+  an earlier version awaited them in sequence, which meant a transcript
+  needing several batches could multiply the per-call timeout by the
+  batch count and blow past the 60s route budget (`maxDuration`). Running
+  them in parallel bounds the whole request's latency to one call's worth
+  instead, which is also why `REQUEST_TIMEOUT_MS` is 30s, not the 45s a
+  single sequential call could previously afford.
 
 Not cached (`transcript_cache` stores only the original transcript) and
 not counted against the transcription daily quota — it's a much cheaper

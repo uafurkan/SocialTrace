@@ -25,8 +25,20 @@ async function fetchAsBlob(url: string): Promise<Blob> {
  * then universal downloader + Groq/OpenAI, then the all-in-one actor as
  * a last resort. Every failure exit is a typed `TranscriptionError` —
  * callers never see a raw error message.
+ *
+ * `onVideoReady`, if given, fires once right after the download step
+ * succeeds — before the (often slower) transcription step starts — so a
+ * caller streaming progress to the client (POST /api/v1/transcribe) can
+ * let the user start watching the actual video while it's still being
+ * transcribed, not only once the whole pipeline finishes. Never fires for
+ * the YouTube-captions fast-path (no video file is downloaded there) or
+ * when the download step fails.
  */
-export async function transcribe(sourceUrl: string, language?: string): Promise<TranscriptResult> {
+export async function transcribe(
+  sourceUrl: string,
+  language?: string,
+  onVideoReady?: (videoUrl: string) => void,
+): Promise<TranscriptResult> {
   const platform = detectPlatform(sourceUrl);
   if (!platform) {
     throw new TranscriptionError("unsupported_url", "This link isn't from a supported platform (YouTube, TikTok, Instagram, or Facebook).");
@@ -66,6 +78,7 @@ export async function transcribe(sourceUrl: string, language?: string): Promise<
       );
     }
     try {
+      if (downloaded.videoUrl) onVideoReady?.(downloaded.videoUrl);
       const audioBlob = await fetchAsBlob(downloaded.audioUrl);
       const result = await transcribeAudio(audioBlob, language);
       if (!result.text) {

@@ -21,6 +21,7 @@ const DUPLICATE_POLL_INTERVAL_MS = 1_500;
 
 type StreamEvent =
   | { stage: "downloading" }
+  | { stage: "transcribing"; videoUrl: string }
   | { stage: "done"; result: TranscriptResultPayload }
   | { stage: "error"; reason: string; message: string };
 
@@ -145,7 +146,9 @@ export async function POST(request: NextRequest) {
           return;
         }
 
-        const result = await transcribe(url, language);
+        const result = await transcribe(url, language, (videoUrl) => {
+          writeEvent(controller, { stage: "transcribing", videoUrl });
+        });
         await db
           .update(schema.transcriptCache)
           .set({

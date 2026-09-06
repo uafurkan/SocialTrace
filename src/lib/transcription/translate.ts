@@ -17,8 +17,15 @@ const GROQ_MODEL = "openai/gpt-oss-120b";
 const OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
 const OPENAI_MODEL = "gpt-4o-mini";
 
-/** Chat-completion requests can legitimately take longer than the 20-line segment batches below on a slow provider — kept short of the 60s route budget. */
-const REQUEST_TIMEOUT_MS = 45_000;
+/**
+ * Every completeWithFallback() call (the plain-text translation and each
+ * segment batch below) runs concurrently, not sequentially — so the whole
+ * request's wall-clock time is bounded by the *slowest single call*, not
+ * their sum. This timeout has to leave real margin under the 60s route
+ * budget (maxDuration) for that slowest call plus the surrounding
+ * request/response overhead.
+ */
+const REQUEST_TIMEOUT_MS = 30_000;
 
 /** Above this many segments, per-segment batching (SEGMENT_BATCH_SIZE below) still applies, but a very long transcript's last batch could still push close to the function's time budget — capped as an honest "too long to time" rather than a silent partial result. */
 const MAX_SEGMENTS_FOR_TIMED_TRANSLATION = 400;
@@ -126,29 +133,37 @@ export async function translateTranscript(
   segments: TranscriptSegment[],
   targetLanguageLabel: string,
 ): Promise<TranslationResult> {
-  const { content: translatedText, provider } = await completeWithFallback(
-    `You are a professional subtitle translator. Translate the user's text into ${targetLanguageLabel}. Preserve meaning, tone, and paragraph breaks. Output ONLY the translated text — no notes, no quotes, no preamble.`,
-    text,
-  );
+  const canTimeSegments = segments.length > 0 && segments.length <= MAX_SEGMENTS_FOR_TIMED_TRANSLATION;
+  const batches = canTimeSegments
+    ? Array.from({ length: Math.ceil(segments.length / SEGMENT_BATCH_SIZE) }, (_, i) =>
+        segments.slice(i * SEGMENT_BATCH_SIZE, (i + 1) * SEGMENT_BATCH_SIZE),
+      )
+    : [];
+
+  // Every call below is independent (the plain-text translation, each
+  // segment batch) — fired concurrently via Promise.all/allSettled so the
+  // whole request's latency is one call's worth, not N calls' worth. A
+  // sequential await-in-a-loop here would multiply worst-case latency by
+  // the number of batches, risking the 60s route budget on any transcript
+  // long enough to need more than one batch.
+  const [textResult, batchResults] = await Promise.all([
+    completeWithFallback(
+      `You are a professional subtitle translator. Translate the user's text into ${targetLanguageLabel}. Preserve meaning, tone, and paragraph breaks. Output ONLY the translated text — no notes, no quotes, no preamble.`,
+      text,
+    ),
+    Promise.allSettled(batches.map((batch) => translateSegmentBatch(batch.map((s) => s.text), targetLanguageLabel))),
+  ]);
 
   let translatedSegments: TranscriptSegment[] = [];
-  if (segments.length > 0 && segments.length <= MAX_SEGMENTS_FOR_TIMED_TRANSLATION) {
-    try {
-      const translatedTexts: string[] = [];
-      for (let i = 0; i < segments.length; i += SEGMENT_BATCH_SIZE) {
-        const batch = segments.slice(i, i + SEGMENT_BATCH_SIZE);
-        const translated = await translateSegmentBatch(
-          batch.map((s) => s.text),
-          targetLanguageLabel,
-        );
-        if (!translated) throw new Error("segment batch count mismatch");
-        translatedTexts.push(...translated);
-      }
+  if (batches.length > 0) {
+    const allMatched = batchResults.every((r) => r.status === "fulfilled" && r.value !== null);
+    if (allMatched) {
+      const translatedTexts = (batchResults as PromiseFulfilledResult<string[]>[]).flatMap((r) => r.value);
       translatedSegments = segments.map((s, i) => ({ start: s.start, end: s.end, text: translatedTexts[i] }));
-    } catch (error) {
-      console.warn("[translation] timed segment translation unavailable, falling back to plain text only:", error);
+    } else {
+      console.warn("[translation] timed segment translation unavailable (a batch failed or mismatched), falling back to plain text only");
     }
   }
 
-  return { text: translatedText.trim(), segments: translatedSegments, provider };
+  return { text: textResult.content.trim(), segments: translatedSegments, provider: textResult.provider };
 }

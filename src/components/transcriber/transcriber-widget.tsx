@@ -27,7 +27,9 @@ interface TranscriptResultPayload {
 
 type WidgetState =
   | { status: "idle" }
-  | { status: "downloading" | "transcribing" }
+  | { status: "downloading" }
+  /** `videoUrl` arrives as soon as the download step finishes, well before transcription completes — lets the user start watching immediately instead of waiting for the whole pipeline. */
+  | { status: "transcribing"; videoUrl: string | null }
   | { status: "done"; result: TranscriptResultPayload }
   | { status: "error"; message: string };
 
@@ -91,6 +93,16 @@ function plainTextOf(text: string, segments: TranscriptSegment[]): string {
 function timestampedTextOf(text: string, segments: TranscriptSegment[]): string {
   if (segments.length === 0) return text;
   return segments.map((s) => `[${formatTimestamp(s.start)}] ${s.text}`).join("\n");
+}
+
+function VideoPreview({ videoUrl }: { videoUrl: string }) {
+  return (
+    <Card className="h-fit lg:sticky lg:top-4">
+      <CardContent className="pt-6">
+        <video src={videoUrl} controls playsInline className="w-full rounded-card bg-black" style={{ maxHeight: 480 }} />
+      </CardContent>
+    </Card>
+  );
 }
 
 function TranscriptBody({
@@ -169,6 +181,7 @@ export function TranscriberWidget({
     try {
       await submitForTranscription(targetUrl.trim(), language === "auto" ? undefined : language, (event) => {
         if (event.stage === "downloading") setState({ status: "downloading" });
+        else if (event.stage === "transcribing") setState({ status: "transcribing", videoUrl: (event.videoUrl as string) ?? null });
         else if (event.stage === "done") setState({ status: "done", result: event.result as TranscriptResultPayload });
         else if (event.stage === "error") setState({ status: "error", message: (event.message as string) ?? copy.transcriber.errorGeneric });
       });
@@ -257,9 +270,12 @@ export function TranscriberWidget({
       </form>
 
       {isBusy ? (
-        <p className="mt-4 text-sm text-secondary" role="status">
-          {state.status === "downloading" ? copy.transcriber.stageDownloading : copy.transcriber.stageTranscribing}
-        </p>
+        <div className={state.status === "transcribing" && state.videoUrl ? "mt-6 grid gap-4 lg:grid-cols-[minmax(0,320px)_1fr]" : undefined}>
+          {state.status === "transcribing" && state.videoUrl ? <VideoPreview videoUrl={state.videoUrl} /> : null}
+          <p className="mt-4 text-sm text-secondary" role="status">
+            {state.status === "downloading" ? copy.transcriber.stageDownloading : copy.transcriber.stageTranscribing}
+          </p>
+        </div>
       ) : null}
 
       {state.status === "error" ? (
@@ -270,19 +286,7 @@ export function TranscriberWidget({
 
       {state.status === "done" ? (
         <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,320px)_1fr]">
-          {state.result.videoUrl ? (
-            <Card className="h-fit lg:sticky lg:top-4">
-              <CardContent className="pt-6">
-                <video
-                  src={state.result.videoUrl}
-                  controls
-                  playsInline
-                  className="w-full rounded-card bg-black"
-                  style={{ maxHeight: 480 }}
-                />
-              </CardContent>
-            </Card>
-          ) : null}
+          {state.result.videoUrl ? <VideoPreview videoUrl={state.result.videoUrl} /> : null}
 
           <Card>
             <CardContent className="pt-6">
