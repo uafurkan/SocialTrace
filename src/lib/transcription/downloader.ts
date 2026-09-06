@@ -1,3 +1,9 @@
+import { randomUUID } from "node:crypto";
+import { unlink } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import ffmpegPath from "ffmpeg-static";
+import ytdlp from "yt-dlp-exec";
 import { runApifyActor } from "@/lib/providers/apify/client";
 import type { TranscriptPlatform } from "./types";
 
@@ -36,12 +42,19 @@ const FACEBOOK_ACTOR_ID = "apple_yang~facebook-video-audio-downloader";
 const TIKWM_ENDPOINT = "https://www.tikwm.com/api/";
 
 export interface DownloadedAudio {
-  /** URL fed to the speech-to-text step — always audio, or an audio+video file Whisper accepts (mp4/webm/m4a are all valid Whisper inputs, not just mp3/wav). */
+  /** URL fed to the speech-to-text step — always audio, or an audio+video file Whisper accepts (mp4/webm/m4a are all valid Whisper inputs, not just mp3/wav). Empty string when `localAudioPath` is set instead. */
   audioUrl: string;
   /** A real playable file for the "watch while it transcribes" UI — the same file when the actor only returns one, a smaller video-only file when the actor returns both. */
   videoUrl: string | null;
   durationSeconds: number;
   title: string;
+  /**
+   * Set only by the yt-dlp local-download last resort below: a file on
+   * this function's own /tmp disk, since there's no remote URL to hand
+   * Whisper. The caller (index.ts) reads it directly and deletes it after
+   * use — never left behind across invocations.
+   */
+  localAudioPath?: string;
 }
 
 interface TikTokItem {
@@ -299,6 +312,56 @@ async function downloadFacebook(sourceUrl: string): Promise<DownloadedAudio | nu
 }
 
 /**
+ * Absolute last resort, tried only when every platform's free path *and*
+ * every paid Apify actor above has failed or is unavailable (billing cap
+ * hit, actor down, etc. — the exact scenario the user asked to be covered:
+ * "apify çökerse kendi sunucumuzda yt-dlp+ffmpeg ile indirsin"). Runs the
+ * yt-dlp binary bundled by `yt-dlp-exec` directly in this serverless
+ * function, extracting audio with the `ffmpeg-static` binary (via yt-dlp's
+ * own `--ffmpeg-location`) to this function's own /tmp — no external
+ * service, no per-call cost, works for all four platforms since yt-dlp
+ * supports them natively. Slower and less reliable than the dedicated
+ * actors above under normal conditions (same datacenter-IP blocking risk
+ * documented for YouTube/Instagram at the top of this file) — that's why
+ * it's last, not first — but it needs no external account or budget at
+ * all, so it still works when every paid dependency is down or exhausted.
+ * Returns `null` (never throws) on any failure so the caller's existing
+ * `download_failed` handling covers this path too.
+ */
+async function downloadWithYtDlp(sourceUrl: string): Promise<DownloadedAudio | null> {
+  const outPath = join(tmpdir(), `transcribe-${randomUUID()}.m4a`);
+  try {
+    const info = (await ytdlp(sourceUrl, {
+      dumpSingleJson: true,
+      noWarnings: true,
+      skipDownload: true,
+      ffmpegLocation: ffmpegPath ?? undefined,
+    })) as { duration?: number; title?: string };
+
+    await ytdlp(sourceUrl, {
+      output: outPath,
+      extractAudio: true,
+      audioFormat: "m4a",
+      ffmpegLocation: ffmpegPath ?? undefined,
+      noWarnings: true,
+      noPlaylist: true,
+    });
+
+    return {
+      audioUrl: "",
+      videoUrl: null,
+      durationSeconds: info.duration ?? 0,
+      title: info.title ?? "",
+      localAudioPath: outPath,
+    };
+  } catch (error) {
+    console.warn("[transcription] yt-dlp local fallback failed:", error);
+    await unlink(outPath).catch(() => {});
+    return null;
+  }
+}
+
+/**
  * Returns `null` for a clean "this actor couldn't reach it" result
  * (private/deleted/geo-blocked) — the caller decides whether that's fatal
  * or worth a fallback actor.
@@ -320,6 +383,16 @@ export async function downloadAudio(sourceUrl: string, platform: TranscriptPlatf
 }
 
 async function downloadAudioUnrounded(sourceUrl: string, platform: TranscriptPlatform): Promise<DownloadedAudio | null> {
+  const viaProvider = await downloadViaProvider(sourceUrl, platform);
+  if (viaProvider) return viaProvider;
+
+  // Every free path and every paid Apify actor for this platform failed
+  // (or the Apify account is out of budget, per docs/TRANSCRIBER.md
+  // bad-outcome #1/#9) — try the local yt-dlp+ffmpeg path before giving up.
+  return downloadWithYtDlp(sourceUrl);
+}
+
+async function downloadViaProvider(sourceUrl: string, platform: TranscriptPlatform): Promise<DownloadedAudio | null> {
   switch (platform) {
     case "tiktok":
       return downloadTikTok(sourceUrl);

@@ -139,6 +139,50 @@ throw) but currently never actually helps. Its output has no
 per-segment timestamps when it does work, so a fallback-actor result
 comes back with `segments: []` — an honest degradation, not a bug.
 
+### Local yt-dlp+ffmpeg fallback (no external account, no cost)
+
+Requested explicitly ("apify çökerse kendi sunucumuzda yt-dlp+ffmpeg ile
+indirsin" — if Apify goes down, download it ourselves with yt-dlp+ffmpeg):
+`downloadWithYtDlp()` in `downloader.ts` is tried as the absolute last
+resort in `downloadAudio()`, after every platform's free path *and* every
+paid Apify actor above have failed or are unavailable (down, or the
+account's billing cap is hit — the exact scenario hit live this session).
+It runs the `yt-dlp` binary bundled by the `yt-dlp-exec` npm package
+directly inside this Next.js server process, using the `ffmpeg-static`
+npm package's bundled ffmpeg binary (via yt-dlp's own
+`--ffmpeg-location`) to extract audio to this function's own `/tmp` — no
+external service, no per-call cost, and it needs no API token or account
+of any kind, so it still works when every paid dependency is exhausted or
+down. `index.ts` reads the resulting file directly (`DownloadedAudio.
+localAudioPath`) instead of fetching a URL, and always deletes it after
+the Whisper call (success or failure) so nothing accumulates on disk.
+
+**Confirmed live, this session, from this exact sandbox's IP**:
+- **Facebook: works** (`facebook.com/watch/?v=...`, ~3s, real audio file)
+  — a genuine rescue path when the Facebook Apify actor is down.
+- **YouTube: still blocked** — same datacenter-IP-reputation 403 already
+  documented above for the paid actor path; this fallback doesn't route
+  around it (yt-dlp hits the same YouTube CDN restriction, running from
+  the same kind of IP). Metadata (`dumpSingleJson` — title/duration)
+  *does* still work even when the media download 403s, since that step
+  only reads the watch/innertube page.
+- **TikTok: currently fails** — yt-dlp's TikTok extractor errored on the
+  webpage-parsing step against two different real TikTok URLs tried live
+  (not an IP block; likely needs a yt-dlp version bump or TikTok changed
+  its page shape). Falls through safely to the existing `download_failed`
+  error, same as any other exhausted fallback chain.
+- **Instagram: untested/likely inconsistent** — the one Instagram URL
+  tried needed a login (private or age-gated post), a `null` result
+  either way; public Reels may work but this wasn't confirmed live.
+
+This is intentionally wired for **all four platforms**, not just
+Facebook — it fails safely (returns `null`, never throws) exactly like
+every other step in this chain, so a platform where it doesn't currently
+work costs nothing extra and doesn't block the existing error path; a
+platform where it does work (today: Facebook) is a real, free safety net
+that didn't exist before. Revisit TikTok/Instagram coverage if yt-dlp
+ships a fix, rather than removing the fallback for those platforms.
+
 ## Every bad-outcome scenario this was designed against
 
 | Scenario | Response |

@@ -1,3 +1,4 @@
+import { unlink, readFile } from "node:fs/promises";
 import { downloadAudio } from "./downloader";
 import { tryFallbackActor } from "./fallback-actor";
 import { detectPlatform, normalizeVideoUrl } from "./platform";
@@ -16,6 +17,12 @@ async function fetchAsBlob(url: string): Promise<Blob> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to fetch audio (${res.status})`);
   return await res.blob();
+}
+
+/** Reads the yt-dlp local-fallback's own /tmp output instead of fetching a remote URL — see `DownloadedAudio.localAudioPath`. */
+async function readLocalAudioAsBlob(path: string): Promise<Blob> {
+  const buffer = await readFile(path);
+  return new Blob([buffer], { type: "audio/m4a" });
 }
 
 /**
@@ -79,7 +86,9 @@ export async function transcribe(
     }
     try {
       if (downloaded.videoUrl) onVideoReady?.(downloaded.videoUrl);
-      const audioBlob = await fetchAsBlob(downloaded.audioUrl);
+      const audioBlob = downloaded.localAudioPath
+        ? await readLocalAudioAsBlob(downloaded.localAudioPath)
+        : await fetchAsBlob(downloaded.audioUrl);
       const result = await transcribeAudio(audioBlob, language);
       if (!result.text) {
         throw new TranscriptionError("no_speech", "No speech was detected in this video.");
@@ -96,6 +105,8 @@ export async function transcribe(
     } catch (error) {
       if (error instanceof TranscriptionError) throw error;
       console.warn("[transcription] speech-to-text failed after successful download, trying fallback actor:", error);
+    } finally {
+      if (downloaded.localAudioPath) await unlink(downloaded.localAudioPath).catch(() => {});
     }
   }
 
