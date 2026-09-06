@@ -6,9 +6,11 @@ import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasteButton } from "@/components/ui/paste-button";
 import { AdGateOverlay, useAdGate } from "@/components/ads/ad-gate";
 import { copy } from "@/lib/copy";
 import { extractUsername } from "@/lib/profile-link";
+import { useInputHistory } from "@/lib/use-input-history";
 
 const inputSchema = z.string().min(1, "Enter a username or profile link");
 
@@ -16,6 +18,7 @@ export function ProfileSearchForm({ size = "default" }: { size?: "default" | "co
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   const { pending, navigate, continueNavigation } = useAdGate();
+  const { history, addToHistory, listId } = useInputHistory("profile-search-instagram");
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -33,6 +36,7 @@ export function ProfileSearchForm({ size = "default" }: { size?: "default" | "co
     }
 
     setError(null);
+    addToHistory(result.data);
     // Gated (once per username per session) — see src/components/ads/ad-gate.tsx.
     navigate(`/profile/${encodeURIComponent(username)}`, `profile:${username.toLowerCase()}`);
   }
@@ -60,8 +64,15 @@ export function ProfileSearchForm({ size = "default" }: { size?: "default" | "co
             placeholder={copy.home.searchPlaceholder}
             aria-label="Instagram username or profile link"
             autoComplete="off"
-            className={isCompact ? "pl-9" : "border-0 pl-9 shadow-none focus-visible:border-0 focus-visible:ring-0"}
+            list={listId}
+            className={isCompact ? "pl-9 pr-20" : "border-0 pl-9 pr-20 shadow-none focus-visible:border-0 focus-visible:ring-0"}
           />
+          <PasteButton onPaste={setValue} />
+          <datalist id={listId}>
+            {history.map((item) => (
+              <option key={item} value={item} />
+            ))}
+          </datalist>
         </div>
         <Button type="submit" className="sm:w-auto">
           {copy.home.searchCta}

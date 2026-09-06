@@ -9,9 +9,11 @@ import { z } from "zod";
 import type { Platform } from "@/lib/domain/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasteButton } from "@/components/ui/paste-button";
 import { AdGateOverlay, useAdGate } from "@/components/ads/ad-gate";
 import { copy } from "@/lib/copy";
 import { extractUsername } from "@/lib/profile-link";
+import { useInputHistory } from "@/lib/use-input-history";
 import { cn } from "@/lib/utils";
 
 const usernameSchema = z.string().min(1, "Enter a username or profile link");
@@ -42,6 +44,10 @@ export function HeroSearchWidget() {
   const [videoError, setVideoError] = useState<string | null>(null);
 
   const activePlatform = SOCIAL_PLATFORMS.find((p) => p.id === platform)!;
+  const { history: usernameHistory, addToHistory: addUsernameToHistory, listId: usernameHistoryListId } = useInputHistory(
+    `hero-username-${platform}`,
+  );
+  const { history: videoHistory, addToHistory: addVideoToHistory, listId: videoHistoryListId } = useInputHistory("hero-video-url");
 
   function handleProfileSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -56,6 +62,7 @@ export function HeroSearchWidget() {
       return;
     }
     setUsernameError(null);
+    addUsernameToHistory(result.data);
     const path = activePlatform.profilePath(encodeURIComponent(handle));
     navigate(path, `profile:${platform}:${handle.toLowerCase()}`);
   }
@@ -67,6 +74,7 @@ export function HeroSearchWidget() {
       return;
     }
     setVideoError(null);
+    addVideoToHistory(videoUrl.trim());
     router.push(`/transcribe?url=${encodeURIComponent(videoUrl.trim())}`);
   }
 
@@ -127,8 +135,15 @@ export function HeroSearchWidget() {
                   placeholder={activePlatform.placeholder}
                   aria-label={`${activePlatform.label} username or profile link`}
                   autoComplete="off"
-                  className="border-0 pl-9 shadow-none focus-visible:border-0 focus-visible:ring-0"
+                  list={usernameHistoryListId}
+                  className="border-0 pl-9 pr-20 shadow-none focus-visible:border-0 focus-visible:ring-0"
                 />
+                <PasteButton onPaste={setUsername} />
+                <datalist id={usernameHistoryListId}>
+                  {usernameHistory.map((item) => (
+                    <option key={item} value={item} />
+                  ))}
+                </datalist>
               </div>
               <Button type="submit" className="sm:w-auto">
                 {copy.home.searchCta}
@@ -165,8 +180,15 @@ export function HeroSearchWidget() {
                   placeholder={copy.transcriber.urlPlaceholder}
                   aria-label="Video URL"
                   autoComplete="off"
-                  className="border-0 pl-9 shadow-none focus-visible:border-0 focus-visible:ring-0"
+                  list={videoHistoryListId}
+                  className="border-0 pl-9 pr-20 shadow-none focus-visible:border-0 focus-visible:ring-0"
                 />
+                <PasteButton onPaste={setVideoUrl} />
+                <datalist id={videoHistoryListId}>
+                  {videoHistory.map((item) => (
+                    <option key={item} value={item} />
+                  ))}
+                </datalist>
               </div>
               <Button type="submit" className="sm:w-auto">
                 {copy.transcriber.submitCta}

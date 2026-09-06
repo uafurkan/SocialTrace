@@ -5,10 +5,12 @@ import { Copy, Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasteButton } from "@/components/ui/paste-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { copy } from "@/lib/copy";
 import { TRANSCRIPTION_LANGUAGES, TRANSLATION_TARGET_LANGUAGES } from "@/lib/transcription/languages";
+import { useInputHistory } from "@/lib/use-input-history";
 
 interface TranscriptSegment {
   start: number;
@@ -171,9 +173,13 @@ export function TranscriberWidget({
   const [translateTarget, setTranslateTarget] = useState(TRANSLATION_TARGET_LANGUAGES[0].code);
   const [translation, setTranslation] = useState<TranslationState>({ status: "idle" });
   const [activeTab, setActiveTab] = useState<"original" | "translated">("original");
+  const { history: urlHistory, addToHistory: addUrlToHistory, listId: urlHistoryListId } = useInputHistory(
+    `transcriber-url${platformHint ? `-${platformHint.toLowerCase()}` : ""}`,
+  );
 
   async function runTranscription(targetUrl: string) {
     if (!targetUrl.trim()) return;
+    addUrlToHistory(targetUrl.trim());
     setState({ status: "downloading" });
     setTranslation({ status: "idle" });
     setActiveTab("original");
@@ -236,15 +242,25 @@ export function TranscriberWidget({
     <div>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <div className="flex flex-col gap-3 sm:flex-row">
-          <Input
-            type="url"
-            required
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder={platformHint ? `Paste a ${platformHint} video link` : copy.transcriber.urlPlaceholder}
-            className="flex-1"
-            aria-label="Video URL"
-          />
+          <div className="relative flex-1">
+            <Input
+              type="url"
+              required
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder={platformHint ? `Paste a ${platformHint} video link` : copy.transcriber.urlPlaceholder}
+              className="pr-20"
+              aria-label="Video URL"
+              list={urlHistoryListId}
+              autoComplete="off"
+            />
+            <PasteButton onPaste={setUrl} />
+            <datalist id={urlHistoryListId}>
+              {urlHistory.map((item) => (
+                <option key={item} value={item} />
+              ))}
+            </datalist>
+          </div>
           <Button type="submit" loading={isBusy} disabled={isBusy}>
             {copy.transcriber.submitCta}
           </Button>
