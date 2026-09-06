@@ -157,20 +157,54 @@ down. `index.ts` reads the resulting file directly (`DownloadedAudio.
 localAudioPath`) instead of fetching a URL, and always deletes it after
 the Whisper call (success or failure) so nothing accumulates on disk.
 
-**Confirmed live, this session, from this exact sandbox's IP**:
-- **Facebook: works** (`facebook.com/watch/?v=...`, ~3s, real audio file)
-  — a genuine rescue path when the Facebook Apify actor is down.
+**Critical fix made after the first version of this shipped**: `yt-dlp-
+exec`'s default install downloads the `yt-dlp` GitHub release asset — a
+Python zipapp that runs via `#!/usr/bin/env python3` and needs a real
+system Python interpreter present on the machine. **Vercel's Node.js
+serverless runtime has no Python at all** — the first version of this
+fallback would have silently done nothing in actual production for every
+platform, including Facebook, despite working perfectly in this sandbox
+(which happens to have Python installed). Confirmed live: `file` on the
+installed binary showed `a /usr/bin/env python3 script executable (Zip
+archive)`, not a real executable. Fixed via `.npmrc`
+(`youtube_dl_host=.../yt-dlp_linux`, deliberately *not* overriding the
+filename): this repoints the install at the `yt-dlp_linux` release asset
+— a PyInstaller-built standalone binary with Python bundled *inside* it,
+needing nothing from the host system — while keeping the on-disk
+filename as the package's own default (`bin/yt-dlp`), since `downloader.
+ts`'s `require("yt-dlp-exec")` resolves that path from an env var read
+fresh at *runtime*, and `npm install`-time env vars don't persist into a
+deployed function's runtime environment. Confirmed live after the fix:
+`file` now shows a real `ELF 64-bit ... executable`, and the Facebook
+pipeline test below still passes byte-for-byte the same as before.
+
+**Confirmed live, this session, from this exact sandbox's IP** (after
+the binary fix above):
+- **Facebook: works** (`facebook.com/watch/?v=...`, ~3s, real audio file,
+  verified through a full download+Groq-transcribe run) — a genuine
+  rescue path when the Facebook Apify actor is down.
 - **YouTube: still blocked** — same datacenter-IP-reputation 403 already
   documented above for the paid actor path; this fallback doesn't route
   around it (yt-dlp hits the same YouTube CDN restriction, running from
-  the same kind of IP). Metadata (`dumpSingleJson` — title/duration)
-  *does* still work even when the media download 403s, since that step
-  only reads the watch/innertube page.
-- **TikTok: currently fails** — yt-dlp's TikTok extractor errored on the
-  webpage-parsing step against two different real TikTok URLs tried live
-  (not an IP block; likely needs a yt-dlp version bump or TikTok changed
-  its page shape). Falls through safely to the existing `download_failed`
-  error, same as any other exhausted fallback chain.
+  the same kind of IP). Metadata (title/duration) still resolves even
+  when the media download 403s, since that only reads the watch page.
+- **TikTok: root cause found, still blocked, but not for the reason
+  first assumed.** The original error ("Unexpected response from webpage
+  request") was TikTok's anti-bot challenge failing because the *Python
+  zipapp* build has no TLS-impersonation library available at all (`yt-
+  dlp` logged "attempting impersonation, but no impersonate target is
+  available"). The `yt-dlp_linux` standalone binary from the fix above
+  *does* bundle `curl_cffi` (confirmed live: `Request Handlers: urllib,
+  requests, websockets, curl_cffi`) and gets past that specific check —
+  but retesting from this sandbox with its outbound proxy bypassed
+  (`https_proxy=`) surfaces TikTok's real, next-layer response: `"Your IP
+  address is blocked from accessing this post"` — the same datacenter-
+  IP-reputation wall YouTube already has, not a TLS-fingerprint problem.
+  So this fallback is very unlikely to help for TikTok specifically in
+  real deployment either, for the same reason YouTube's doesn't — kept
+  wired anyway (fails safely to `null`) since TikTok's free `tikwm.com`
+  path and Apify actor are both tried first and already cover the
+  overwhelming majority of real requests.
 - **Instagram: untested/likely inconsistent** — the one Instagram URL
   tried needed a login (private or age-gated post), a `null` result
   either way; public Reels may work but this wasn't confirmed live.
@@ -180,8 +214,9 @@ Facebook — it fails safely (returns `null`, never throws) exactly like
 every other step in this chain, so a platform where it doesn't currently
 work costs nothing extra and doesn't block the existing error path; a
 platform where it does work (today: Facebook) is a real, free safety net
-that didn't exist before. Revisit TikTok/Instagram coverage if yt-dlp
-ships a fix, rather than removing the fallback for those platforms.
+that didn't exist before. Don't re-attempt a TikTok/YouTube fix here
+without a genuinely new angle (e.g. residential proxies) — both are now
+confirmed to be the same category of block, checked live, not guessed.
 
 ## Every bad-outcome scenario this was designed against
 
