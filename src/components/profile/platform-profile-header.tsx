@@ -5,8 +5,8 @@ import { BadgeCheck, X } from "lucide-react";
 
 import type { Profile } from "@/lib/domain/types";
 import { Avatar } from "@/components/ui/avatar";
+import { ProfileStatRow } from "@/components/profile/profile-stat-row";
 import { proxiedMediaUrl } from "@/lib/media-proxy";
-import { formatCount } from "@/lib/utils";
 
 /**
  * Lean profile header shared by TikTok/Facebook profile pages — same
@@ -44,22 +44,13 @@ export function PlatformProfileHeader({ profile }: { profile: Profile }) {
         <p className="text-sm font-medium text-secondary">{profile.displayName}</p>
         {profile.bio ? <p className="mt-2 max-w-md text-sm text-secondary">{profile.bio}</p> : null}
 
-        <dl className="mt-4 flex gap-6 text-sm">
-          <div>
-            <dt className="text-muted">Followers</dt>
-            <dd className="font-semibold text-primary">{formatCount(profile.followerCount)}</dd>
-          </div>
-          <div>
-            <dt className="text-muted">Following</dt>
-            <dd className="font-semibold text-primary">{formatCount(profile.followingCount)}</dd>
-          </div>
-          {profile.postCount > 0 ? (
-            <div>
-              <dt className="text-muted">Posts</dt>
-              <dd className="font-semibold text-primary">{formatCount(profile.postCount)}</dd>
-            </div>
-          ) : null}
-        </dl>
+        <ProfileStatRow
+          stats={[
+            { label: "Followers", value: profile.followerCount },
+            { label: "Following", value: profile.followingCount },
+            ...(profile.postCount > 0 ? [{ label: "Posts", value: profile.postCount }] : []),
+          ]}
+        />
       </div>
 
       {zoomed ? (

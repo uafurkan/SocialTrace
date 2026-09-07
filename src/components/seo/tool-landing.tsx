@@ -6,7 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 export interface ToolLandingProps {
   title: string;
   lead: string;
-  primaryCta: { href: string; label: string };
+  /** Either this or `widget` should be given — most tool pages link elsewhere to actually use the tool. */
+  primaryCta?: { href: string; label: string };
+  /** The transcriber pages embed the real, usable widget right on the landing page instead of just linking to it — takes priority over `primaryCta` when both are given. */
+  widget?: React.ReactNode;
   howItWorks: string[];
   features: Array<{ title: string; body: string }>;
   limitations: string[];
@@ -19,11 +22,15 @@ export function ToolLanding(props: ToolLandingProps) {
     <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6">
       <h1 className="text-3xl font-semibold text-primary sm:text-4xl">{props.title}</h1>
       <p className="mt-4 max-w-2xl text-lg text-secondary">{props.lead}</p>
-      <div className="mt-6">
-        <Button asChild>
-          <Link href={props.primaryCta.href}>{props.primaryCta.label}</Link>
-        </Button>
-      </div>
+      {props.widget ? (
+        <div className="mt-8">{props.widget}</div>
+      ) : props.primaryCta ? (
+        <div className="mt-6">
+          <Button asChild>
+            <Link href={props.primaryCta.href}>{props.primaryCta.label}</Link>
+          </Button>
+        </div>
+      ) : null}
 
       <section className="mt-14">
         <h2 className="text-xl font-semibold text-primary">How it works</h2>

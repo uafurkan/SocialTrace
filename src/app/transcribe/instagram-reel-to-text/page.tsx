@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { ToolLanding } from "@/components/seo/tool-landing";
+import { TranscriberWidget } from "@/components/transcriber/transcriber-widget";
 import { JsonLd, breadcrumbJsonLd, faqJsonLd } from "@/lib/seo/json-ld";
 import { pageMetadata } from "@/lib/seo/metadata";
 
@@ -33,7 +34,7 @@ export default function InstagramReelToTextPage() {
       <ToolLanding
         title={TITLE}
         lead="Paste a public Instagram Reel or video post link and get back a text transcript of the audio."
-        primaryCta={{ href: "/transcribe", label: "Transcribe an Instagram video" }}
+        widget={<TranscriberWidget platformHint="Instagram" autoSubmitFromQueryParam />}
         howItWorks={[
           "Copy a public Instagram Reel or video post's link.",
           "Paste it into the transcriber.",

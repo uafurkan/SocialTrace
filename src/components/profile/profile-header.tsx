@@ -3,12 +3,11 @@ import Link from "next/link";
 
 import type { Profile } from "@/lib/domain/types";
 import { Avatar } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CoverageBadge } from "@/components/profile/coverage-badge";
 import { ExportMenu } from "@/components/profile/export-menu";
+import { ProfileStatRow } from "@/components/profile/profile-stat-row";
 import { TrackButton } from "@/components/profile/track-button";
-import { formatCount } from "@/lib/utils";
 import { copy } from "@/lib/copy";
 
 interface ProfileHeaderProps {
@@ -38,34 +37,21 @@ export function ProfileHeader({ profile, initialTracked, dbAvailable }: ProfileH
           <p className="text-sm font-medium text-secondary">{profile.displayName}</p>
           <p className="mt-2 max-w-md text-sm text-secondary">{profile.bio}</p>
 
-          <dl className="mt-4 flex gap-6 text-sm">
-            <div>
-              <dt className="text-muted">Followers</dt>
-              <dd className="font-semibold text-primary">{formatCount(profile.followerCount)}</dd>
-            </div>
-            <div>
-              <dt className="text-muted">Following</dt>
-              <dd className="font-semibold text-primary">{formatCount(profile.followingCount)}</dd>
-            </div>
-            <div>
-              <dt className="text-muted">Posts</dt>
-              <dd className="font-semibold text-primary">{formatCount(profile.postCount)}</dd>
-            </div>
-          </dl>
+          <ProfileStatRow
+            stats={[
+              { label: "Followers", value: profile.followerCount },
+              { label: "Following", value: profile.followingCount },
+              { label: "Posts", value: profile.postCount },
+            ]}
+          />
 
-          <div className="mt-4">
-            <Badge variant={profile.followerCoverage.status === "available" ? "success" : "warning"}>
-              {copy.profile.dataStatusLabel}:{" "}
-              {profile.followerCoverage.status === "available" ? "Available" : "Partial"}
-            </Badge>
-            <div className="mt-2">
-              <CoverageBadge coverage={profile.followerCoverage} />
-            </div>
+          <div className="mt-4 rounded-card border border-border bg-surface-subtle px-3 py-2">
+            <CoverageBadge coverage={profile.followerCoverage} />
           </div>
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 sm:flex-col sm:flex-nowrap sm:shrink-0">
+      <div className="grid grid-cols-1 gap-2 sm:w-44 sm:shrink-0">
         <TrackButton
           profileId={profile.id}
           username={profile.username}
@@ -73,11 +59,11 @@ export function ProfileHeader({ profile, initialTracked, dbAvailable }: ProfileH
           available={dbAvailable}
         />
         {dbAvailable ? (
-          <Button asChild variant="secondary">
+          <Button asChild variant="secondary" className="w-full">
             <Link href={`/profile/${profile.username}/compare`}>{copy.profile.compareCta}</Link>
           </Button>
         ) : (
-          <Button variant="secondary" disabled title={copy.profile.comingSoon}>
+          <Button variant="secondary" disabled title={copy.profile.comingSoon} className="w-full">
             {copy.profile.compareCta}
           </Button>
         )}

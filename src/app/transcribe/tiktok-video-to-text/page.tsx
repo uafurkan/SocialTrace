@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { ToolLanding } from "@/components/seo/tool-landing";
+import { TranscriberWidget } from "@/components/transcriber/transcriber-widget";
 import { JsonLd, breadcrumbJsonLd, faqJsonLd } from "@/lib/seo/json-ld";
 import { pageMetadata } from "@/lib/seo/metadata";
 
@@ -33,7 +34,7 @@ export default function TiktokVideoToTextPage() {
       <ToolLanding
         title={TITLE}
         lead="Paste any public TikTok video link and get back exactly what's said — as searchable, copyable text."
-        primaryCta={{ href: "/transcribe", label: "Transcribe a TikTok video" }}
+        widget={<TranscriberWidget platformHint="TikTok" autoSubmitFromQueryParam />}
         howItWorks={[
           "Copy a public TikTok video's share link.",
           "Paste it into the transcriber.",

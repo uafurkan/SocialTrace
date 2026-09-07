@@ -1,17 +1,15 @@
 import type { Metadata } from "next";
 
 import { ToolLanding } from "@/components/seo/tool-landing";
+import { TranscriberWidget } from "@/components/transcriber/transcriber-widget";
 import { JsonLd, breadcrumbJsonLd, faqJsonLd } from "@/lib/seo/json-ld";
+import { pageMetadata } from "@/lib/seo/metadata";
 
 const TITLE = "Facebook video to text";
 const DESCRIPTION = "Paste a public Facebook video or Reel link and get a text transcript of the audio.";
 const PATH = "/transcribe/facebook-video-to-text";
 
-export const metadata: Metadata = {
-  title: TITLE,
-  description: DESCRIPTION,
-  alternates: { canonical: PATH },
-};
+export const metadata: Metadata = pageMetadata({ title: TITLE, description: DESCRIPTION, path: PATH });
 
 const FAQ = [
   {
@@ -36,7 +34,7 @@ export default function FacebookVideoToTextPage() {
       <ToolLanding
         title={TITLE}
         lead="Paste a public Facebook video, Watch, or Reel link and get back a text transcript of the audio."
-        primaryCta={{ href: "/transcribe", label: "Transcribe a Facebook video" }}
+        widget={<TranscriberWidget platformHint="Facebook" autoSubmitFromQueryParam />}
         howItWorks={[
           "Copy a public Facebook video's link (facebook.com or fb.watch).",
           "Paste it into the transcriber.",

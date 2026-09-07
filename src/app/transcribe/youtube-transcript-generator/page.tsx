@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { ToolLanding } from "@/components/seo/tool-landing";
+import { TranscriberWidget } from "@/components/transcriber/transcriber-widget";
 import { JsonLd, breadcrumbJsonLd, faqJsonLd } from "@/lib/seo/json-ld";
 import { pageMetadata } from "@/lib/seo/metadata";
 
@@ -34,7 +35,7 @@ export default function YoutubeTranscriptGeneratorPage() {
       <ToolLanding
         title={TITLE}
         lead="Paste any public YouTube video or Shorts link. Existing captions are used when available for an instant result; otherwise the audio is transcribed directly."
-        primaryCta={{ href: "/transcribe", label: "Transcribe a YouTube video" }}
+        widget={<TranscriberWidget platformHint="YouTube" autoSubmitFromQueryParam />}
         howItWorks={[
           "Copy a public YouTube video or Shorts link.",
           "Paste it into the transcriber.",
