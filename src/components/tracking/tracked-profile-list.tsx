@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { TrendingDown, TrendingUp } from "lucide-react";
+import { TrendingDown, TrendingUp, UserPlus } from "lucide-react";
 
 import type { TrackedProfileSummary } from "@/lib/tracking/watchlist";
 import { Avatar } from "@/components/ui/avatar";
@@ -29,10 +29,13 @@ function DeltaLine({ profile }: { profile: TrackedProfileSummary }) {
 export function TrackedProfileList({ profiles }: { profiles: TrackedProfileSummary[] }) {
   if (profiles.length === 0) {
     return (
-      <p className="rounded-card border border-dashed border-border-strong bg-surface-subtle px-6 py-16 text-center text-sm text-muted">
-        You&apos;re not tracking any profiles yet. Visit a profile and click &quot;Track profile&quot; to add it
-        here.
-      </p>
+      <div className="flex flex-col items-center gap-2 rounded-card border border-dashed border-border-strong bg-surface-subtle px-6 py-16 text-center">
+        <UserPlus className="size-5 text-muted" aria-hidden="true" />
+        <p className="text-sm font-medium text-secondary">No tracked profiles yet</p>
+        <p className="max-w-sm text-sm text-muted">
+          Visit a profile and click &quot;Track profile&quot; to add it here.
+        </p>
+      </div>
     );
   }
 

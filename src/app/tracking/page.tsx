@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { BookmarkCheck, Users } from "lucide-react";
 
 import { isDbConfigured } from "@/lib/db";
 import { resolveIdentityReadOnly } from "@/lib/auth/identity";
@@ -37,13 +38,27 @@ export default async function TrackingPage() {
         {!trackingAvailable ? (
           <NotAvailable detail="Tracking requires a configured database, which this deployment does not have (DATABASE_URL is unset)." />
         ) : (
-          <TrackedProfileList profiles={profiles} />
+          <>
+            <div className="mb-3 flex items-center gap-2 text-sm font-medium text-secondary">
+              <Users className="size-4" aria-hidden="true" />
+              {profiles.length} tracked {profiles.length === 1 ? "profile" : "profiles"}
+            </div>
+            <TrackedProfileList profiles={profiles} />
+          </>
         )}
       </div>
 
       {trackingAvailable ? (
         <div className="mt-12">
-          <h2 className="text-lg font-semibold text-primary">Saved searches</h2>
+          <div className="flex items-center gap-2 text-lg font-semibold text-primary">
+            <BookmarkCheck className="size-5 text-muted" aria-hidden="true" />
+            Saved searches
+            {savedSearches.length > 0 ? (
+              <span className="rounded-full bg-surface-subtle px-2 py-0.5 text-xs font-medium text-secondary">
+                {savedSearches.length}
+              </span>
+            ) : null}
+          </div>
           <p className="mt-1 text-sm text-secondary">
             Searches you&apos;ve saved from a profile&apos;s Followers/Following tab. Shows new/removed matching
             accounts between that profile&apos;s two most recent snapshots.

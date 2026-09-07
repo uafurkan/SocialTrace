@@ -2,16 +2,19 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { BadgeCheck, Trash2, User } from "lucide-react";
+import { BadgeCheck, BookmarkPlus, Minus, Plus, Trash2, User } from "lucide-react";
 
 import type { SavedSearchResult } from "@/lib/tracking/saved-searches";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-function MatchChip({ username }: { username: string }) {
+function MatchChip({ username, kind, isVerified }: { username: string; kind: "new" | "removed"; isVerified?: boolean }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-border bg-surface-subtle px-2 py-0.5 text-xs text-secondary">
+    <Badge variant={kind === "new" ? "success" : "danger"}>
+      {kind === "new" ? <Plus className="size-3" aria-hidden="true" /> : <Minus className="size-3" aria-hidden="true" />}
       <User className="size-3" aria-hidden="true" />@{username}
-    </span>
+      {isVerified ? <BadgeCheck className="size-3" aria-hidden="true" /> : null}
+    </Badge>
   );
 }
 
@@ -52,15 +55,10 @@ function SavedSearchRow({ search, onDeleted }: { search: SavedSearchResult; onDe
           ) : (
             <>
               {search.newMatches.map((user) => (
-                <span key={user.id} className="inline-flex items-center gap-1 text-xs text-success">
-                  +<MatchChip username={user.username} />
-                  {user.isVerified ? <BadgeCheck className="size-3" aria-hidden="true" /> : null}
-                </span>
+                <MatchChip key={user.id} username={user.username} kind="new" isVerified={user.isVerified} />
               ))}
               {search.removedMatches.map((user) => (
-                <span key={user.id} className="inline-flex items-center gap-1 text-xs text-danger">
-                  −<MatchChip username={user.username} />
-                </span>
+                <MatchChip key={user.id} username={user.username} kind="removed" />
               ))}
             </>
           )}
@@ -77,9 +75,13 @@ export function SavedSearchList({ searches: initialSearches }: { searches: Saved
 
   if (searches.length === 0) {
     return (
-      <p className="rounded-card border border-dashed border-border-strong bg-surface-subtle px-6 py-10 text-center text-sm text-muted">
-        No saved searches yet. Search a profile&apos;s followers or following, then click &quot;Save search&quot;.
-      </p>
+      <div className="flex flex-col items-center gap-2 rounded-card border border-dashed border-border-strong bg-surface-subtle px-6 py-10 text-center">
+        <BookmarkPlus className="size-5 text-muted" aria-hidden="true" />
+        <p className="text-sm font-medium text-secondary">No saved searches yet</p>
+        <p className="max-w-sm text-sm text-muted">
+          Search a profile&apos;s followers or following, then click &quot;Save search&quot;.
+        </p>
+      </div>
     );
   }
 
