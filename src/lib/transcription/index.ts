@@ -1,5 +1,5 @@
 import { unlink, readFile } from "node:fs/promises";
-import { downloadAudio } from "./downloader";
+import { downloadAudio, fetchFreeVideoPreview } from "./downloader";
 import { tryFallbackActor } from "./fallback-actor";
 import { detectPlatform, normalizeVideoUrl } from "./platform";
 import { transcribeAudio } from "./speech-to-text";
@@ -9,7 +9,7 @@ import { extractYouTubeVideoId, tryYouTubeCaptions } from "./youtube-captions";
 /** Hard cap protecting the ~60s serverless budget and unbounded Apify/Groq spend (docs/TRANSCRIBER.md bad-outcome #6). */
 export const MAX_VIDEO_DURATION_SECONDS = 30 * 60;
 
-export { detectPlatform, normalizeVideoUrl };
+export { detectPlatform, normalizeVideoUrl, fetchFreeVideoPreview };
 export type { TranscriptResult };
 export { TranscriptionError };
 

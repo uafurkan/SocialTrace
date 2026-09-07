@@ -381,6 +381,35 @@ async function downloadWithYtDlp(sourceUrl: string): Promise<DownloadedAudio | n
 }
 
 /**
+ * A cache-hit response (route.ts) has no video to show by default —
+ * `TranscriptResult.videoUrl` is only ever populated on a fresh pipeline
+ * run and is never persisted to `transcript_cache` (see that field's doc
+ * comment in types.ts). That's an honest gap for YouTube, whose only
+ * playable-file sources are paid actors — but for TikTok/Instagram/
+ * Facebook, the free/no-cost embed-page fetchers above are near-instant
+ * (~1s, confirmed live) and don't touch Apify at all, so re-running just
+ * that step to restore the "watch while you read" preview on a cache hit
+ * is effectively free. Never throws — a cache hit must still return its
+ * (already-transcribed) text even if this best-effort preview fails.
+ */
+export async function fetchFreeVideoPreview(sourceUrl: string, platform: TranscriptPlatform): Promise<string | null> {
+  try {
+    switch (platform) {
+      case "tiktok":
+        return (await downloadTikTokFree(sourceUrl))?.videoUrl ?? null;
+      case "instagram":
+        return (await downloadInstagramFree(sourceUrl))?.videoUrl ?? null;
+      case "facebook":
+        return (await downloadFacebookFree(sourceUrl))?.videoUrl ?? null;
+      case "youtube":
+        return null;
+    }
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Returns `null` for a clean "this actor couldn't reach it" result
  * (private/deleted/geo-blocked) — the caller decides whether that's fatal
  * or worth a fallback actor.

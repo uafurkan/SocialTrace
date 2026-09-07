@@ -97,6 +97,7 @@ export const copy = {
     submitCta: "Transcribe",
     stageDownloading: "Fetching the video…",
     stageTranscribing: "Transcribing…",
+    resultHeading: "Transcript",
     copyCta: "Copy text",
     copyTimestampsCta: "Copy with timestamps",
     copiedCta: "Copied",

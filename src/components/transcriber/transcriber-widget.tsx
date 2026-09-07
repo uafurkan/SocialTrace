@@ -131,7 +131,7 @@ function TranscriptBody({
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-end gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
         <Button variant="secondary" size="sm" onClick={() => handleCopy("text")}>
           {copiedKind === "text" ? <Check className="size-4" aria-hidden="true" /> : <Copy className="size-4" aria-hidden="true" />}
           {copiedKind === "text" ? copy.transcriber.copiedCta : copy.transcriber.copyCta}
@@ -301,52 +301,54 @@ export function TranscriberWidget({
       ) : null}
 
       {state.status === "done" ? (
-        <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,320px)_1fr]">
+        <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,320px)_1fr] lg:items-start">
           {state.result.videoUrl ? <VideoPreview videoUrl={state.result.videoUrl} /> : null}
 
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="space-y-4 pt-6">
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-border pb-4">
+                <h2 className="text-sm font-semibold text-primary">{copy.transcriber.resultHeading}</h2>
+                {state.result.language !== "auto" ? (
+                  <span className="rounded-full bg-surface-subtle px-2.5 py-1 text-xs font-medium text-secondary">
+                    {state.result.language}
+                  </span>
+                ) : null}
+              </div>
+
               {state.result.text ? (
-                <div className="mb-4 flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-end sm:justify-between">
-                  <div>
-                    <p className="text-sm text-muted">
-                      {state.result.language !== "auto" ? `Language: ${state.result.language}` : null}
-                    </p>
-                    <div className="mt-2 flex flex-col gap-1 sm:max-w-xs">
-                      <label htmlFor="translate-target" className="text-xs font-medium text-secondary">
-                        {copy.transcriber.translateLabel}
-                      </label>
-                      <div className="flex gap-2">
-                        <select
-                          id="translate-target"
-                          value={translateTarget}
-                          onChange={(e) => setTranslateTarget(e.target.value)}
-                          className="h-10 rounded-button border border-border bg-surface px-3 text-sm text-primary focus-visible:border-brand"
-                        >
-                          {TRANSLATION_TARGET_LANGUAGES.map((l) => (
-                            <option key={l.code} value={l.code}>
-                              {l.label}
-                            </option>
-                          ))}
-                        </select>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          loading={translation.status === "loading"}
-                          disabled={translation.status === "loading"}
-                          onClick={handleTranslate}
-                        >
-                          {translation.status === "loading" ? copy.transcriber.translatingCta : copy.transcriber.translateCta}
-                        </Button>
-                      </div>
-                      {translation.status === "error" ? (
-                        <p className="text-xs text-danger" role="alert">
-                          {translation.message}
-                        </p>
-                      ) : null}
-                    </div>
+                <div className="flex flex-col gap-1 sm:max-w-xs">
+                  <label htmlFor="translate-target" className="text-xs font-medium text-secondary">
+                    {copy.transcriber.translateLabel}
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    <select
+                      id="translate-target"
+                      value={translateTarget}
+                      onChange={(e) => setTranslateTarget(e.target.value)}
+                      className="h-10 min-w-0 flex-1 rounded-button border border-border bg-surface px-3 text-sm text-primary focus-visible:border-brand"
+                    >
+                      {TRANSLATION_TARGET_LANGUAGES.map((l) => (
+                        <option key={l.code} value={l.code}>
+                          {l.label}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      loading={translation.status === "loading"}
+                      disabled={translation.status === "loading"}
+                      onClick={handleTranslate}
+                    >
+                      {translation.status === "loading" ? copy.transcriber.translatingCta : copy.transcriber.translateCta}
+                    </Button>
                   </div>
+                  {translation.status === "error" ? (
+                    <p className="text-xs text-danger" role="alert">
+                      {translation.message}
+                    </p>
+                  ) : null}
                 </div>
               ) : null}
 

@@ -5,7 +5,14 @@ import { resolveIdentity } from "@/lib/auth/identity";
 import { PlanLimitError } from "@/lib/billing/plans";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
 import { clientIdentifierFor, rateLimit } from "@/lib/rate-limit";
-import { detectPlatform, normalizeVideoUrl, transcribe, TranscriptionError, type TranscriptResult } from "@/lib/transcription";
+import {
+  detectPlatform,
+  fetchFreeVideoPreview,
+  normalizeVideoUrl,
+  transcribe,
+  TranscriptionError,
+  type TranscriptResult,
+} from "@/lib/transcription";
 import { assertTranscriptionAllowed, recordUsage } from "@/lib/transcription/quota";
 import { VISITOR_COOKIE, VISITOR_COOKIE_OPTIONS } from "@/lib/tracking/visitor-cookie";
 
@@ -113,6 +120,12 @@ export async function POST(request: NextRequest) {
 
   if (existing?.status === "done") {
     await recordUsage(identity.scopeId, cacheKey, false);
+    // A cache hit has no stored video (short-lived CDN URLs aren't
+    // persisted — see TranscriptResult.videoUrl's doc comment). Best-effort
+    // re-fetch a fresh, free preview link (TikTok/Instagram/Facebook's
+    // no-cost embed-page fetchers, ~1s) rather than silently dropping the
+    // "watch while you read" player just because this run was cached.
+    const freshVideoUrl = await fetchFreeVideoPreview(url, platform).catch(() => null);
     const response = NextResponse.json({
       cached: true,
       result: {
@@ -121,7 +134,7 @@ export async function POST(request: NextRequest) {
         language: existing.language ?? "auto",
         durationSeconds: existing.durationSeconds ?? 0,
         platform: existing.platform,
-        videoUrl: null,
+        videoUrl: toProxiedVideoUrl(freshVideoUrl),
       },
     });
     if (identity.visitorCookieToIssue) response.cookies.set(VISITOR_COOKIE, identity.visitorCookieToIssue, VISITOR_COOKIE_OPTIONS);
@@ -152,7 +165,11 @@ export async function POST(request: NextRequest) {
             return;
           }
           await recordUsage(identity.scopeId, cacheKey, false);
-          writeEvent(controller, { stage: "done", result: toPayload(result) });
+          // Same as the immediate-cache-hit branch above: this request
+          // rode along on someone else's pipeline run and gets no stored
+          // video either — best-effort refetch a free preview link.
+          const freshVideoUrl = await fetchFreeVideoPreview(url, platform).catch(() => null);
+          writeEvent(controller, { stage: "done", result: { ...toPayload(result), videoUrl: toProxiedVideoUrl(freshVideoUrl) } });
           controller.close();
           return;
         }
