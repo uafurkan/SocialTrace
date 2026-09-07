@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Copy, Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -201,19 +202,32 @@ export function TranscriberWidget({
     void runTranscription(url);
   }
 
+  const searchParams = useSearchParams();
+  const urlParam = searchParams.get("url");
+  const lastHandledUrlParam = useRef<string | null>(null);
+
   useEffect(() => {
-    if (!autoSubmitFromQueryParam) return;
-    const fromQuery = new URLSearchParams(window.location.search).get("url");
-    if (!fromQuery) return;
-    // Mirrors the URL query param into the input once, on mount, so the
-    // user sees what they pasted on the homepage — not a state/prop sync
-    // this rule is meant to guard against.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setUrl(fromQuery);
-    void runTranscription(fromQuery);
-    // Only ever runs once, on mount — not a dependency-driven re-fetch.
+    if (!autoSubmitFromQueryParam || !urlParam) return;
+    // Next.js reuses this component across a same-route navigation (e.g.
+    // the mobile header's video-paste box submitting a second link while
+    // already on /transcribe) — it doesn't remount, so a mount-only effect
+    // would only ever catch the first link. Keying off the query param's
+    // value itself (via the ref, since re-running on every render would
+    // just re-submit the same value forever) makes every distinct `?url=`
+    // trigger a run, whether it arrived on first load or a later push.
+    if (lastHandledUrlParam.current === urlParam) return;
+    lastHandledUrlParam.current = urlParam;
+    // Mirrors the URL query param into the input so the user sees what
+    // they pasted — not a state/prop sync this rule is meant to guard
+    // against, since the source of truth here is the URL, not a prop.
+    setUrl(urlParam);
+    void runTranscription(urlParam);
+    // runTranscription is stable enough in practice here (recreated each
+    // render, but only ever called through this guarded branch) — adding
+    // it would re-run this effect on every state change runTranscription
+    // closes over, defeating the ref guard above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [autoSubmitFromQueryParam, urlParam]);
 
   async function handleTranslate() {
     if (state.status !== "done") return;

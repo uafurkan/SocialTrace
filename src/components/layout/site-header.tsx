@@ -5,7 +5,7 @@ import { Logo } from "@/components/layout/logo";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { TrackNavBadge } from "@/components/layout/track-nav-badge";
-import { ProfileSearchForm } from "@/components/home/profile-search-form";
+import { HeaderSearch } from "@/components/layout/header-search";
 
 export function SiteHeader() {
   return (
@@ -45,7 +45,7 @@ export function SiteHeader() {
         </div>
 
         <div className="pb-3 md:hidden">
-          <ProfileSearchForm size="compact" />
+          <HeaderSearch />
         </div>
       </div>
     </header>
