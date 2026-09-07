@@ -57,7 +57,7 @@ export function BrandMark() {
   if (!alternates) {
     return (
       <Link href="/" className={LINK_CLASS}>
-        <Logo className="h-6 w-6" variant={identity} />
+        <Logo className="h-8 w-8" variant={identity} />
         <span className="tracking-tight">
           {copy.brand.namePrefix.toUpperCase()}
           {(identity === "scribe"
@@ -71,7 +71,7 @@ export function BrandMark() {
 
   return (
     <Link href="/" className={LINK_CLASS} aria-label={copy.brand.name}>
-      <Logo className="h-6 w-6" morph variant={scribe ? "scribe" : "trace"} />
+      <Logo className="h-8 w-8" morph variant={scribe ? "scribe" : "trace"} />
       {/* aria-hidden because both suffixes are in the DOM at all times
        * (that's what lets them cross-fade) and would otherwise be read as
        * "SOCIALTRACESCRIBE"; the link's aria-label carries the real name. */}
