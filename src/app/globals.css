@@ -305,9 +305,16 @@
  * a translucent, blurred track with a single glass indicator that slides
  * (rather than each button getting its own background) so the material
  * itself reads as one physical object moving, not two toggling states.
- * The indicator is sized to exactly half the track (inset 4px 50% 4px 4px)
- * so translateX(100%) — 100% of its own width — lands flush on the other
- * half with no gap or overlap, as long as both segments stay equal width.
+ *
+ * The indicator is positioned by its `left`/`right` edges (not a fixed
+ * width + transform), and those two edges transition on independent
+ * delays — set inline per-render as --edge-delay-left/-right, computed
+ * from the direction of travel. The leading edge (the one in the
+ * direction of motion) moves immediately; the trailing edge waits ~90ms.
+ * That's what makes it read as a liquid blob stretching toward its
+ * destination and then catching up, rather than a rigid pill sliding —
+ * the actual "iOS liquid glass" drag feel, not just a cross-fade position
+ * change. Direction-agnostic (delay 0 on both edges) on first mount.
  */
 .liquid-glass-track {
   position: relative;
@@ -328,7 +335,8 @@
 
 .liquid-glass-indicator {
   position: absolute;
-  inset: 4px 50% 4px 4px;
+  top: 4px;
+  bottom: 4px;
   border-radius: 9999px;
   background: linear-gradient(
     180deg,
@@ -342,8 +350,10 @@
     0 6px 16px rgba(16, 24, 40, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.95),
     inset 0 -1px 1px rgba(16, 24, 40, 0.04);
-  transition: transform 480ms cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: transform;
+  transition:
+    left 460ms cubic-bezier(0.22, 1, 0.36, 1) var(--edge-delay-left, 0ms),
+    right 460ms cubic-bezier(0.22, 1, 0.36, 1) var(--edge-delay-right, 0ms);
+  will-change: left, right;
 }
 
 .liquid-glass-track button:active {
@@ -378,9 +388,7 @@
 .liquid-glass-indicator-sm {
   position: absolute;
   top: 4px;
-  left: 4px;
   bottom: 4px;
-  width: calc((100% - 8px) / 3);
   border-radius: 9999px;
   background: linear-gradient(
     180deg,
@@ -393,8 +401,10 @@
     0 1px 2px rgba(16, 24, 40, 0.06),
     0 3px 8px rgba(16, 24, 40, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: transform;
+  transition:
+    left 400ms cubic-bezier(0.22, 1, 0.36, 1) var(--edge-delay-left, 0ms),
+    right 400ms cubic-bezier(0.22, 1, 0.36, 1) var(--edge-delay-right, 0ms);
+  will-change: left, right;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -431,5 +441,15 @@
   .brand-word-face[data-active="false"] {
     transform: none;
     visibility: hidden;
+  }
+
+  /* The global rule above only collapses transition-duration, not the
+   * per-edge --edge-delay-left/-right custom properties the liquid-glass
+   * indicators use for their stretch effect — without this, a reduced-
+   * motion visitor would still see a (near-instant but real) staggered
+   * left/right snap instead of one clean instant move. */
+  .liquid-glass-indicator,
+  .liquid-glass-indicator-sm {
+    transition: none;
   }
 }

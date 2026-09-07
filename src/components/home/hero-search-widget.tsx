@@ -18,6 +18,33 @@ import { cn } from "@/lib/utils";
 
 const usernameSchema = z.string().min(1, "Enter a username or profile link");
 
+/**
+ * Positions a liquid-glass indicator by its left/right edges (instead of
+ * a fixed width + translateX) and gives each edge its own transition
+ * delay based on travel direction — the leading edge moves immediately,
+ * the trailing edge waits `edgeDelayMs`, so the pill visibly stretches
+ * toward its destination before catching up and settling. That stagger
+ * is what reads as a liquid drag rather than a rigid slide.
+ */
+function useLiquidGlassEdgeStyle(index: number, count: number, edgeDelayMs = 90): React.CSSProperties {
+  // The "adjust state during render" pattern (not an effect): comparing
+  // against last render's committed index, with no ref read during
+  // render, is what tells us which way the indicator is travelling.
+  const [prevIndex, setPrevIndex] = useState(index);
+  const [direction, setDirection] = useState(0);
+  if (index !== prevIndex) {
+    setDirection(index > prevIndex ? 1 : -1);
+    setPrevIndex(index);
+  }
+
+  return {
+    left: `calc(4px + (100% - 8px) * ${index} / ${count})`,
+    right: `calc(4px + (100% - 8px) * ${count - 1 - index} / ${count})`,
+    "--edge-delay-left": direction === 1 ? `${edgeDelayMs}ms` : "0ms",
+    "--edge-delay-right": direction === -1 ? `${edgeDelayMs}ms` : "0ms",
+  } as React.CSSProperties;
+}
+
 type Mode = "profile" | "transcribe";
 
 const MODES: { id: Mode; label: string; icon: typeof Search }[] = [
@@ -45,6 +72,9 @@ export function HeroSearchWidget() {
 
   const activePlatform = SOCIAL_PLATFORMS.find((p) => p.id === platform)!;
   const activePlatformIndex = SOCIAL_PLATFORMS.findIndex((p) => p.id === platform);
+  const modeIndex = MODES.findIndex((m) => m.id === mode);
+  const modeEdgeStyle = useLiquidGlassEdgeStyle(modeIndex, MODES.length);
+  const platformEdgeStyle = useLiquidGlassEdgeStyle(activePlatformIndex, SOCIAL_PLATFORMS.length);
   const { history: usernameHistory, addToHistory: addUsernameToHistory, listId: usernameHistoryListId } = useInputHistory(
     `hero-username-${platform}`,
   );
@@ -84,11 +114,7 @@ export function HeroSearchWidget() {
       {pending ? <AdGateOverlay onContinue={continueNavigation} /> : null}
 
       <div className="liquid-glass-track relative inline-grid grid-cols-2 rounded-full p-1">
-        <span
-          aria-hidden="true"
-          className="liquid-glass-indicator"
-          style={{ transform: mode === MODES[1].id ? "translateX(100%)" : "translateX(0%)" }}
-        />
+        <span aria-hidden="true" className="liquid-glass-indicator" style={modeEdgeStyle} />
         {MODES.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
@@ -110,11 +136,7 @@ export function HeroSearchWidget() {
         {mode === "profile" ? (
           <form onSubmit={handleProfileSubmit}>
             <div className="liquid-glass-track-sm mb-2 grid grid-cols-3 rounded-full p-1">
-              <span
-                aria-hidden="true"
-                className="liquid-glass-indicator-sm"
-                style={{ transform: `translateX(${activePlatformIndex * 100}%)` }}
-              />
+              <span aria-hidden="true" className="liquid-glass-indicator-sm" style={platformEdgeStyle} />
               {SOCIAL_PLATFORMS.map((p) => (
                 <button
                   key={p.id}
