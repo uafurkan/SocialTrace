@@ -64,14 +64,32 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: `upstream returned ${upstream.status}` }, { status: 502 });
   }
 
+  // Buffered, not streamed: piping `upstream.body` straight through as the
+  // response body (the first version of this route) passed every
+  // server-side check — curl and Node's own `fetch` both got byte-identical,
+  // ffmpeg-verified-valid MP4s from the exact same upstream URL — yet a
+  // real `<video>` element loading through that live pass-through still hit
+  // `DEMUXER_ERROR_NO_SUPPORTED_STREAMS`, yet decoded fine once the same
+  // bytes were fully captured to a file first. The one thing every failing
+  // case shared was live-relaying the stream while the browser consumed it
+  // incrementally; fully buffering here before responding — the same thing
+  // that made every other reproduction succeed — sidesteps whatever in that
+  // live relay path (most likely specific to this sandbox's outbound TLS
+  // interception proxy) was corrupting the in-flight stream.
+  let body: ArrayBuffer;
+  try {
+    body = await upstream.arrayBuffer();
+  } catch {
+    return NextResponse.json({ error: "upstream body read failed" }, { status: 502 });
+  }
+
   const headers = new Headers();
   headers.set("Content-Type", upstream.headers.get("content-type") ?? "video/mp4");
   headers.set("Accept-Ranges", upstream.headers.get("accept-ranges") ?? "bytes");
   headers.set("Cache-Control", "private, max-age=3600");
-  const contentLength = upstream.headers.get("content-length");
-  if (contentLength) headers.set("Content-Length", contentLength);
+  headers.set("Content-Length", String(body.byteLength));
   const contentRange = upstream.headers.get("content-range");
   if (contentRange) headers.set("Content-Range", contentRange);
 
-  return new NextResponse(upstream.body, { status: upstream.status, headers });
+  return new NextResponse(body, { status: upstream.status, headers });
 }
