@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AdSlot } from "@/components/ads/ad-slot";
 
 export interface ToolLandingProps {
   title: string;
@@ -55,6 +56,8 @@ export function ToolLanding(props: ToolLandingProps) {
         </div>
       </section>
 
+      <AdSlot placementId={105} className="mt-14" />
+
       <section className="mt-14">
         <h2 className="text-xl font-semibold text-primary">Limitations</h2>
         <ul className="mt-4 list-disc space-y-2 pl-6 text-secondary">
@@ -82,6 +85,8 @@ export function ToolLanding(props: ToolLandingProps) {
           ))}
         </dl>
       </section>
+
+      <AdSlot placementId={106} className="mt-14" />
 
       <section className="mt-14">
         <h2 className="text-xl font-semibold text-primary">Related tools</h2>

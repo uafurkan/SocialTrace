@@ -22,20 +22,62 @@ terms prohibit exactly that.
   `the.gatekeeperconsent.com`), the `ezstandalone` init snippet, the
   standalone ad script (`sa.min.js`), then `ezoicanalytics.com/analytics.js`.
 - **`src/components/ads/ad-slot.tsx`** (`<AdSlot placementId={N} />`) —
-  one in-content placeholder. Renders the `ezoic-pub-ad-placeholder-{N}`
-  div Ezoic's script looks for and pushes the `showAds(N)` call. Each
-  `placementId` must match the number you assign to that position in the
-  Ezoic dashboard's Ad Tester when you place it there.
-- **Three static placements**, in normal document flow (no
-  sticky/anchor), reserved `min-height` so the ad loading in doesn't shift
-  surrounding content, and a small "Advertisement" label above each so
-  it's never mistaken for real content:
+  one placeholder. Renders the `ezoic-pub-ad-placeholder-{N}` div Ezoic's
+  script looks for and pushes the `showAds(N)` call. Each `placementId`
+  must match the number you assign to that position in the Ezoic
+  dashboard's Ad Tester when you place it there. Takes an optional
+  `compact` prop for a flush, 50px-min-height strip with no card chrome or
+  "Advertisement" label spacing — used only by the mobile anchor bar below,
+  where the full in-content treatment would be too tall for a fixed strip.
+- **In-flow placements** across every real content page on the site, each
+  reserved `min-height` so the ad loading in doesn't shift surrounding
+  content, and a small "Advertisement" label above each so it's never
+  mistaken for real content:
   - Home page, search area (`100`) — directly below the search form and
     its helper text, not overlapping the input or submit button.
   - Tools index (`102`) — below the full tool grid.
   - Profile page, results area (`103`) — below every tab's content, at
-    the very bottom of the profile layout, so it never interrupts a
+    the very bottom of the profile layout (all three platforms — Instagram,
+    TikTok, Facebook — share this placement id), so it never interrupts a
     follower list or post grid mid-scroll.
+  - Tool landing pages and the transcriber hub/platform pages (`105`
+    mid-page, between the tool itself and Limitations; `106` near the
+    bottom, between FAQ and Related tools) — these are the site's highest
+    organic-search-intent pages (anonymous viewers, follower tools, each
+    `/transcribe/*` page), so they get two well-spaced slots instead of
+    one: research on AdSense/Ezoic placement consistently finds ads
+    embedded within content outperform a single end-of-page unit, without
+    the density that trips "too many ads" quality signals.
+  - Help index (`107`, bottom), help articles (`108`, mid-article — split
+    at the article's paragraph midpoint, but only once there are at least
+    four paragraphs so the ad never sits one sentence into a short
+    article), FAQ (`109`, mid-list, splitting the questions into two `<dl>`
+    blocks), changelog (`110`, bottom), data methodology (`111`, bottom) —
+    long-form/reference content pages that a search visitor actually reads
+    rather than bounces off, which is exactly where in-content placement
+    pays off most.
+  - Deliberately **not** placed on `/login`, `/signup`, `/account`,
+    `/pricing`, `/privacy`, `/terms`, or `/tracking` — a conversion,
+    auth, legal, or personal-dashboard page is the wrong place for an ad
+    both by UX judgment and by each network's own guidance to keep ads
+    off checkout/account flows.
+- **A mobile-only sticky anchor bar** (`src/components/ads/anchor-ad-slot.tsx`,
+  placement `101`) fixed to the bottom of the viewport on every page,
+  `sm:hidden` (desktop has no anchor bar — the format exists specifically
+  because mobile has no sidebar to hold a persistent unit in). Both
+  networks document this as one of the single highest-RPM formats they
+  offer, since it stays in view through the whole scroll instead of being
+  seen once and scrolled past. Built as its own component rather than a
+  network auto-anchor toggle so it can guarantee what both networks'
+  policies require for this format: a real, always-visible close button
+  (never covering it with the ad itself), and a slim fixed height (`AdSlot`'s
+  new `compact` prop — a 50px strip with no card chrome) so it never
+  swallows a meaningful fraction of a phone screen. Dismissal is
+  `sessionStorage`-scoped: closing it once hides it for the rest of that
+  tab's session without needing to ask again, but a fresh visit later
+  still gets the chance to show it once. `z-40`, below every modal in the
+  app (`z-50`), so it never sits on top of the ad-gate, the story/highlight
+  lightboxes, or the post-engagement modal.
 - **A click-to-continue ad gate** (`src/components/ads/ad-gate.tsx`,
   placement `104`) between submitting a search and landing on the profile
   result — a real modal with an ad slot and a "Continue" button that only
@@ -60,6 +102,32 @@ terms prohibit exactly that.
   ad-server domains — the same situation `img-src`'s `https:` allowance
   already handles for the real provider's avatar CDN.
 
+### Why these positions (research notes)
+
+Placement choices above follow the same two, consistently-repeated
+findings across Google's own AdSense guidance and Ezoic's publisher
+literature (see sources below):
+
+1. **In-content beats end-of-page.** An ad embedded inside real content —
+   between paragraphs, between sections — gets more genuine viewable
+   impressions than one unit stacked at the very bottom, because most
+   visitors on a long page never scroll that far. That's why every
+   long-form page here (help articles, tool landing pages, FAQ) gets a
+   mid-content slot, not just a bottom one.
+2. **Anchor units are a top-RPM format precisely because of dwell time.**
+   A fixed bottom bar earns for the visitor's entire time on the page,
+   not just the moment they scroll past a fixed slot — both networks
+   name it as one of the highest-earning single placements they offer.
+   The tradeoff (permanent screen real estate) is why it's mobile-only,
+   slim, and dismissible here rather than sitewide and undismissable.
+
+Sources: [Google AdSense — Best practices for ad
+placement](https://support.google.com/adsense/answer/1282097),
+[AdSense start guide — best
+practices](https://adsense.google.com/start/resources/best-practices-for-google-adsense/),
+[Ezoic — Q4 website optimization
+strategies](https://www.ezoic.com/blog/q4-website-optimization-strategies-how-publishers-can-maximize-revenue-in-peak-season).
+
 ## Google AdSense (parallel path)
 
 - **`src/components/ads/adsense-loader.tsx`** — loads
@@ -72,9 +140,9 @@ terms prohibit exactly that.
   `NEXT_PUBLIC_ADSENSE_ENABLED=true`, the same `<AdSlot placementId={N}>`
   calls used for Ezoic render a real `<ins class="adsbygoogle">` unit
   instead, using whichever `NEXT_PUBLIC_ADSENSE_SLOT_<N>` env var matches
-  that placement id (100 home, 102 tools, 103 profile, 104 ad-gate) — a
-  placement with no slot id configured just stays empty, same
-  fail-closed pattern as everything else here.
+  that placement id (see the full list in `.env.example`) — a placement
+  with no slot id configured just stays empty, same fail-closed pattern as
+  everything else here.
 - **`src/app/ads.txt/route.ts`** — when `EZOIC_ADS_TXT_URL` isn't set, this
   now serves AdSense's authorized-sellers line directly
   (`google.com, pub-<id>, DIRECT, f08c47fec0942fa0`, Google's own
@@ -105,11 +173,12 @@ Two things this codebase cannot do for you, both one-time account setup:
    ezoic.com (note: Ezoic requires 250,000 active users/month for regular
    approval — a new site needs their Incubator Program or an alternate ad
    network until it clears that threshold), add this domain, go through
-   their Ad Tester placement flow, and it'll tell you which number to
-   give each `<AdSlot placementId={N}>` above (the `100`/`102`/`103`/`104`
-   here are placeholders — replace them to match what Ezoic assigns once
-   you've placed them in their tool). Also set `EZOIC_ADS_TXT_URL` to the
-   exact redirect URL their "Ads.txt Setup" step gives you.
+   their Ad Tester placement flow, and it'll tell you which number to give
+   each `<AdSlot placementId={N}>` above (every id listed in `.env.example`
+   — `100`–`111` — is a placeholder; replace each with what Ezoic assigns
+   once you've placed that position in their tool). Also set
+   `EZOIC_ADS_TXT_URL` to the exact redirect URL their "Ads.txt Setup" step
+   gives you.
 2. **Content-category exclusion (+18 / adult, gambling).** This is a
    publisher-level setting in Ezoic's own dashboard — Settings → Privacy
    & Compliance (or Monetization → Ad Tester → "Blocked Categories",
@@ -127,10 +196,13 @@ Two things this codebase cannot do for you, both one-time account setup:
 ## Verification once you have a real Ezoic account
 
 - Set `NEXT_PUBLIC_EZOIC_ENABLED=true`, paste the real `EZOIC_ADS_TXT`
-  content, and update the three `placementId`s to Ezoic's assigned
-  numbers.
+  content, and update every `placementId` to Ezoic's assigned numbers.
 - Confirm `/ads.txt` serves the real content (not a 404).
-- Load the home, tools, and a profile page and confirm the Ezoic script
+- Load the home page, a tool landing page, a help article, the FAQ page,
+  and a profile page on both desktop and mobile; confirm the Ezoic script
   fires with no CSP violations in the browser console (the standard
-  pattern this project already uses to verify anything CSP-adjacent —
-  see the CSP nonce incident in `docs/DECISIONS.md`).
+  pattern this project already uses to verify anything CSP-adjacent — see
+  the CSP nonce incident in `docs/DECISIONS.md`), and confirm the mobile
+  anchor bar appears above the fold-free zone at the bottom of the screen,
+  never covering the header/footer nav or a tap target, and that its close
+  button actually dismisses it for the rest of that tab's session.

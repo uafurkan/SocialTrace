@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { JsonLd, articleJsonLd, breadcrumbJsonLd } from "@/lib/seo/json-ld";
 import { pageMetadata } from "@/lib/seo/metadata";
+import { AdSlot } from "@/components/ads/ad-slot";
 
 const TITLE = "Data methodology";
 const DESCRIPTION =
@@ -98,6 +99,8 @@ export default function DataMethodologyPage() {
           .
         </p>
       </section>
+
+      <AdSlot placementId={111} className="mt-14" />
     </div>
   );
 }

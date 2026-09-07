@@ -4,6 +4,7 @@ import Link from "next/link";
 import { JsonLd, breadcrumbJsonLd, faqJsonLd } from "@/lib/seo/json-ld";
 import { pageMetadata } from "@/lib/seo/metadata";
 import { TranscriberWidget } from "@/components/transcriber/transcriber-widget";
+import { AdSlot } from "@/components/ads/ad-slot";
 import { copy } from "@/lib/copy";
 
 const PATH = "/transcribe";
@@ -52,6 +53,8 @@ export default function TranscribePage() {
           </ol>
         </section>
 
+        <AdSlot placementId={105} className="mt-14" />
+
         <section className="mt-14">
           <h2 className="text-xl font-semibold text-primary">Limitations</h2>
           <ul className="mt-4 list-disc space-y-2 pl-6 text-secondary">
@@ -72,6 +75,8 @@ export default function TranscribePage() {
             ))}
           </dl>
         </section>
+
+        <AdSlot placementId={106} className="mt-14" />
 
         <section className="mt-14">
           <h2 className="text-xl font-semibold text-primary">By platform</h2>

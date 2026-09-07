@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { JsonLd, breadcrumbJsonLd } from "@/lib/seo/json-ld";
 import { pageMetadata } from "@/lib/seo/metadata";
 import { CHANGELOG_ENTRIES } from "@/lib/seo/changelog-entries";
+import { AdSlot } from "@/components/ads/ad-slot";
 
 const TITLE = "Changelog";
 const DESCRIPTION =
@@ -40,6 +41,8 @@ export default function ChangelogPage() {
           </li>
         ))}
       </ol>
+
+      <AdSlot placementId={110} className="mt-4" />
     </div>
   );
 }

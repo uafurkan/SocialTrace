@@ -7,6 +7,7 @@ import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { EzoicLoader } from "@/components/ads/ezoic-loader";
 import { AdsenseLoader } from "@/components/ads/adsense-loader";
+import { AnchorAdSlot } from "@/components/ads/anchor-ad-slot";
 import { copy } from "@/lib/copy";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -70,6 +71,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <SiteHeader />
         <main className="flex-1">{children}</main>
         <SiteFooter />
+        <AnchorAdSlot />
       </body>
     </html>
   );

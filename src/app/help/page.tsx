@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { JsonLd, breadcrumbJsonLd } from "@/lib/seo/json-ld";
 import { pageMetadata } from "@/lib/seo/metadata";
 import { helpArticlesBySection } from "@/lib/seo/help-articles";
+import { AdSlot } from "@/components/ads/ad-slot";
 
 const TITLE = "Help center";
 const DESCRIPTION =
@@ -51,6 +52,8 @@ export default function HelpIndexPage() {
           </section>
         ))}
       </div>
+
+      <AdSlot placementId={107} className="mt-14" />
 
       <div className="mt-14 rounded-lg border border-border bg-surface p-6">
         <h2 className="text-lg font-semibold text-primary">Methodology</h2>

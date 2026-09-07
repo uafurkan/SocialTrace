@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { JsonLd, articleJsonLd, breadcrumbJsonLd } from "@/lib/seo/json-ld";
 import { pageMetadata } from "@/lib/seo/metadata";
 import { HELP_ARTICLES, getHelpArticle } from "@/lib/seo/help-articles";
+import { AdSlot } from "@/components/ads/ad-slot";
 
 interface Params {
   params: Promise<{ slug: string }>;
@@ -32,6 +33,11 @@ export default async function HelpArticlePage(props: Params) {
 
   const path = `/help/${article.slug}`;
   const paragraphs = article.body.split("\n\n").filter(Boolean);
+  // In-content mid-article placement outperforms a bottom-only slot for
+  // long-form reading (see docs/ADS.md), but only once there's enough real
+  // content above and below it to not feel like the ad interrupts the
+  // article's second sentence — four paragraphs is the floor for that.
+  const splitAt = paragraphs.length >= 4 ? Math.ceil(paragraphs.length / 2) : paragraphs.length;
 
   return (
     <article className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
@@ -59,10 +65,23 @@ export default async function HelpArticlePage(props: Params) {
       <p className="mt-3 text-secondary">{article.description}</p>
 
       <div className="mt-8 space-y-5 text-secondary leading-relaxed">
-        {paragraphs.map((paragraph, index) => (
+        {paragraphs.slice(0, splitAt).map((paragraph, index) => (
           <p key={index}>{paragraph}</p>
         ))}
       </div>
+
+      {splitAt < paragraphs.length ? (
+        <>
+          <AdSlot placementId={108} className="mt-8" />
+          <div className="mt-8 space-y-5 text-secondary leading-relaxed">
+            {paragraphs.slice(splitAt).map((paragraph, index) => (
+              <p key={splitAt + index}>{paragraph}</p>
+            ))}
+          </div>
+        </>
+      ) : (
+        <AdSlot placementId={108} className="mt-8" />
+      )}
 
       <div className="mt-12 flex items-center justify-between border-t border-border pt-6 text-sm">
         <Link className="text-brand hover:underline" href="/help">
