@@ -60,3 +60,49 @@ enforced globally in `globals.css` as a defense-in-depth media query.
 through two nodes, per spec §9.3's concept) sized for the 24-32px navbar
 context. The full asset set from spec §9.4 (favicon variants, OG image,
 monochrome version) is not produced in this build.
+
+### Two identities, one lens
+
+The site is two products under one roof — Instagram analytics and the
+video transcriber — so the mark says which one you are currently standing
+in. `src/components/layout/brand-mark.tsx` picks the identity from the
+pathname (the header is the only thing that needs to know, so no route's
+layout has to thread a prop down):
+
+| Where | Glyph | Wordmark |
+| --- | --- | --- |
+| `/transcribe`, `/transcribe/*` | **Scribe** — a voice waveform resolving into two transcript lines | `SOCIAL`**`SCRIBE`** |
+| `/` (home) | both, alternating every 5s | alternating |
+| everything else | **Trace** — the original lens-and-trend mark | `SOCIAL`**`TRACE`** |
+
+Home alternates because it is the one page that belongs to neither
+product. Everywhere else the mark is static: someone reading
+`/profile/nike` never has the wordmark change out from under them.
+
+Three things make the alternation read as one brand rather than two logos
+flickering, and are worth preserving if this is ever redesigned:
+
+- **The lens ring is shared.** It is drawn once, outside either glyph, and
+  never re-animates. What the eye sees is the *contents* of a fixed lens
+  changing — not one logo replaced by another.
+- **Only the suffix moves.** `SOCIAL` is a static prefix; `TRACE`/`SCRIBE`
+  are two stacked faces sized by an invisible copy of the longer word, so
+  the swap is pixel-stable (verified: the mobile header's centred mark
+  holds the same centre and width in both states).
+- **Both faces travel the same direction.** `TRACE` parks above and
+  `SCRIBE` below, so each swap rolls the pair up or back down like a
+  counter. Give them a shared "inactive" offset instead and they cross
+  through each other in opposite directions, which is the janky version.
+
+Both glyphs draw themselves on once and resolve to a static resting state,
+and both answer a hover in their own vocabulary (the trace line re-traces;
+the waveform "listens" and the transcript lines re-write). Under
+`prefers-reduced-motion: reduce` the cycle never starts at all — the home
+page just keeps the Trace identity — which is a stronger guarantee than
+the global duration-collapsing rule, and the right call for a mark that
+would otherwise animate indefinitely.
+
+The glyph cross-fade and the wordmark roll are CSS *transitions*, not
+keyframe animations, on purpose: a transition re-runs every time the
+property changes, whereas an animation bound to a class only plays on
+mount and would need a remount hack to replay.

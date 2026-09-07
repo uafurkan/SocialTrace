@@ -128,6 +128,177 @@
   }
 }
 
+/*
+ * Home-page identity morph (src/components/layout/brand-mark.tsx). The lens
+ * ring is shared and untouched by all of this — only what's inside it swaps,
+ * so the mark never blinks out of existence, it just looks at something else.
+ *
+ * Transitions rather than keyframes on purpose: a transition re-runs every
+ * time the property changes, whereas a keyframe animation bound to a class
+ * would only ever play on mount and would need a remount hack to replay.
+ */
+.logo-glyph {
+  transform-box: view-box;
+  transform-origin: 16px 16px;
+  transition:
+    opacity 420ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 520ms cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+.logo-glyph[data-active="false"] {
+  opacity: 0;
+  transform: scale(0.55) rotate(-12deg);
+  /* Nothing to hit-test or read once it's faded out. */
+  pointer-events: none;
+}
+
+.logo-glyph[data-active="true"] {
+  opacity: 1;
+  transform: none;
+}
+
+/*
+ * Scribe glyph's own draw-on, mirroring the trace glyph's grammar: the
+ * waveform rises bar by bar (sound arriving), then the transcript lines
+ * draw left to right underneath it (sound becoming text). Same one-shot,
+ * resolves-to-static contract as the trace mark, so /transcribe gets a
+ * genuinely animated logo rather than a still one.
+ */
+.logo-wave {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: logo-wave-rise 480ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.logo-wave-1 {
+  animation-delay: 200ms;
+}
+.logo-wave-2 {
+  animation-delay: 300ms;
+}
+.logo-wave-3 {
+  animation-delay: 400ms;
+}
+.logo-wave-4 {
+  animation-delay: 500ms;
+}
+
+.logo-script {
+  animation: logo-draw 620ms cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+
+.logo-script-first {
+  animation-delay: 620ms;
+}
+.logo-script-second {
+  animation-delay: 780ms;
+}
+
+/* Hovering the brand link makes the waveform "listen" and re-writes the
+ * transcript lines — the same gesture the trace glyph answers a hover
+ * with, in the scribe glyph's own vocabulary. Scoped to the active glyph
+ * so a hover on the home page never animates the one that's faded out. */
+.brand-mark:hover .logo-glyph[data-active="true"] .logo-wave {
+  animation: logo-wave-pulse 900ms ease-in-out;
+}
+
+.brand-mark:hover .logo-glyph[data-active="true"] .logo-script {
+  animation: logo-retrace 700ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.brand-mark:hover .logo-wave-1 {
+  animation-delay: 0ms;
+}
+.brand-mark:hover .logo-wave-2 {
+  animation-delay: 90ms;
+}
+.brand-mark:hover .logo-wave-3 {
+  animation-delay: 180ms;
+}
+.brand-mark:hover .logo-wave-4 {
+  animation-delay: 270ms;
+}
+.brand-mark:hover .logo-script-first {
+  animation-delay: 340ms;
+}
+.brand-mark:hover .logo-script-second {
+  animation-delay: 460ms;
+}
+
+@keyframes logo-wave-rise {
+  from {
+    opacity: 0;
+    transform: scaleY(0.12);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes logo-wave-pulse {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  45% {
+    transform: scaleY(0.45);
+  }
+}
+
+/*
+ * Wordmark suffix roll: TRACE and SCRIBE are stacked in the same box (sized
+ * by an invisible copy of the longer of the two, so the header never shifts)
+ * and hand over vertically — outgoing rolls up and away, incoming arrives
+ * from below.
+ */
+.brand-word {
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+  /* Headroom so a face is essentially transparent by the time it reaches
+   * the clip edge — otherwise the caps get a visible hard cut mid-travel.
+   * The negative margin cancels the padding so the header's vertical
+   * rhythm is untouched. */
+  padding-block: 0.3em;
+  margin-block: -0.3em;
+  vertical-align: bottom;
+}
+
+.brand-word-face {
+  position: absolute;
+  inset: 0.3em 0 auto 0;
+  transition:
+    opacity 300ms ease,
+    transform 460ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.brand-word-face[data-active="true"] {
+  opacity: 1;
+  transform: none;
+}
+
+/*
+ * Each face parks on a fixed side rather than sharing one "inactive"
+ * offset, and that's what makes this read as a rolling counter instead of
+ * a flip: with TRACE always parked above and SCRIBE always below, both
+ * faces travel the *same* direction on any given swap (up on
+ * trace -> scribe, back down on scribe -> trace). Give them a shared
+ * inactive offset and they cross through each other in opposite
+ * directions, which is the janky version of this effect.
+ */
+.brand-word-face[data-active="false"] {
+  opacity: 0;
+}
+
+.brand-word-face[data-park="up"][data-active="false"] {
+  transform: translateY(-0.85em);
+}
+
+.brand-word-face[data-park="down"][data-active="false"] {
+  transform: translateY(0.85em);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -143,7 +314,24 @@
    * elements in their static state, which is the finished mark. */
   .logo-lens,
   .logo-trace,
-  .logo-node {
+  .logo-node,
+  .logo-wave,
+  .logo-script {
     animation: none;
+  }
+
+  /* brand-mark.tsx never starts the identity cycle under reduced motion, so
+   * these only ever describe the resting Trace state — but pinning them
+   * means an inactive glyph/face is hidden outright rather than sitting at
+   * a collapsed transform if anything ever toggles them. */
+  .logo-glyph,
+  .brand-word-face {
+    transition: none;
+  }
+
+  .logo-glyph[data-active="false"],
+  .brand-word-face[data-active="false"] {
+    transform: none;
+    visibility: hidden;
   }
 }

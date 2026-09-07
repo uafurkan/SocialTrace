@@ -8,6 +8,14 @@ export const copy = {
     name: "SocialTrace",
     tagline: "Trace what changes.",
     descriptor: "Public Social Intelligence",
+    // The home page's brand mark alternates between the two product
+    // identities by swapping only the suffix, so "Social" stays anchored
+    // (src/components/layout/brand-mark.tsx). `name` above stays the one
+    // true product name everywhere else — titles, metadata, legal copy —
+    // this is a header treatment, not a second brand.
+    namePrefix: "Social",
+    nameSuffixTrace: "Trace",
+    nameSuffixScribe: "Scribe",
   },
   nav: {
     explore: "Explore",

@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { copy } from "@/lib/copy";
-import { Logo } from "@/components/layout/logo";
+import { BrandMark } from "@/components/layout/brand-mark";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { TrackNavBadge } from "@/components/layout/track-nav-badge";
@@ -14,13 +14,7 @@ export function SiteHeader() {
         <div className="grid h-16 grid-cols-[2.75rem_1fr_2.75rem] items-center gap-2 md:flex md:justify-between md:gap-0">
           <MobileNav />
 
-          <Link
-            href="/"
-            className="brand-mark flex items-center justify-center gap-2 font-semibold text-primary md:justify-start"
-          >
-            <Logo className="h-6 w-6" />
-            <span className="tracking-tight">{copy.brand.name.toUpperCase()}</span>
-          </Link>
+          <BrandMark />
 
           <span aria-hidden="true" className="md:hidden" />
 
