@@ -43,7 +43,24 @@ export async function assertTranscriptionAllowed(scopeId: string, plan: Plan | n
   }
 }
 
-export async function recordUsage(scopeId: string, cacheKey: string, billed: boolean): Promise<void> {
+/** Returns the new row's id so a reservation made before a pipeline run (see the transcribe route) can later be updated to `billed: true` or deleted on failure. */
+export async function recordUsage(scopeId: string, cacheKey: string, billed: boolean): Promise<string> {
   const db = getDb();
-  await db.insert(schema.transcriptionUsage).values({ scopeId, cacheKey, billed });
+  const [row] = await db
+    .insert(schema.transcriptionUsage)
+    .values({ scopeId, cacheKey, billed })
+    .returning({ id: schema.transcriptionUsage.id });
+  return row.id;
+}
+
+/** Flips a usage reservation to billed once the pipeline run it was reserved for actually completes and produces a real (non-cache-hit) result. */
+export async function markUsageBilled(usageId: string): Promise<void> {
+  const db = getDb();
+  await db.update(schema.transcriptionUsage).set({ billed: true }).where(eq(schema.transcriptionUsage.id, usageId));
+}
+
+/** Releases a usage reservation whose pipeline run failed — a failed attempt shouldn't cost the visitor part of their daily quota. */
+export async function deleteUsageReservation(usageId: string): Promise<void> {
+  const db = getDb();
+  await db.delete(schema.transcriptionUsage).where(eq(schema.transcriptionUsage.id, usageId));
 }

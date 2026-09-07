@@ -13,7 +13,7 @@ import {
   TranscriptionError,
   type TranscriptResult,
 } from "@/lib/transcription";
-import { assertTranscriptionAllowed, recordUsage } from "@/lib/transcription/quota";
+import { assertTranscriptionAllowed, deleteUsageReservation, markUsageBilled, recordUsage } from "@/lib/transcription/quota";
 import { VISITOR_COOKIE, VISITOR_COOKIE_OPTIONS } from "@/lib/tracking/visitor-cookie";
 
 export const runtime = "nodejs";
@@ -141,16 +141,32 @@ export async function POST(request: NextRequest) {
     return response;
   }
 
-  // Claim the job (bad-outcome #8): only the request that actually inserts
-  // the row runs the real pipeline; a request that finds an existing
-  // "processing" row waits on it instead of paying for a second run.
-  const isOwner = !existing;
-  if (isOwner) {
-    await db
-      .insert(schema.transcriptCache)
-      .values({ cacheKey, platform, sourceUrl: url, status: "processing" })
-      .onConflictDoNothing({ target: schema.transcriptCache.cacheKey });
-  }
+  // Claim the job (bad-outcome #8): only the request whose INSERT actually
+  // lands a row runs the real pipeline; everyone else waits on it instead
+  // of paying for a second run. Ownership must come from the INSERT's own
+  // effect (via `.returning()`), not from the `existing` SELECT above —
+  // two requests can both see no existing row when they race back-to-back,
+  // and only checking `!existing` would let both believe they're the
+  // owner and both run (and bill) the real pipeline for the same URL.
+  // `onConflictDoNothing` guarantees only one of them gets a row back here
+  // even when both attempt the insert.
+  const claimed = await db
+    .insert(schema.transcriptCache)
+    .values({ cacheKey, platform, sourceUrl: url, status: "processing" })
+    .onConflictDoNothing({ target: schema.transcriptCache.cacheKey })
+    .returning({ cacheKey: schema.transcriptCache.cacheKey });
+  const isOwner = claimed.length > 0;
+
+  // Reserve this request's usage slot now, before the (potentially
+  // 10s-60s) pipeline runs — not after it succeeds. Checking the quota
+  // and then only recording usage once the whole pipeline finishes left a
+  // window the length of the entire run during which the same scope could
+  // fire more requests than its daily limit allows, since none of them
+  // would show up in the count yet. Reserving immediately shrinks that
+  // window to the time between the SELECT count and this INSERT. Billed
+  // status and final disposition are decided below once the outcome (or
+  // absence of one, on failure) is known.
+  const usageReservation = isOwner ? await recordUsage(identity.scopeId, cacheKey, false) : null;
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -189,13 +205,19 @@ export async function POST(request: NextRequest) {
             updatedAt: new Date(),
           })
           .where(eq(schema.transcriptCache.cacheKey, cacheKey));
-        await recordUsage(identity.scopeId, cacheKey, true);
+        // usageReservation is guaranteed set here: this branch only runs
+        // when isOwner is true, and usageReservation was populated
+        // immediately after isOwner was determined, above.
+        await markUsageBilled(usageReservation!);
         writeEvent(controller, { stage: "done", result: toPayload(result) });
       } catch (error) {
         if (isOwner) {
           // Never leave a permanently-cached failure (bad-outcome #14) — delete
           // the claim row so the next request retries the pipeline cleanly.
           await db.delete(schema.transcriptCache).where(eq(schema.transcriptCache.cacheKey, cacheKey)).catch(() => {});
+          // A failed attempt shouldn't cost the visitor part of their daily
+          // quota — release the reservation made before the pipeline ran.
+          await deleteUsageReservation(usageReservation!).catch(() => {});
         }
         const reason = error instanceof TranscriptionError ? error.reason : "transcription_failed";
         const message = error instanceof Error ? error.message : "Something went wrong.";

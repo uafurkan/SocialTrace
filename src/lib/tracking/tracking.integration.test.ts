@@ -3,7 +3,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { isDbConfigured } from "@/lib/db";
 import { isProfileTracked, listTrackedProfiles, trackProfile, untrackProfile } from "@/lib/tracking/watchlist";
 import { createSavedSearch, deleteSavedSearch, listSavedSearches } from "@/lib/tracking/saved-searches";
-import { PlanLimitError } from "@/lib/billing/plans";
+import { PLAN_LIMITS, PlanLimitError } from "@/lib/billing/plans";
 import { deleteTestProfiles, uniqueUsername } from "@/lib/db/test-helpers";
 
 describe.skipIf(!isDbConfigured())("tracking (integration)", () => {
@@ -43,7 +43,7 @@ describe.skipIf(!isDbConfigured())("tracking (integration)", () => {
   it("enforces the free plan's tracked-profile limit for a new profile", async () => {
     const limitVisitor = uniqueUsername("limit-visitor");
     const atLimitUsernames: string[] = [];
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < PLAN_LIMITS.free.maxTrackedProfiles; i++) {
       const username = uniqueUsername(`limit${i}`);
       atLimitUsernames.push(username);
       usernames.push(username);

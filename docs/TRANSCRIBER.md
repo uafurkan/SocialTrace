@@ -249,7 +249,7 @@ confirmed to be the same category of block, checked live, not guessed.
 | Very long video | Hard 30-minute cap (`MAX_VIDEO_DURATION_SECONDS`), enforced once duration is known from the downloader's metadata, before transcribing. |
 | Vercel's function budget | `maxDuration = 60` (same pattern as the rest of the app) plus the length cap above keeps realistic runs well under budget. |
 | Duplicate concurrent requests for the same viral link | `transcript_cache` row inserted with `status="processing"` via `ON CONFLICT DO NOTHING` before work starts; a second request finds the in-flight row and polls it instead of re-triggering a second paid run. |
-| Bot/scripted abuse driving cost | Layered: per-visitor rate limiting (`src/lib/rate-limit.ts`), a daily per-scope quota (`src/lib/transcription/quota.ts` — anonymous 3/day, free account 5/day, Pro 50/day), and a global daily *billed* ceiling (300/day) that refuses new uncached requests once crossed. |
+| Bot/scripted abuse driving cost | Layered: per-visitor rate limiting (`src/lib/rate-limit.ts`), a daily per-scope quota (`src/lib/transcription/quota.ts` — anonymous 3/day, free account 15/day, Pro 100/day, per `PLAN_LIMITS` in `src/lib/billing/plans.ts`), and a global daily *billed* ceiling (300/day) that refuses new uncached requests once crossed. |
 | Cache poisoning / stale failure | The cache row is written only on full pipeline success; a failed attempt deletes its claim row so the next request retries cleanly, rather than being stuck on a permanently-cached failure. |
 
 ## Database
