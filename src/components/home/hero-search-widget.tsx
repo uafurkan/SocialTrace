@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search, Captions, Music2, Facebook } from "lucide-react";
+import { Search, Captions, Music2, Facebook, Instagram } from "lucide-react";
 import { z } from "zod";
 
 import type { Platform } from "@/lib/domain/types";
@@ -26,7 +26,7 @@ const MODES: { id: Mode; label: string; icon: typeof Search }[] = [
 ];
 
 const SOCIAL_PLATFORMS: { id: Platform; label: string; icon: typeof Search; placeholder: string; profilePath: (u: string) => string }[] = [
-  { id: "instagram", label: "Instagram", icon: Search, placeholder: copy.home.searchPlaceholder, profilePath: (u) => `/profile/${u}` },
+  { id: "instagram", label: "Instagram", icon: Instagram, placeholder: copy.home.searchPlaceholder, profilePath: (u) => `/profile/${u}` },
   { id: "tiktok", label: "TikTok", icon: Music2, placeholder: "@username or tiktok.com/@username", profilePath: (u) => `/profile/tiktok/${u}` },
   { id: "facebook", label: "Facebook", icon: Facebook, placeholder: "Page name or facebook.com/page", profilePath: (u) => `/profile/facebook/${u}` },
 ];
@@ -82,7 +82,12 @@ export function HeroSearchWidget() {
     <div className="w-full max-w-lg">
       {pending ? <AdGateOverlay onContinue={continueNavigation} /> : null}
 
-      <div className="inline-flex rounded-full border border-border bg-surface-subtle p-1">
+      <div className="liquid-glass-track relative inline-grid grid-cols-2 rounded-full p-1">
+        <span
+          aria-hidden="true"
+          className="liquid-glass-indicator"
+          style={{ transform: mode === MODES[1].id ? "translateX(100%)" : "translateX(0%)" }}
+        />
         {MODES.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
@@ -90,8 +95,8 @@ export function HeroSearchWidget() {
             onClick={() => setMode(id)}
             aria-pressed={mode === id}
             className={cn(
-              "flex min-h-[36px] items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-colors",
-              mode === id ? "bg-surface text-brand-strong shadow-default" : "text-secondary hover:text-primary",
+              "relative z-10 flex min-h-[36px] items-center justify-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-colors",
+              mode === id ? "text-brand-strong" : "text-secondary hover:text-primary",
             )}
           >
             <Icon className="size-4" aria-hidden="true" />

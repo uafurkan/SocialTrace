@@ -299,6 +299,57 @@
   transform: translateY(0.85em);
 }
 
+/*
+ * Liquid-glass segmented control (hero-search-widget.tsx's Profile
+ * search / Video transcribe switch) — an iOS 26/27-style frosted pill:
+ * a translucent, blurred track with a single glass indicator that slides
+ * (rather than each button getting its own background) so the material
+ * itself reads as one physical object moving, not two toggling states.
+ * The indicator is sized to exactly half the track (inset 4px 50% 4px 4px)
+ * so translateX(100%) — 100% of its own width — lands flush on the other
+ * half with no gap or overlap, as long as both segments stay equal width.
+ */
+.liquid-glass-track {
+  position: relative;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.55),
+    rgba(255, 255, 255, 0.22)
+  );
+  backdrop-filter: blur(16px) saturate(1.6);
+  -webkit-backdrop-filter: blur(16px) saturate(1.6);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow:
+    0 1px 1px rgba(16, 24, 40, 0.04),
+    0 8px 24px rgba(16, 24, 40, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 0 rgba(16, 24, 40, 0.05);
+}
+
+.liquid-glass-indicator {
+  position: absolute;
+  inset: 4px 50% 4px 4px;
+  border-radius: 9999px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.95),
+    rgba(255, 255, 255, 0.72)
+  );
+  backdrop-filter: blur(10px) saturate(1.4);
+  -webkit-backdrop-filter: blur(10px) saturate(1.4);
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.08),
+    0 6px 16px rgba(16, 24, 40, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 1px rgba(16, 24, 40, 0.04);
+  transition: transform 480ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.liquid-glass-track button:active {
+  transform: scale(0.97);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
