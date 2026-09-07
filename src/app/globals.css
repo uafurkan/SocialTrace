@@ -350,6 +350,53 @@
   transform: scale(0.97);
 }
 
+/*
+ * Same material, a size down: the Instagram/TikTok/Facebook platform row
+ * sitting just under the search bar is a secondary control, so its glass
+ * is thinner and quieter (less blur, less shadow) than the primary mode
+ * switch above it. Three equal segments instead of two — the indicator's
+ * width is computed instead of hardcoded so translateX(N * 100%) still
+ * lands flush regardless of segment count.
+ */
+.liquid-glass-track-sm {
+  position: relative;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.5),
+    rgba(255, 255, 255, 0.2)
+  );
+  backdrop-filter: blur(10px) saturate(1.5);
+  -webkit-backdrop-filter: blur(10px) saturate(1.5);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow:
+    0 1px 1px rgba(16, 24, 40, 0.03),
+    0 4px 12px rgba(16, 24, 40, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    inset 0 -1px 0 rgba(16, 24, 40, 0.04);
+}
+
+.liquid-glass-indicator-sm {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  bottom: 4px;
+  width: calc((100% - 8px) / 3);
+  border-radius: 9999px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.92),
+    rgba(255, 255, 255, 0.68)
+  );
+  backdrop-filter: blur(6px) saturate(1.3);
+  -webkit-backdrop-filter: blur(6px) saturate(1.3);
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.06),
+    0 3px 8px rgba(16, 24, 40, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

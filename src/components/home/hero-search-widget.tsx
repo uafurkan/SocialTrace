@@ -44,6 +44,7 @@ export function HeroSearchWidget() {
   const [videoError, setVideoError] = useState<string | null>(null);
 
   const activePlatform = SOCIAL_PLATFORMS.find((p) => p.id === platform)!;
+  const activePlatformIndex = SOCIAL_PLATFORMS.findIndex((p) => p.id === platform);
   const { history: usernameHistory, addToHistory: addUsernameToHistory, listId: usernameHistoryListId } = useInputHistory(
     `hero-username-${platform}`,
   );
@@ -108,7 +109,12 @@ export function HeroSearchWidget() {
       <div className="mt-3">
         {mode === "profile" ? (
           <form onSubmit={handleProfileSubmit}>
-            <div className="mb-2 flex gap-1">
+            <div className="liquid-glass-track-sm mb-2 grid grid-cols-3 rounded-full p-1">
+              <span
+                aria-hidden="true"
+                className="liquid-glass-indicator-sm"
+                style={{ transform: `translateX(${activePlatformIndex * 100}%)` }}
+              />
               {SOCIAL_PLATFORMS.map((p) => (
                 <button
                   key={p.id}
@@ -119,8 +125,8 @@ export function HeroSearchWidget() {
                   }}
                   aria-pressed={platform === p.id}
                   className={cn(
-                    "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors",
-                    platform === p.id ? "bg-surface-subtle text-primary" : "text-muted hover:text-secondary",
+                    "relative z-10 flex items-center justify-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                    platform === p.id ? "text-primary" : "text-muted hover:text-secondary",
                   )}
                 >
                   <p.icon className="size-3.5" aria-hidden="true" />
