@@ -265,6 +265,22 @@ provider) and legal-page copy is a substantive content decision, not a
 mechanical SEO fix — flagged for the site owner to rewrite deliberately
 rather than silently edited here.
 
+## Sitelinks Search Box (`potentialAction`/`SearchAction`)
+
+Researched what actually moves organic click-through beyond ranking
+position itself — Google's own developer docs single out the Sitelinks
+Search Box (a search field rendered directly under the brand's own result
+for a branded query) as a documented, real CTR lever, and it was missing:
+`websiteJsonLd()` only ever emitted `name`/`url`. Added `potentialAction`
+pointing at `https://www.socialtrace.co/profile/{username}` — this isn't
+a stand-in for a generic site-search page the app doesn't have; a bare
+username really does resolve at that exact URL
+(`src/app/profile/[username]/page.tsx`), so the markup describes the real
+profile-lookup feature, following the same "don't fabricate structured
+data" rule as every other JSON-LD helper here. Google decides on its own
+whether to actually render the box for a given brand query — this only
+makes the site eligible.
+
 **Also not done here** — the actual one-time submission steps
 (`GOOGLE_SITE_VERIFICATION`/`BING_SITE_VERIFICATION`/
 `YANDEX_SITE_VERIFICATION` env vars, then adding+verifying the property

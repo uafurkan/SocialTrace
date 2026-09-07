@@ -20,12 +20,31 @@ export function JsonLd({ id, data }: JsonLdProps) {
   );
 }
 
+/**
+ * `potentialAction`/`SearchAction` is Google's documented markup for the
+ * Sitelinks Search Box (a search field rendered directly under the site's
+ * brand result in search results — a genuine, well-documented CTR lever,
+ * not a cosmetic addition). The URL template below isn't a stand-in for a
+ * feature that doesn't exist: `/profile/{username}` (username, no `@`)
+ * really is a working page for any username typed there
+ * (`src/app/profile/[username]/page.tsx`), so this markup describes the
+ * real profile-lookup feature rather than fabricating a generic
+ * site-search page this app doesn't have.
+ */
 export function websiteJsonLd() {
   return {
     "@context": "https://schema.org",
     "@type": "WebSite",
     name: SITE_NAME,
     url: SITE_URL,
+    potentialAction: {
+      "@type": "SearchAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: `${SITE_URL}/profile/{username}`,
+      },
+      "query-input": "required name=username",
+    },
   };
 }
 
