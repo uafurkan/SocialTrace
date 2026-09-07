@@ -150,7 +150,13 @@ strategies](https://www.ezoic.com/blog/q4-website-optimization-strategies-how-pu
   instead of just 404ing.
 - **CSP (`src/proxy.ts`)** — `frame-src`/`connect-src` widen to `https:`
   when `NEXT_PUBLIC_ADSENSE_ENABLED=true`, the same non-enumerable
-  ad-server-domain situation Ezoic already gets.
+  ad-server-domain situation Ezoic already gets. `script-src` also gains
+  `'unsafe-eval'` when either ad network is enabled — Ezoic's consent/
+  analytics.js was observed in production `eval()`-ing a string for its
+  country-based consent check, which `'strict-dynamic'` doesn't cover
+  (it only propagates to child `<script>` elements, not `eval`/`new
+  Function`); without it the script threw and consent/analytics silently
+  broke. Stays off entirely with ads disabled.
 
 ### AdSense setup steps (not code)
 

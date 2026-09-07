@@ -39,6 +39,17 @@ import { NextRequest, NextResponse } from "next/server";
  * widening script-src itself. With ads disabled (the default), the
  * policy stays at its strict 'self'-only baseline.
  *
+ * script-src also adds 'unsafe-eval', but only when ads are enabled:
+ * Ezoic's consent/analytics.js evaluates a string as JS for its
+ * country-based consent-requirement check (confirmed live in production —
+ * it threw `EvalError: ... violates ... 'unsafe-eval' is not an allowed
+ * source`), which 'strict-dynamic' does not cover (it only propagates
+ * trust to child <script> elements, not eval()/new Function()). This is a
+ * real loosening — accepted here for the same reason frame-src/connect-src
+ * already widen for Ezoic: it's a trusted, already-wide-open third party
+ * once ads are on, not a general-purpose hole, and it stays off entirely
+ * when ads are disabled.
+ *
  * Turnstile (NEXT_PUBLIC_TURNSTILE_SITE_KEY, see docs/AUTH.md) is a
  * single known host, so unlike Ezoic it gets an explicit allowlist entry
  * (challenges.cloudflare.com) instead of widening to any https origin —
@@ -82,7 +93,7 @@ export function proxy(request: NextRequest) {
 
   const csp = `
     default-src 'self';
-    script-src 'self' 'nonce-${nonce}' 'strict-dynamic';
+    script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${adsEnabled ? " 'unsafe-eval'" : ""};
     style-src 'self' 'unsafe-inline';
     img-src 'self' https: data:;
     font-src 'self';
