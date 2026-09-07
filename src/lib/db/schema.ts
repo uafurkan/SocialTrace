@@ -301,13 +301,19 @@ export const changeEvents = pgTable(
 );
 
 /**
- * Spec §31 `users` table, trimmed to email + password auth (no OAuth, no
- * magic links in this build — see docs/AUTH.md). An account is optional:
- * tracking and saved searches keep working for anonymous visitors via the
- * cookie scoping in docs/TRACKING.md — an account only upgrades that
- * scope to persist across browsers/devices (see src/lib/auth/identity.ts).
- * `passwordHash` is never the plaintext password; `plan` gates the limits
- * in docs/BILLING.md, which has no real payment processing behind it.
+ * Spec §31 `users` table, trimmed to email + password auth plus Google
+ * OAuth (see docs/AUTH.md). An account is optional: tracking and saved
+ * searches keep working for anonymous visitors via the cookie scoping in
+ * docs/TRACKING.md — an account only upgrades that scope to persist
+ * across browsers/devices (see src/lib/auth/identity.ts). `passwordHash`
+ * is never the plaintext password; `plan` gates the limits in
+ * docs/BILLING.md, which has no real payment processing behind it.
+ *
+ * `passwordHash` is nullable and `googleId` exists specifically for
+ * Google-only accounts (signed up via "Continue with Google", never set a
+ * password) — `verifyCredentials` in src/lib/auth/users.ts treats a null
+ * passwordHash the same as a wrong password (never a crash) so a
+ * Google-only account can't be logged into with the password form.
  */
 export const users = pgTable(
   "users",
@@ -315,7 +321,8 @@ export const users = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     email: text("email").notNull(),
     normalizedEmail: text("normalized_email").notNull(),
-    passwordHash: text("password_hash").notNull(),
+    passwordHash: text("password_hash"),
+    googleId: text("google_id"),
     plan: planEnum("plan").notNull().default("free"),
     // Email verification (docs/AUTH.md). The code itself is never stored —
     // only its SHA-256 hash (emailVerificationCodeHash), same reasoning as
@@ -345,6 +352,7 @@ export const users = pgTable(
   (table) => ({
     normalizedEmailIdx: uniqueIndex("users_normalized_email_idx").on(table.normalizedEmail),
     paddleCustomerIdIdx: uniqueIndex("users_paddle_customer_id_idx").on(table.paddleCustomerId),
+    googleIdIdx: uniqueIndex("users_google_id_idx").on(table.googleId),
   }),
 );
 

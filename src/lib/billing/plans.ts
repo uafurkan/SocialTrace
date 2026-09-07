@@ -26,10 +26,19 @@ const RESOURCE_LIMIT_KEY: Record<LimitedResource, keyof PlanLimits> = {
  * separate, smaller daily cap — see src/lib/transcription/quota.ts —
  * because unlike tracked-profile/saved-search rows, an uncapped anonymous
  * transcriber is a real, unbounded Apify/Groq bill.)
+ *
+ * `free` limits were raised (10/10/5 -> 25/25/15) alongside adding
+ * "Continue with Google" (docs/AUTH.md): a real, visible reward for
+ * creating an account — not just "signed in vs anonymous" (anonymous
+ * transcriber cap stays at 3/day, src/lib/transcription/quota.ts) — makes
+ * account creation worth the one click. Real, identified accounts are
+ * also strictly easier to rate-limit/quota-enforce than the anonymous
+ * cookie scope (which a visitor can just clear), so growing the
+ * logged-in share of usage is a net win independent of the higher ceiling.
  */
 export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
-  free: { maxTrackedProfiles: 10, maxSavedSearches: 10, maxTranscriptionsPerDay: 5 },
-  pro: { maxTrackedProfiles: Infinity, maxSavedSearches: Infinity, maxTranscriptionsPerDay: 50 },
+  free: { maxTrackedProfiles: 25, maxSavedSearches: 25, maxTranscriptionsPerDay: 15 },
+  pro: { maxTrackedProfiles: Infinity, maxSavedSearches: Infinity, maxTranscriptionsPerDay: 100 },
 };
 
 export class PlanLimitError extends Error {

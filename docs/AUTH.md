@@ -1,8 +1,7 @@
 # Authentication
 
-Spec §31's `users` table, implemented as email + password only — no
-OAuth, no magic links (the user chose email + password when asked which
-method to build). An account is **optional**: every feature that worked
+Spec §31's `users` table, implemented as email + password plus Google
+OAuth ("Continue with Google" — see below); no magic links. An account is **optional**: every feature that worked
 without one (exploring profiles, tracking, saved searches, exports)
 still works without one — an account only upgrades tracking/saved
 searches from "this browser" to "this account" (see the Identity
@@ -12,9 +11,10 @@ section below).
 
 - **`users`** (`src/lib/db/schema.ts`): `email`, `normalizedEmail`
   (unique-indexed, lowercased/trimmed — case-insensitive login),
-  `passwordHash`, `plan` (`free` | `pro`, defaults to `free`),
-  `emailVerified` + the code/expiry/attempts/sent-at fields behind it
-  (see "Email verification" below).
+  `passwordHash` (nullable — null for a Google-only account),
+  `googleId` (unique-indexed, nullable), `plan` (`free` | `pro`, defaults
+  to `free`), `emailVerified` + the code/expiry/attempts/sent-at fields
+  behind it (see "Email verification" below).
 - **`sessions`**: `userId`, `tokenHash`, `expiresAt`. The session token
   set in the `st_session` cookie is never written to the database — only
   its SHA-256 hash (`src/lib/auth/session.ts`'s `hashSessionToken`) is,
@@ -74,6 +74,63 @@ site key is set.
 
 Get the site key + secret key from the Cloudflare dashboard (Turnstile →
 Add site) — free, no other Cloudflare product required.
+
+## Google login (`src/lib/auth/google.ts`)
+
+Plain server-to-server redirect flow — no OAuth library, no Google
+Identity Services script/One Tap in the browser. Three routes:
+
+- `GET /api/v1/auth/google?next=<path>` — generates a random `state`,
+  stores it in a short-lived httpOnly `st_google_state` cookie
+  (`src/lib/auth/google-state-cookie.ts`, 10 minutes), and redirects to
+  Google's consent screen. `state` also carries the `next` path (URL-
+  encoded, `state:next`) so the callback knows where to send the user
+  back — validated to be a same-site relative path only, never an
+  absolute/external URL.
+- `GET /api/v1/auth/google/callback` — validates the returned `state`
+  against the cookie (this is the CSRF protection on the login itself: a
+  forged callback request without the matching cookie is rejected),
+  exchanges the authorization `code` for an access token, fetches the
+  Google profile (`sub`, `email`, `email_verified`), then
+  `createOrGetGoogleUser` (`src/lib/auth/users.ts`) either finds the
+  existing account by `googleId`, links `googleId` onto an existing
+  password account with the same `normalizedEmail` (so a user doesn't end
+  up with two accounts), or creates a brand-new one with `emailVerified:
+  true` immediately — Google already verified the address, so this
+  project's own email-verification-code flow would be redundant here. Any
+  Google-side failure (rejected code, unverified email, network error)
+  redirects to `/login?error=<message>` rather than a raw JSON error,
+  since this route is only ever reached by the browser's own top-level
+  navigation, not a fetch call.
+- Because this is a full-page redirect, not an iframe/popup or a script
+  loaded into the page, it needs **no CSP widening** (`src/proxy.ts`) —
+  unlike Turnstile/Paddle/Ezoic, the browser never talks to
+  `accounts.google.com` via `fetch`/`frame-src`, only via top-level
+  navigation.
+- A Google-only account has `passwordHash: null`; `verifyCredentials`
+  treats that the same as a wrong password (never crashes on a null
+  hash), so a Google-only account simply can't log in with the
+  email/password form — it always uses "Continue with Google".
+- `GoogleAuthButton` (`src/components/auth/google-auth-button.tsx`)
+  renders on both `/login` and `/signup` (via `AuthForm`) as a plain
+  `<a>` to the start route — has to be a real navigation, not a
+  client-side fetch, for Google's consent screen to work. With
+  `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` unset, the button is still
+  shown (keeps both pages visually identical regardless of env) but the
+  start route 501s with a clear error instead of silently failing.
+- **Why raise the free-plan limits with this** (`src/lib/billing/plans.ts`,
+  10/10/5 → 25/25/15): a one-click login needs a real, visible reason to
+  bother — "signed in" alone wasn't a strong enough incentive. Identified
+  accounts are also strictly easier to rate-limit/quota-enforce than the
+  anonymous visitor cookie (trivially cleared), so growing the logged-in
+  share of usage is a net win independent of the higher ceiling; the
+  anonymous transcriber cap stays at 3/day
+  (`src/lib/transcription/quota.ts`) so the gap is still meaningful.
+
+Get `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` from Google Cloud Console
+(APIs & Services → Credentials → Create Credentials → OAuth client ID →
+Web application), with `https://www.socialtrace.co/api/v1/auth/google/callback`
+added as an authorized redirect URI.
 
 ## Identity resolution (`src/lib/auth/identity.ts`)
 
