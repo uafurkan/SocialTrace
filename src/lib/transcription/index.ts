@@ -1,4 +1,5 @@
 import { unlink, readFile } from "node:fs/promises";
+import { apifyMediaHeaders } from "./apify-media";
 import { downloadAudio, fetchFreeVideoPreview } from "./downloader";
 import { tryFallbackActor } from "./fallback-actor";
 import { detectPlatform, normalizeVideoUrl } from "./platform";
@@ -14,7 +15,7 @@ export type { TranscriptResult };
 export { TranscriptionError };
 
 async function fetchAsBlob(url: string): Promise<Blob> {
-  const res = await fetch(url);
+  const res = await fetch(url, { headers: apifyMediaHeaders(url) });
   if (!res.ok) throw new Error(`Failed to fetch audio (${res.status})`);
   return await res.blob();
 }
@@ -95,7 +96,23 @@ export async function transcribe(
       );
     }
     try {
-      if (downloaded.videoUrl) onVideoReady?.(downloaded.videoUrl);
+      if (downloaded.videoUrl) {
+        onVideoReady?.(downloaded.videoUrl);
+      } else {
+        // The download step got audio but no browser-playable preview URL —
+        // e.g. the local yt-dlp last-resort (no remote file exists to
+        // preview at all) or a paid actor path that came back without one.
+        // The free, no-cost embed-page fetchers (tikwm/Instagram/Facebook)
+        // are a completely independent path from whatever the download
+        // step just tried, so a quick supplementary attempt here often
+        // recovers a preview even when the primary path couldn't produce
+        // one — same "watch while you read" experience regardless of which
+        // download path actually served the audio. Best-effort only: never
+        // throws, never blocks/delays transcription, and doesn't touch
+        // Apify (no cost, no risk of eating into that budget).
+        const supplementalVideoUrl = await fetchFreeVideoPreview(sourceUrl, platform).catch(() => null);
+        if (supplementalVideoUrl) onVideoReady?.(supplementalVideoUrl);
+      }
       const audioBlob = downloaded.localAudioPath
         ? await readLocalAudioAsBlob(downloaded.localAudioPath)
         : await fetchAsBlob(downloaded.audioUrl);

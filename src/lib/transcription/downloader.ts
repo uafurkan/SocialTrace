@@ -98,16 +98,11 @@ async function downloadTikTok(sourceUrl: string): Promise<DownloadedAudio | null
   const item = Array.isArray(items) ? items[0] : undefined;
   if (!item || item.error || !item.media?.url) return null;
 
-  const token = process.env.APIFY_API_TOKEN;
-  // The token-bearing URL is only ever fetched server-side (Whisper reads
-  // audioUrl) — it must never be handed to the browser as videoUrl, or
-  // every visitor's "watch while it transcribes" player would leak this
-  // project's Apify API token in the page's own network tab/HTML. Found
-  // live while wiring up the new YouTube actor below (same bug, this
-  // pre-existing TikTok fallback path had it too) — an attacker reading
-  // it could run up billing or reach other private data on the account.
-  const mediaUrl = token ? `${item.media.url}?token=${encodeURIComponent(token)}` : item.media.url;
-  return { audioUrl: mediaUrl, videoUrl: token ? null : mediaUrl, durationSeconds: item.duration ?? 0, title: item.title ?? "" };
+  // The Apify token this file needs is attached as a header by whichever
+  // caller actually fetches it (apify-media.ts) — never embedded in the
+  // URL — so the same untouched URL is safe to use for both the
+  // Whisper-facing audioUrl and the browser-facing preview videoUrl.
+  return { audioUrl: item.media.url, videoUrl: item.media.url, durationSeconds: item.duration ?? 0, title: item.title ?? "" };
 }
 
 interface YouTubeItem {
@@ -151,15 +146,11 @@ async function downloadYouTubeFast(sourceUrl: string): Promise<DownloadedAudio |
   if (!item || item.status !== "succeeded" || item.error || !item.output?.url) return null;
 
   // This actor's Apify key-value-store output requires the API token to
-  // fetch (confirmed live: 403 without it, 200 with) — same as the TikTok
-  // fallback actor's media.url above, unlike `streamers`'s output which
-  // doesn't need one. That token must never reach the browser (see the
-  // comment on the TikTok path above) — audioUrl keeps it for Whisper's
-  // server-side fetch, videoUrl drops to null so the live-preview player
-  // simply doesn't render for this path instead of leaking it.
-  const token = process.env.APIFY_API_TOKEN;
-  const mediaUrl = token ? `${item.output.url}?token=${encodeURIComponent(token)}` : item.output.url;
-  return { audioUrl: mediaUrl, videoUrl: token ? null : mediaUrl, durationSeconds: item.durationSeconds ?? 0, title: "" };
+  // fetch (confirmed live: 403 without it, 200 with it) — same as the
+  // TikTok fallback actor's media.url above. Handled by apify-media.ts at
+  // the point of actually fetching this URL, not here — see that file's
+  // doc comment for why this used to null out the preview entirely.
+  return { audioUrl: item.output.url, videoUrl: item.output.url, durationSeconds: item.durationSeconds ?? 0, title: "" };
 }
 
 async function downloadYouTube(sourceUrl: string): Promise<DownloadedAudio | null> {

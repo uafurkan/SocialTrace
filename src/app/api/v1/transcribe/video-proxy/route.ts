@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apifyMediaHeaders } from "@/lib/transcription/apify-media";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -53,6 +54,11 @@ export async function GET(request: NextRequest) {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         ...(range ? { Range: range } : {}),
+        // Apify-hosted key-value-store files (TikTok's fallback actor,
+        // YouTube's fast actor) need this to fetch at all — attached here,
+        // server-side, so the token itself never has to travel through the
+        // `url` query param this route was called with (see apify-media.ts).
+        ...apifyMediaHeaders(raw),
       },
       signal: AbortSignal.timeout(50_000),
     });
