@@ -12,6 +12,7 @@ const links = [
   { href: "/#explore", label: copy.nav.explore, badge: false },
   { href: "/tracking", label: copy.nav.track, badge: true },
   { href: "/transcribe", label: copy.nav.transcribe, badge: false },
+  { href: "/tools", label: copy.nav.tools, badge: false },
   { href: "/pricing", label: copy.nav.pricing, badge: false },
 ];
 

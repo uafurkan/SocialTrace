@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 
 import { ToolLanding } from "@/components/seo/tool-landing";
+import { TranscriberWidget } from "@/components/transcriber/transcriber-widget";
 import { JsonLd, breadcrumbJsonLd, faqJsonLd } from "@/lib/seo/json-ld";
 import { pageMetadata } from "@/lib/seo/metadata";
 
 const TITLE = "Video downloader";
 const DESCRIPTION =
-  "Download a public TikTok, Instagram, or Facebook video after transcribing it — free, with a visible link back to the original source.";
+  "Download a public TikTok, Instagram, or Facebook video and read its transcript — free, with a visible link back to the original source.";
 const PATH = "/tools/video-downloader";
 
 export const metadata: Metadata = pageMetadata({ title: TITLE, description: DESCRIPTION, path: PATH });
@@ -15,7 +16,7 @@ const FAQ = [
   {
     question: "How do I download a video?",
     answer:
-      "Paste the video's link into the video transcriber. Once it finishes, a Download video button appears next to the video preview.",
+      "Paste the video's link below. Once it loads, a Download video button appears next to the preview.",
   },
   {
     question: "Is the original source shown?",
@@ -43,12 +44,12 @@ export default function VideoDownloaderPage() {
       <JsonLd id="ld-video-downloader-faq" data={faqJsonLd(FAQ)} />
       <ToolLanding
         title={TITLE}
-        lead="Paste a public TikTok, Instagram, or Facebook video link into the transcriber, and download the video once it's ready — with a visible link back to its source."
-        primaryCta={{ href: "/transcribe", label: "Open the video transcriber" }}
+        lead="Paste a public TikTok, Instagram, or Facebook video link below to preview it, download it, and read its transcript — all on this page."
+        widget={<TranscriberWidget />}
         howItWorks={[
-          "Paste a public TikTok, Instagram, or Facebook video link into the transcriber.",
-          "Once the video loads, a Download video button appears next to the preview.",
-          "The original source link is always shown next to the download.",
+          "Paste the link below.",
+          "Watch the preview load.",
+          "Download the video or read its transcript — both are shown next to the preview once it's ready.",
         ]}
         features={[
           { title: "Three platforms", body: "TikTok, Instagram, and Facebook — YouTube is intentionally excluded." },

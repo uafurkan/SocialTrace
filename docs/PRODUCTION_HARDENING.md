@@ -149,6 +149,22 @@ needs a real Sentry org/project/auth token) stays off unless
 `instrumentation.ts` exports `onRequestError` for server-rendering
 errors those two boundaries don't otherwise see.
 
+## Post-launch polish speed check (Phase 10)
+
+After adding the 9 new tool pages, reorganizing `/tools`, and embedding
+`TranscriberWidget` directly on `/tools/video-downloader`: `npm run build`
+compiled all ~95 routes with no errors or warnings beyond two pre-existing
+ones unrelated to this change (`postcss.config.mjs`'s anonymous default
+export, `member-list.tsx`'s `useVirtualizer` incompatible-library notice).
+Timed `curl` against a production (`npm run start`) server showed
+`/tools/video-downloader` (72ms) at least as fast as the existing
+`/tools/instagram-follower-history` baseline (502ms — the difference is
+that page's DB round-trip; video-downloader has none). No route showed a
+meaningful regression. A real end-to-end submission (a live public TikTok
+URL) confirmed the embedded widget on `/tools/video-downloader` downloads
+a real `video/mp4` file and renders its transcript on the same page, with
+no separate page load.
+
 ## Not in this slice
 
 - **Structured data (JSON-LD) on profile pages.** Spec §206/§210

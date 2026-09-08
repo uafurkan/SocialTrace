@@ -23,6 +23,7 @@ export const copy = {
     compare: "Compare",
     reports: "Reports",
     transcribe: "Transcribe",
+    tools: "Tools",
     pricing: "Pricing",
     signIn: "Sign in",
     signUp: "Sign up",

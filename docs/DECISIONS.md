@@ -1063,3 +1063,18 @@ dedicated `/tools/video-downloader` landing page (cross-platform, like
 `username-availability-checker`, rather than three near-duplicate
 per-platform pages — this is an add-on to the transcriber experience,
 not a distinct tool per platform).
+
+**Update — `/tools/video-downloader` now embeds `TranscriberWidget`
+directly instead of linking out to `/transcribe`.** The page previously
+had only a `primaryCta` pointing at `/transcribe`, meaning a visitor who
+came specifically to download a video had to bounce to a second page to
+actually do it. Since `TranscriptResult.videoUrl` (what the Download
+button needs) is only ever produced as a side effect of running the
+transcription pipeline, there's no separate "download only" pipeline to
+build — the fix was to render `<TranscriberWidget />` (no
+`platformHint`, staying cross-platform) right on the landing page, the
+same pattern the `/transcribe/*` platform pages already use. This keeps
+the visitor on one page for both the download and the transcript,
+increasing ad-slot dwell/impressions on that page and removing an
+unnecessary page-to-page bounce — zero new backend code, since
+`VideoPreview`'s existing "done" state already renders both outcomes.

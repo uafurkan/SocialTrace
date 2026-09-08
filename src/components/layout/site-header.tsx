@@ -29,6 +29,9 @@ export function SiteHeader() {
             <Link href="/transcribe" className="hover:text-primary">
               {copy.nav.transcribe}
             </Link>
+            <Link href="/tools" className="hover:text-primary">
+              {copy.nav.tools}
+            </Link>
             <Link href="/pricing" className="hover:text-primary">
               {copy.nav.pricing}
             </Link>
