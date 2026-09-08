@@ -431,7 +431,16 @@ export async function downloadAudio(sourceUrl: string, platform: TranscriptPlatf
 }
 
 async function downloadAudioUnrounded(sourceUrl: string, platform: TranscriptPlatform): Promise<DownloadedAudio | null> {
-  const viaProvider = await downloadViaProvider(sourceUrl, platform);
+  // downloadViaProvider's Apify leg (runApifyActor) throws rather than
+  // returning null on actor failure (quota exhaustion, actor down, bad
+  // input) — confirmed live: an ApifyActorError here was unwinding past
+  // the yt-dlp fallback below entirely, so the one path explicitly built
+  // to survive "Apify is down/out of budget" never actually ran when
+  // Apify failed. Catching here is what makes that fallback real.
+  const viaProvider = await downloadViaProvider(sourceUrl, platform).catch((error) => {
+    console.warn("[transcription] provider download failed, trying local yt-dlp fallback:", error);
+    return null;
+  });
   if (viaProvider) return viaProvider;
 
   // Every free path and every paid Apify actor for this platform failed

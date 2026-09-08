@@ -4,6 +4,23 @@ import { withSentryConfig } from "@sentry/nextjs/config";
 const nextConfig = {
   reactStrictMode: true,
   /**
+   * yt-dlp-exec and ffmpeg-static both resolve their bundled binary's path
+   * off `__dirname` at require-time (see src/lib/transcription/downloader.ts's
+   * local yt-dlp last-resort fallback). Turbopack's default bundling
+   * inlines/rewrites `__dirname` for bundled node_modules code — confirmed
+   * live this session: the compiled output baked in the literal path
+   * "/ROOT/node_modules/yt-dlp-exec/bin/yt-dlp" (a build-cache placeholder
+   * root, not this project's real path), so the binary could never be
+   * found at runtime (`spawn ... ENOENT`), silently breaking the one
+   * fallback this feature exists for — "if every paid Apify actor is
+   * down/over budget, still transcribe via a local yt-dlp+ffmpeg." Listing
+   * these as external keeps them as real `require()` calls against the
+   * actual on-disk node_modules at runtime instead of bundled/rewritten
+   * code, which is Next's documented fix for exactly this class of
+   * native-binary-resolving package.
+   */
+  serverExternalPackages: ["yt-dlp-exec", "ffmpeg-static"],
+  /**
    * Real 301s for common misspellings of the brand name landing as a path
    * on this domain (e.g. someone typing socialtrace.com/socialtrce by
    * habit, or a stray inbound link using one). This is a targeted fix for

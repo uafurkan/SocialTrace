@@ -63,7 +63,15 @@ async function fetchSegments(track: CaptionTrack): Promise<TranscriptSegment[]> 
   url.searchParams.set("fmt", "json3");
   const res = await fetch(url.toString());
   if (!res.ok) throw new Error(`Failed to fetch captions (${res.status})`);
-  const data = (await res.json()) as TimedTextJson3;
+  // YouTube's timedtext endpoint occasionally returns a 200 with an empty
+  // body (confirmed live, intermittently) rather than an error status —
+  // res.json() throws "Unexpected end of JSON input" on that, which used
+  // to abort this fast-path with a raw SyntaxError instead of the honest
+  // "no captions, fall through to the paid pipeline" this function
+  // otherwise guarantees for every other no-captions case.
+  const raw = await res.text();
+  if (!raw.trim()) return [];
+  const data = JSON.parse(raw) as TimedTextJson3;
 
   const segments: TranscriptSegment[] = [];
   for (const event of data.events ?? []) {
