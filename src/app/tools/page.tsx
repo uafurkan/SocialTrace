@@ -75,7 +75,11 @@ const TOOLS: Array<{ title: string; description: string; href?: string }> = [
     description: "Engagement rate from a profile's most recent public posts.",
     href: "/tools/instagram-engagement-calculator",
   },
-  { title: "Competitor analyzer", description: "Compare public brand accounts." },
+  {
+    title: "Competitor analyzer",
+    description: "Compare public brand accounts.",
+    href: "/tools/instagram-competitor-analyzer",
+  },
 ];
 
 export default function ToolsPage() {
