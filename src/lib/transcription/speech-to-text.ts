@@ -11,10 +11,103 @@ const GROQ_MODEL = "whisper-large-v3-turbo";
 const OPENAI_URL = "https://api.openai.com/v1/audio/transcriptions";
 const OPENAI_MODEL = "whisper-1";
 
+interface VerboseJsonSegment {
+  start?: number;
+  end?: number;
+  text?: string;
+  avg_logprob?: number;
+  no_speech_prob?: number;
+  compression_ratio?: number;
+}
+
 interface VerboseJsonResponse {
   text?: string;
   language?: string;
-  segments?: Array<{ start?: number; end?: number; text?: string }>;
+  segments?: VerboseJsonSegment[];
+}
+
+/**
+ * Whisper hallucinates plausible-sounding but content-unrelated text on
+ * quiet/music-only/unclear audio instead of returning nothing — confirmed
+ * live this session (an Arabic news clip transcribed as "Thank you.", a
+ * Spanish clip as a looped "Jessica! Jessica! Jessica!..."). Both slipped
+ * straight past the existing `if (!result.text)` empty-transcript check
+ * (src/lib/transcription/index.ts) since the hallucinated text isn't
+ * empty — it's confidently wrong.
+ *
+ * This isn't something we have to guess how to detect: it's the exact
+ * problem OpenAI's own reference decoder (openai/whisper `decoding.py`,
+ * `DecodingOptions` defaults) and its widely-used derivatives
+ * (faster-whisper's `no_speech_threshold`/`log_prob_threshold`/
+ * `compression_ratio_threshold`, whisper.cpp) already solve internally
+ * during decoding — Groq/OpenAI's hosted HTTP API doesn't expose a
+ * "suppress hallucinations" toggle, but `response_format=verbose_json`
+ * (already requested below) returns the same per-segment confidence
+ * metrics those decoders use (`avg_logprob`, `no_speech_prob`,
+ * `compression_ratio`), so the identical heuristic can be replicated
+ * post-hoc on the response:
+ *   - `no_speech_prob` high AND `avg_logprob` low -> the model itself
+ *     flagged this stretch as probable silence/non-speech, but emitted
+ *     filler text anyway instead of nothing.
+ *   - `compression_ratio` high -> the segment's text is highly
+ *     repetitive (compresses well), the signature of a decoding loop
+ *     ("Jessica! Jessica! Jessica!...").
+ * (Commercial STT vendors like ElevenLabs Scribe take a related but
+ * distinct approach — per-word confidence scores plus explicit
+ * non-speech/audio-event tagging from a differently-trained acoustic
+ * model — which isn't available through Whisper's API at all; the
+ * segment-metadata heuristic below is the closest equivalent Whisper's
+ * own API surface actually exposes.)
+ */
+const NO_SPEECH_PROB_THRESHOLD = 0.6;
+const LOGPROB_THRESHOLD = -1.0;
+const COMPRESSION_RATIO_THRESHOLD = 2.4;
+
+/**
+ * Backstop for when segment-level metadata is missing or doesn't catch
+ * it: a short list of stock filler/outro lines Whisper is well known to
+ * hallucinate (baked into its training data from captioned videos) when
+ * given quiet/unclear audio. Matched only against the *entire* transcript
+ * when short, never mid-sentence — a video that genuinely ends with
+ * "thank you for watching" in context is untouched.
+ */
+const HALLUCINATION_PHRASES = new Set([
+  "thank you",
+  "thank you.",
+  "thanks for watching",
+  "thanks for watching!",
+  "please subscribe",
+  "like and subscribe",
+  "subscribe to my channel",
+  "bye bye",
+  "bye-bye",
+  "the end",
+  "www.opensubtitles.org",
+  "amara.org",
+  "subtitles by the amara.org community",
+]);
+
+/** Second backstop: a single word/token dominating the transcript ("Jessica! Jessica! Jessica!...") is the textbook Whisper decoding-loop hallucination, independent of whether `compression_ratio` was present in the response. */
+function isRepetitionLoop(text: string): boolean {
+  const words = text
+    .toLowerCase()
+    .split(/\s+/)
+    .map((w) => w.replace(/[^\p{L}\p{N}]/gu, ""))
+    .filter(Boolean);
+  if (words.length < 6) return false;
+  const counts = new Map<string, number>();
+  for (const w of words) counts.set(w, (counts.get(w) ?? 0) + 1);
+  const maxCount = Math.max(...counts.values());
+  return maxCount / words.length > 0.4;
+}
+
+function isHallucinatedSegment(segment: VerboseJsonSegment): boolean {
+  const noSpeech = segment.no_speech_prob ?? 0;
+  const logprob = segment.avg_logprob ?? 0;
+  const compression = segment.compression_ratio ?? 0;
+  const looksLikeSilence = noSpeech > NO_SPEECH_PROB_THRESHOLD && logprob < LOGPROB_THRESHOLD;
+  const looksLikeRepetitionLoop = compression > COMPRESSION_RATIO_THRESHOLD;
+  return looksLikeSilence || looksLikeRepetitionLoop;
 }
 
 export interface SpeechToTextResult {
@@ -61,14 +154,38 @@ async function transcribeWith(
   }
 
   const data = (await res.json()) as VerboseJsonResponse;
-  const segments: TranscriptSegment[] = (data.segments ?? []).map((s) => ({
-    start: s.start ?? 0,
-    end: s.end ?? 0,
-    text: (s.text ?? "").trim(),
-  }));
+  const rawSegments = data.segments ?? [];
+
+  let segments: TranscriptSegment[];
+  let text: string;
+  if (rawSegments.length > 0) {
+    // Per-segment confidence metadata is present — drop segments Whisper's
+    // own decoder would have suppressed as hallucinated (see comment above
+    // `isHallucinatedSegment`) and rebuild the transcript from what's left,
+    // rather than trusting the top-level `text` field (which the API
+    // computes independently and may still include a dropped segment's
+    // hallucinated content).
+    segments = rawSegments
+      .filter((s) => !isHallucinatedSegment(s))
+      .map((s) => ({ start: s.start ?? 0, end: s.end ?? 0, text: (s.text ?? "").trim() }));
+    text = segments.map((s) => s.text).join(" ").trim();
+  } else {
+    // No segment metadata to filter on (shouldn't normally happen with
+    // verbose_json, but don't silently lose a real transcript over it) —
+    // fall through to the whole-text backstop checks below.
+    text = (data.text ?? "").trim();
+    segments = [];
+  }
+
+  const normalized = text.toLowerCase().trim();
+  if (text && (isRepetitionLoop(text) || HALLUCINATION_PHRASES.has(normalized))) {
+    console.warn(`[transcription] discarding likely Whisper hallucination from ${provider}: "${text.slice(0, 120)}"`);
+    text = "";
+    segments = [];
+  }
 
   return {
-    text: (data.text ?? "").trim(),
+    text,
     segments,
     language: data.language ?? language ?? "auto",
     provider,
