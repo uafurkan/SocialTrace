@@ -54,7 +54,11 @@ const TOOLS: Array<{ title: string; description: string; href?: string }> = [
   { title: "Following compare", description: "Compare following snapshots over time." },
   { title: "Username history", description: "See recorded username changes." },
   { title: "Bio history", description: "See recorded bio changes." },
-  { title: "Engagement calculator", description: "Estimate engagement from observed metrics." },
+  {
+    title: "Engagement calculator",
+    description: "Engagement rate from a profile's most recent public posts.",
+    href: "/tools/instagram-engagement-calculator",
+  },
   { title: "Competitor analyzer", description: "Compare public brand accounts." },
 ];
 
