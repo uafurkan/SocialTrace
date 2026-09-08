@@ -25,6 +25,20 @@ export function AuthForm({ mode }: AuthFormProps) {
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
+
+    // Native `required`/`minLength` validation bubbles render in the
+    // browser's own OS/locale language (e.g. Turkish "Lütfen bir URL
+    // girin.") regardless of the app's language — checked here instead so
+    // every visitor sees the same English copy.
+    if (!email.trim() || !password.trim()) {
+      setError("Please enter both an email and a password.");
+      return;
+    }
+    if (mode === "signup" && password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -53,7 +67,7 @@ export function AuthForm({ mode }: AuthFormProps) {
         {copy.auth.orDivider}
         <div className="h-px flex-1 bg-border" />
       </div>
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} noValidate className="space-y-4">
         <div>
           <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-primary">
             {copy.auth.emailLabel}
@@ -62,7 +76,6 @@ export function AuthForm({ mode }: AuthFormProps) {
             id="email"
             type="email"
             autoComplete="email"
-            required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
@@ -75,8 +88,6 @@ export function AuthForm({ mode }: AuthFormProps) {
             id="password"
             type="password"
             autoComplete={mode === "login" ? "current-password" : "new-password"}
-            required
-            minLength={mode === "signup" ? 8 : undefined}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />

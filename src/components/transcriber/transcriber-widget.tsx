@@ -122,11 +122,16 @@ function VideoPreview({
         {canDownload ? (
           <div className="space-y-1.5">
             <Button asChild size="sm" variant="secondary">
-              <a href={`/api/v1/transcribe/video-proxy?url=${encodeURIComponent(videoUrl)}&download=1&platform=${encodeURIComponent(download.platform)}`}>
+              {/* `videoUrl` is already our own proxied `/api/v1/transcribe/video-proxy?url=...`
+                  path (see toProxiedVideoUrl in the transcribe route) — append
+                  the extra params directly instead of re-wrapping it in a
+                  second video-proxy call, which would pass a relative path as
+                  `url` and fail `new URL()` server-side ("invalid url"). */}
+              <a href={`${videoUrl}&download=1&platform=${encodeURIComponent(download.platform)}`}>
                 Download video
               </a>
             </Button>
-            <p className="text-xs text-muted">
+            <p className="text-xs text-muted break-all">
               Source:{" "}
               <a href={download.sourceUrl} target="_blank" rel="noopener noreferrer" className="underline">
                 {download.sourceUrl}
@@ -212,7 +217,13 @@ export function TranscriberWidget({
     useHistorySuggestions(urlHistory, url);
 
   async function runTranscription(targetUrl: string) {
-    if (!targetUrl.trim()) return;
+    if (!targetUrl.trim()) {
+      // Native `required` validation would show this in the browser's own
+      // OS/locale language (e.g. Turkish "Lütfen bir URL girin.") — an
+      // English inline message here replaces that instead.
+      setState({ status: "error", message: "Please enter a video URL." });
+      return;
+    }
     addUrlToHistory(targetUrl.trim());
     setState({ status: "downloading" });
     setTranslation({ status: "idle" });
@@ -287,12 +298,11 @@ export function TranscriberWidget({
 
   return (
     <div>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3">
         <div className="flex flex-col gap-3 sm:flex-row">
           <div className="relative flex-1" ref={urlHistoryContainerRef}>
             <Input
               type="url"
-              required
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               onFocus={() => setIsUrlHistoryOpen(true)}
