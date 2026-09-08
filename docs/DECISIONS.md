@@ -981,6 +981,38 @@ a profile's first post-migration capture has no prior username in its
 history — tracking starts from whenever `external_id` was first recorded
 for that profile, not from account creation.
 
+**Username Availability Checker — per-platform reliability, verified live.**
+Before writing `src/lib/username-availability/check.ts`, checked each of
+the four platforms live against a real, well-known taken handle and a
+clearly-unregistered one, exactly as this session's own Instagram/TikTok/
+Facebook provider integrations were originally validated:
+- **YouTube**: reliable. A taken `/@handle` returns 200, an available one
+  returns 404 — a clean status-code signal, no further work needed.
+- **TikTok**: status code alone is useless (200 for both cases), but a
+  taken profile's page embeds `"uniqueId":"<handle>"` in its initial-state
+  JSON, absent for an available handle — confirmed against two real
+  accounts and one clearly-unregistered handle.
+- **Instagram and Facebook**: no reliable signal exists from this
+  environment. Both platforms redirect *every* unauthenticated request —
+  taken or available alike — to their login page, with identical response
+  bodies either way. Rather than guess (e.g. treating any redirect as
+  "taken," which would be wrong for every available handle too), both
+  checks return `"unknown"` whenever that login-redirect pattern is seen.
+  This may behave differently from a production IP than this sandbox's,
+  but the honest design (three real states, `"unknown"` never disguised
+  as a guess) holds regardless of which IPs happen to get blocked.
+
+Every platform request uses a realistic browser `User-Agent` (several of
+these platforms behave differently or block outright without one,
+confirmed live) and the same `AbortController` timeout pattern already
+established in `media/proxy/route.ts` — its exact constant couldn't be
+imported (a `route.ts` file can only export Next.js route handlers), so
+it's redefined locally at the same value with a comment explaining why.
+
+No SSRF allowlist is needed here, unlike `media/proxy`: the four
+platform hostnames are hardcoded constants, never derived from user
+input, so there's no arbitrary-URL surface to guard against.
+
 **Declined: making the homepage itself vary by search keyword.** Asked
 whether the homepage could show different content depending on whether a
 visitor searched "insta viewer" vs. "video transcriber." Not implemented,

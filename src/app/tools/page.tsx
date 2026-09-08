@@ -50,6 +50,11 @@ const TOOLS: Array<{ title: string; description: string; href?: string }> = [
   },
   { title: "Profile analyzer", description: "Summaries derived from observed public data." },
   {
+    title: "Username availability checker",
+    description: "Check a handle across Instagram, TikTok, Facebook, and YouTube at once.",
+    href: "/tools/username-availability-checker",
+  },
+  {
     title: "Follower checker",
     description: "Search an indexed follower dataset.",
     href: "/tools/instagram-follower-checker",
