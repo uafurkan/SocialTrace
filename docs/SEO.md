@@ -281,6 +281,46 @@ data" rule as every other JSON-LD helper here. Google decides on its own
 whether to actually render the box for a given brand query — this only
 makes the site eligible.
 
+## Research pass: SoftwareApplication/HowTo schema + llms.txt
+
+General (non-manipulative) research into how established competitors
+(VEED, Sonix, Riverside, ReelScribe) and Google's own 2026 guidance treat
+ranking/AI-citation found two concrete, honest gaps, both fixed here —
+and confirmed one popular tactic is not worth doing (see below).
+
+- **`SoftwareApplication` + `HowTo` JSON-LD on `/transcribe` and its four
+  platform pages** (`softwareApplicationJsonLd()`/`howToJsonLd()` in
+  `src/lib/seo/json-ld.tsx`). Google's 2026 guidance and independent
+  research both note that structured data correlates with being cited in
+  AI Overviews/ChatGPT/Perplexity answers — competitors in this exact
+  category already mark up their transcriber tools this way. Follows the
+  file's existing "no fabricated data" rule: `offers.price` is `"0"`
+  because the tool genuinely is free, no `aggregateRating`/`review` since
+  none exist, and `HowTo` steps are the same array already rendered as
+  the visible "How it works" list (not separate copy, so editing the
+  visible steps keeps the schema in sync by construction).
+- **`/llms.txt`** (`src/app/llms.txt/route.ts`, same static-file-via-`route.ts`
+  pattern as `src/app/ads.txt/route.ts`) — a plain Markdown index of every
+  real page. Documented in the file's own comment that no major AI
+  crawler is confirmed to read this yet (Google's John Mueller has said
+  no Google Search system acts on it); included anyway because it's
+  zero-cost and it only lists pages that actually exist, so there's
+  nothing to keep honest here that isn't already true.
+- **Not done: mass directory/AI-directory submission, forum link-dropping,
+  or Reddit "organic" posting.** Research confirmed most AI/tool
+  directories have a link-to-content ratio so poor that search engines
+  don't credit the backlink, and that genuine forum/Reddit engagement
+  (per r/SEO's own norms) has to be a real person building a track
+  record over time, not an automated or scripted drop — that's not a
+  gap in this codebase, it's ongoing human community participation, and
+  out of scope for a code change.
+- **Not done: `<select>`/native-UI-style "force AI crawlers" tricks or
+  cloaking.** `robots.ts`'s `userAgent: "*"` rule already allows GPTBot/
+  ClaudeBot/PerplexityBot/Google-Extended by not blocking anything —
+  there was no gap to close, and serving different content to crawlers
+  than to visitors (cloaking) is exactly the kind of manipulative tactic
+  this file has declined before (see "Declined: a doorway page" above).
+
 **Also not done here** — the actual one-time submission steps
 (`GOOGLE_SITE_VERIFICATION`/`BING_SITE_VERIFICATION`/
 `YANDEX_SITE_VERIFICATION` env vars, then adding+verifying the property

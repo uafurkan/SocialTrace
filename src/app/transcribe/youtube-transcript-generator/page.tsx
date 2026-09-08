@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { ToolLanding } from "@/components/seo/tool-landing";
 import { TranscriberWidget } from "@/components/transcriber/transcriber-widget";
-import { JsonLd, breadcrumbJsonLd, faqJsonLd } from "@/lib/seo/json-ld";
+import { JsonLd, breadcrumbJsonLd, faqJsonLd, howToJsonLd, softwareApplicationJsonLd } from "@/lib/seo/json-ld";
 import { pageMetadata } from "@/lib/seo/metadata";
 
 const TITLE = "YouTube transcript generator";
@@ -10,6 +10,12 @@ const DESCRIPTION = "Paste a YouTube video link and get a text transcript — pu
 const PATH = "/transcribe/youtube-transcript-generator";
 
 export const metadata: Metadata = pageMetadata({ title: TITLE, description: DESCRIPTION, path: PATH });
+
+const HOW_IT_WORKS = [
+  "Copy a public YouTube video or Shorts link.",
+  "Paste it into the transcriber.",
+  "Read or copy the resulting transcript, with timestamps when captions were used.",
+];
 
 const FAQ = [
   {
@@ -32,15 +38,13 @@ export default function YoutubeTranscriptGeneratorPage() {
     <>
       <JsonLd id="ld-yt-transcript-breadcrumb" data={breadcrumbJsonLd([{ name: "Home", path: "/" }, { name: "Transcribe", path: "/transcribe" }, { name: TITLE, path: PATH }])} />
       <JsonLd id="ld-yt-transcript-faq" data={faqJsonLd(FAQ)} />
+      <JsonLd id="ld-yt-transcript-howto" data={howToJsonLd({ name: TITLE, steps: HOW_IT_WORKS })} />
+      <JsonLd id="ld-yt-transcript-app" data={softwareApplicationJsonLd({ name: TITLE, description: DESCRIPTION, path: PATH })} />
       <ToolLanding
         title={TITLE}
         lead="Paste any public YouTube video or Shorts link. Existing captions are used when available for an instant result; otherwise the audio is transcribed directly."
         widget={<TranscriberWidget platformHint="YouTube" autoSubmitFromQueryParam />}
-        howItWorks={[
-          "Copy a public YouTube video or Shorts link.",
-          "Paste it into the transcriber.",
-          "Read or copy the resulting transcript, with timestamps when captions were used.",
-        ]}
+        howItWorks={HOW_IT_WORKS}
         features={[
           { title: "Captions fast-path", body: "Existing captions are read directly — no waiting, no re-transcription." },
           { title: "Speech-to-text fallback", body: "Videos without captions are transcribed automatically instead." },

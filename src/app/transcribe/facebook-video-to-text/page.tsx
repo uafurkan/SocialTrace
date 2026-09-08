@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { ToolLanding } from "@/components/seo/tool-landing";
 import { TranscriberWidget } from "@/components/transcriber/transcriber-widget";
-import { JsonLd, breadcrumbJsonLd, faqJsonLd } from "@/lib/seo/json-ld";
+import { JsonLd, breadcrumbJsonLd, faqJsonLd, howToJsonLd, softwareApplicationJsonLd } from "@/lib/seo/json-ld";
 import { pageMetadata } from "@/lib/seo/metadata";
 
 const TITLE = "Facebook video to text";
@@ -10,6 +10,12 @@ const DESCRIPTION = "Paste a public Facebook video or Reel link and get a text t
 const PATH = "/transcribe/facebook-video-to-text";
 
 export const metadata: Metadata = pageMetadata({ title: TITLE, description: DESCRIPTION, path: PATH });
+
+const HOW_IT_WORKS = [
+  "Copy a public Facebook video's link (facebook.com or fb.watch).",
+  "Paste it into the transcriber.",
+  "Read or copy the resulting transcript.",
+];
 
 const FAQ = [
   {
@@ -31,15 +37,13 @@ export default function FacebookVideoToTextPage() {
     <>
       <JsonLd id="ld-facebook-transcript-breadcrumb" data={breadcrumbJsonLd([{ name: "Home", path: "/" }, { name: "Transcribe", path: "/transcribe" }, { name: TITLE, path: PATH }])} />
       <JsonLd id="ld-facebook-transcript-faq" data={faqJsonLd(FAQ)} />
+      <JsonLd id="ld-facebook-transcript-howto" data={howToJsonLd({ name: TITLE, steps: HOW_IT_WORKS })} />
+      <JsonLd id="ld-facebook-transcript-app" data={softwareApplicationJsonLd({ name: TITLE, description: DESCRIPTION, path: PATH })} />
       <ToolLanding
         title={TITLE}
         lead="Paste a public Facebook video, Watch, or Reel link and get back a text transcript of the audio."
         widget={<TranscriberWidget platformHint="Facebook" autoSubmitFromQueryParam />}
-        howItWorks={[
-          "Copy a public Facebook video's link (facebook.com or fb.watch).",
-          "Paste it into the transcriber.",
-          "Read or copy the resulting transcript.",
-        ]}
+        howItWorks={HOW_IT_WORKS}
         features={[
           { title: "Watch and Reels", body: "Any public facebook.com or fb.watch video link works." },
           { title: "90+ languages", body: "Auto-detected spoken language, transcribed accordingly." },

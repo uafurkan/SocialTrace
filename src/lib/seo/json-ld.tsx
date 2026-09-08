@@ -109,6 +109,47 @@ interface FaqItem {
   answer: string;
 }
 
+/**
+ * Real `SoftwareApplication` markup for the transcriber pages — genuinely
+ * free (`price: "0"`), no fabricated `aggregateRating`/`review` (spec §53
+ * "do not fabricate structured data" — same rule as every other helper
+ * here). Research into how competitors (VEED, Sonix, Riverside) and
+ * Google's own 2026 guidance describe this: schema markup is one of the
+ * few concrete, non-manipulative levers that measurably correlates with
+ * being cited in AI Overviews/ChatGPT/Perplexity answers, unlike content
+ * farming or link schemes.
+ */
+export function softwareApplicationJsonLd(params: { name: string; description: string; path: string }) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: params.name,
+    description: params.description,
+    url: `${SITE_URL}${params.path}`,
+    applicationCategory: "MultimediaApplication",
+    operatingSystem: "Any (web browser)",
+    offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+  };
+}
+
+/**
+ * `HowTo` markup mirrors the "How it works" list already rendered on the
+ * page verbatim — not separate/fabricated copy, so this stays honest by
+ * construction (edit the visible steps and the schema tracks it).
+ */
+export function howToJsonLd(params: { name: string; steps: string[] }) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    name: params.name,
+    step: params.steps.map((text, index) => ({
+      "@type": "HowToStep",
+      position: index + 1,
+      text,
+    })),
+  };
+}
+
 export function faqJsonLd(items: FaqItem[]) {
   return {
     "@context": "https://schema.org",

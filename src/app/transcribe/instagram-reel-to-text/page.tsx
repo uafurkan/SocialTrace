@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { ToolLanding } from "@/components/seo/tool-landing";
 import { TranscriberWidget } from "@/components/transcriber/transcriber-widget";
-import { JsonLd, breadcrumbJsonLd, faqJsonLd } from "@/lib/seo/json-ld";
+import { JsonLd, breadcrumbJsonLd, faqJsonLd, howToJsonLd, softwareApplicationJsonLd } from "@/lib/seo/json-ld";
 import { pageMetadata } from "@/lib/seo/metadata";
 
 const TITLE = "Instagram Reel to text";
@@ -10,6 +10,12 @@ const DESCRIPTION = "Paste a public Instagram Reel or video post link and get a 
 const PATH = "/transcribe/instagram-reel-to-text";
 
 export const metadata: Metadata = pageMetadata({ title: TITLE, description: DESCRIPTION, path: PATH });
+
+const HOW_IT_WORKS = [
+  "Copy a public Instagram Reel or video post's link.",
+  "Paste it into the transcriber.",
+  "Read or copy the resulting transcript.",
+];
 
 const FAQ = [
   {
@@ -31,15 +37,13 @@ export default function InstagramReelToTextPage() {
     <>
       <JsonLd id="ld-instagram-transcript-breadcrumb" data={breadcrumbJsonLd([{ name: "Home", path: "/" }, { name: "Transcribe", path: "/transcribe" }, { name: TITLE, path: PATH }])} />
       <JsonLd id="ld-instagram-transcript-faq" data={faqJsonLd(FAQ)} />
+      <JsonLd id="ld-instagram-transcript-howto" data={howToJsonLd({ name: TITLE, steps: HOW_IT_WORKS })} />
+      <JsonLd id="ld-instagram-transcript-app" data={softwareApplicationJsonLd({ name: TITLE, description: DESCRIPTION, path: PATH })} />
       <ToolLanding
         title={TITLE}
         lead="Paste a public Instagram Reel or video post link and get back a text transcript of the audio."
         widget={<TranscriberWidget platformHint="Instagram" autoSubmitFromQueryParam />}
-        howItWorks={[
-          "Copy a public Instagram Reel or video post's link.",
-          "Paste it into the transcriber.",
-          "Read or copy the resulting transcript.",
-        ]}
+        howItWorks={HOW_IT_WORKS}
         features={[
           { title: "Reels and video posts", body: "Any public instagram.com video link works." },
           { title: "90+ languages", body: "Auto-detected spoken language, transcribed accordingly." },

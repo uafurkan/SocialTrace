@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { ToolLanding } from "@/components/seo/tool-landing";
 import { TranscriberWidget } from "@/components/transcriber/transcriber-widget";
-import { JsonLd, breadcrumbJsonLd, faqJsonLd } from "@/lib/seo/json-ld";
+import { JsonLd, breadcrumbJsonLd, faqJsonLd, howToJsonLd, softwareApplicationJsonLd } from "@/lib/seo/json-ld";
 import { pageMetadata } from "@/lib/seo/metadata";
 
 const TITLE = "TikTok video to text";
@@ -10,6 +10,12 @@ const DESCRIPTION = "Paste a public TikTok video link and get a text transcript 
 const PATH = "/transcribe/tiktok-video-to-text";
 
 export const metadata: Metadata = pageMetadata({ title: TITLE, description: DESCRIPTION, path: PATH });
+
+const HOW_IT_WORKS = [
+  "Copy a public TikTok video's share link.",
+  "Paste it into the transcriber.",
+  "Read or copy the resulting transcript.",
+];
 
 const FAQ = [
   {
@@ -31,15 +37,13 @@ export default function TiktokVideoToTextPage() {
     <>
       <JsonLd id="ld-tiktok-transcript-breadcrumb" data={breadcrumbJsonLd([{ name: "Home", path: "/" }, { name: "Transcribe", path: "/transcribe" }, { name: TITLE, path: PATH }])} />
       <JsonLd id="ld-tiktok-transcript-faq" data={faqJsonLd(FAQ)} />
+      <JsonLd id="ld-tiktok-transcript-howto" data={howToJsonLd({ name: TITLE, steps: HOW_IT_WORKS })} />
+      <JsonLd id="ld-tiktok-transcript-app" data={softwareApplicationJsonLd({ name: TITLE, description: DESCRIPTION, path: PATH })} />
       <ToolLanding
         title={TITLE}
         lead="Paste any public TikTok video link and get back exactly what's said — as searchable, copyable text."
         widget={<TranscriberWidget platformHint="TikTok" autoSubmitFromQueryParam />}
-        howItWorks={[
-          "Copy a public TikTok video's share link.",
-          "Paste it into the transcriber.",
-          "Read or copy the resulting transcript.",
-        ]}
+        howItWorks={HOW_IT_WORKS}
         features={[
           { title: "Link-based, no app needed", body: "Works from the tiktok.com URL alone." },
           { title: "90+ languages", body: "Auto-detected spoken language, transcribed accordingly." },

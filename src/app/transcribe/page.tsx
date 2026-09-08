@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { JsonLd, breadcrumbJsonLd, faqJsonLd } from "@/lib/seo/json-ld";
+import { JsonLd, breadcrumbJsonLd, faqJsonLd, howToJsonLd, softwareApplicationJsonLd } from "@/lib/seo/json-ld";
 import { pageMetadata } from "@/lib/seo/metadata";
 import { TranscriberWidget } from "@/components/transcriber/transcriber-widget";
 import { AdSlot } from "@/components/ads/ad-slot";
@@ -10,6 +10,12 @@ import { copy } from "@/lib/copy";
 const PATH = "/transcribe";
 
 export const metadata: Metadata = pageMetadata({ title: copy.transcriber.hubTitle, description: copy.transcriber.hubLead, path: PATH });
+
+const HOW_IT_WORKS = [
+  "Paste a public YouTube, TikTok, Instagram, or Facebook video link above.",
+  "Wait a few seconds while the video is fetched and transcribed.",
+  "Copy the transcript, or read it alongside timestamps where available.",
+];
 
 const FAQ = [
   {
@@ -36,6 +42,11 @@ export default function TranscribePage() {
     <>
       <JsonLd id="ld-transcribe-breadcrumb" data={breadcrumbJsonLd([{ name: "Home", path: "/" }, { name: "Transcribe", path: PATH }])} />
       <JsonLd id="ld-transcribe-faq" data={faqJsonLd(FAQ)} />
+      <JsonLd id="ld-transcribe-howto" data={howToJsonLd({ name: copy.transcriber.hubTitle, steps: HOW_IT_WORKS })} />
+      <JsonLd
+        id="ld-transcribe-app"
+        data={softwareApplicationJsonLd({ name: copy.transcriber.hubTitle, description: copy.transcriber.hubLead, path: PATH })}
+      />
       <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6">
         <h1 className="text-3xl font-semibold text-primary sm:text-4xl">{copy.transcriber.hubTitle}</h1>
         <p className="mt-4 max-w-2xl text-lg text-secondary">{copy.transcriber.hubLead}</p>
@@ -47,9 +58,9 @@ export default function TranscribePage() {
         <section className="mt-16">
           <h2 className="text-xl font-semibold text-primary">How it works</h2>
           <ol className="mt-4 list-decimal space-y-2 pl-6 text-secondary">
-            <li>Paste a public YouTube, TikTok, Instagram, or Facebook video link above.</li>
-            <li>Wait a few seconds while the video is fetched and transcribed.</li>
-            <li>Copy the transcript, or read it alongside timestamps where available.</li>
+            {HOW_IT_WORKS.map((step, index) => (
+              <li key={index}>{step}</li>
+            ))}
           </ol>
         </section>
 
