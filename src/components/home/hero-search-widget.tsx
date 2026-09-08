@@ -8,6 +8,7 @@ import { z } from "zod";
 
 import type { Platform } from "@/lib/domain/types";
 import { Button } from "@/components/ui/button";
+import { HistorySuggestionsList, useHistorySuggestions } from "@/components/ui/history-suggestions";
 import { Input } from "@/components/ui/input";
 import { PasteButton } from "@/components/ui/paste-button";
 import { AdGateOverlay, useAdGate } from "@/components/ads/ad-gate";
@@ -75,10 +76,20 @@ export function HeroSearchWidget() {
   const modeIndex = MODES.findIndex((m) => m.id === mode);
   const modeEdgeStyle = useLiquidGlassEdgeStyle(modeIndex, MODES.length);
   const platformEdgeStyle = useLiquidGlassEdgeStyle(activePlatformIndex, SOCIAL_PLATFORMS.length);
-  const { history: usernameHistory, addToHistory: addUsernameToHistory, listId: usernameHistoryListId } = useInputHistory(
-    `hero-username-${platform}`,
-  );
-  const { history: videoHistory, addToHistory: addVideoToHistory, listId: videoHistoryListId } = useInputHistory("hero-video-url");
+  const { history: usernameHistory, addToHistory: addUsernameToHistory } = useInputHistory(`hero-username-${platform}`);
+  const {
+    containerRef: usernameHistoryContainerRef,
+    isOpen: isUsernameHistoryOpen,
+    setIsOpen: setIsUsernameHistoryOpen,
+    matches: usernameHistoryMatches,
+  } = useHistorySuggestions(usernameHistory, username);
+  const { history: videoHistory, addToHistory: addVideoToHistory } = useInputHistory("hero-video-url");
+  const {
+    containerRef: videoHistoryContainerRef,
+    isOpen: isVideoHistoryOpen,
+    setIsOpen: setIsVideoHistoryOpen,
+    matches: videoHistoryMatches,
+  } = useHistorySuggestions(videoHistory, videoUrl);
 
   function handleProfileSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -157,7 +168,7 @@ export function HeroSearchWidget() {
               ))}
             </div>
             <div className="flex flex-col gap-2 rounded-card border border-border bg-surface p-2 shadow-default sm:flex-row sm:items-center">
-              <div className="relative flex-1">
+              <div className="relative flex-1" ref={usernameHistoryContainerRef}>
                 <activePlatform.icon
                   className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
                   aria-hidden="true"
@@ -165,18 +176,22 @@ export function HeroSearchWidget() {
                 <Input
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
+                  onFocus={() => setIsUsernameHistoryOpen(true)}
                   placeholder={activePlatform.placeholder}
                   aria-label={`${activePlatform.label} username or profile link`}
                   autoComplete="off"
-                  list={usernameHistoryListId}
                   className="border-0 pl-9 pr-20 shadow-none focus-visible:border-0 focus-visible:ring-0"
                 />
                 <PasteButton onPaste={setUsername} />
-                <datalist id={usernameHistoryListId}>
-                  {usernameHistory.map((item) => (
-                    <option key={item} value={item} />
-                  ))}
-                </datalist>
+                {isUsernameHistoryOpen ? (
+                  <HistorySuggestionsList
+                    items={usernameHistoryMatches}
+                    onSelect={(item) => {
+                      setUsername(item);
+                      setIsUsernameHistoryOpen(false);
+                    }}
+                  />
+                ) : null}
               </div>
               <Button type="submit" className="sm:w-auto">
                 {copy.home.searchCta}
@@ -201,7 +216,7 @@ export function HeroSearchWidget() {
         ) : (
           <form onSubmit={handleVideoSubmit}>
             <div className="flex flex-col gap-2 rounded-card border border-border bg-surface p-2 shadow-default sm:flex-row sm:items-center">
-              <div className="relative flex-1">
+              <div className="relative flex-1" ref={videoHistoryContainerRef}>
                 <Captions
                   className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
                   aria-hidden="true"
@@ -210,18 +225,22 @@ export function HeroSearchWidget() {
                   type="url"
                   value={videoUrl}
                   onChange={(e) => setVideoUrl(e.target.value)}
+                  onFocus={() => setIsVideoHistoryOpen(true)}
                   placeholder={copy.transcriber.urlPlaceholder}
                   aria-label="Video URL"
                   autoComplete="off"
-                  list={videoHistoryListId}
                   className="border-0 pl-9 pr-20 shadow-none focus-visible:border-0 focus-visible:ring-0"
                 />
                 <PasteButton onPaste={setVideoUrl} />
-                <datalist id={videoHistoryListId}>
-                  {videoHistory.map((item) => (
-                    <option key={item} value={item} />
-                  ))}
-                </datalist>
+                {isVideoHistoryOpen ? (
+                  <HistorySuggestionsList
+                    items={videoHistoryMatches}
+                    onSelect={(item) => {
+                      setVideoUrl(item);
+                      setIsVideoHistoryOpen(false);
+                    }}
+                  />
+                ) : null}
               </div>
               <Button type="submit" className="sm:w-auto">
                 {copy.transcriber.submitCta}

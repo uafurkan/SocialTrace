@@ -5,6 +5,7 @@ import { Search } from "lucide-react";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
+import { HistorySuggestionsList, useHistorySuggestions } from "@/components/ui/history-suggestions";
 import { Input } from "@/components/ui/input";
 import { PasteButton } from "@/components/ui/paste-button";
 import { AdGateOverlay, useAdGate } from "@/components/ads/ad-gate";
@@ -18,7 +19,8 @@ export function ProfileSearchForm({ size = "default" }: { size?: "default" | "co
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   const { pending, navigate, continueNavigation } = useAdGate();
-  const { history, addToHistory, listId } = useInputHistory("profile-search-instagram");
+  const { history, addToHistory } = useInputHistory("profile-search-instagram");
+  const { containerRef, isOpen, setIsOpen, matches } = useHistorySuggestions(history, value);
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -53,7 +55,7 @@ export function ProfileSearchForm({ size = "default" }: { size?: "default" | "co
             : "flex flex-col gap-2 rounded-card border border-border bg-surface p-2 shadow-default sm:flex-row sm:items-center"
         }
       >
-        <div className="relative flex-1">
+        <div className="relative flex-1" ref={containerRef}>
           <Search
             className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
             aria-hidden="true"
@@ -61,18 +63,22 @@ export function ProfileSearchForm({ size = "default" }: { size?: "default" | "co
           <Input
             value={value}
             onChange={(e) => setValue(e.target.value)}
+            onFocus={() => setIsOpen(true)}
             placeholder={copy.home.searchPlaceholder}
             aria-label="Instagram username or profile link"
             autoComplete="off"
-            list={listId}
             className={isCompact ? "pl-9 pr-20" : "border-0 pl-9 pr-20 shadow-none focus-visible:border-0 focus-visible:ring-0"}
           />
           <PasteButton onPaste={setValue} />
-          <datalist id={listId}>
-            {history.map((item) => (
-              <option key={item} value={item} />
-            ))}
-          </datalist>
+          {isOpen ? (
+            <HistorySuggestionsList
+              items={matches}
+              onSelect={(item) => {
+                setValue(item);
+                setIsOpen(false);
+              }}
+            />
+          ) : null}
         </div>
         <Button type="submit" className="sm:w-auto">
           {copy.home.searchCta}

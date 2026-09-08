@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Link2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { HistorySuggestionsList, useHistorySuggestions } from "@/components/ui/history-suggestions";
 import { Input } from "@/components/ui/input";
 import { PasteButton } from "@/components/ui/paste-button";
 import { copy } from "@/lib/copy";
@@ -21,7 +22,8 @@ import { useInputHistory } from "@/lib/use-input-history";
 export function HeaderVideoSearchForm() {
   const [value, setValue] = useState("");
   const router = useRouter();
-  const { history, addToHistory, listId } = useInputHistory("transcriber-url");
+  const { history, addToHistory } = useInputHistory("transcriber-url");
+  const { containerRef, isOpen, setIsOpen, matches } = useHistorySuggestions(history, value);
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -33,7 +35,7 @@ export function HeaderVideoSearchForm() {
 
   return (
     <form onSubmit={handleSubmit} className="flex w-full gap-2">
-      <div className="relative flex-1">
+      <div className="relative flex-1" ref={containerRef}>
         <Link2
           className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
           aria-hidden="true"
@@ -42,18 +44,22 @@ export function HeaderVideoSearchForm() {
           type="url"
           value={value}
           onChange={(e) => setValue(e.target.value)}
+          onFocus={() => setIsOpen(true)}
           placeholder={copy.transcriber.urlPlaceholder}
           aria-label="Video URL"
           autoComplete="off"
-          list={listId}
           className="pl-9 pr-20"
         />
         <PasteButton onPaste={setValue} />
-        <datalist id={listId}>
-          {history.map((item) => (
-            <option key={item} value={item} />
-          ))}
-        </datalist>
+        {isOpen ? (
+          <HistorySuggestionsList
+            items={matches}
+            onSelect={(item) => {
+              setValue(item);
+              setIsOpen(false);
+            }}
+          />
+        ) : null}
       </div>
       <Button type="submit" className="sm:w-auto">
         {copy.transcriber.submitCta}

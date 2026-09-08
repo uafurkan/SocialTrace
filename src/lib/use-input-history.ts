@@ -23,10 +23,17 @@ function readHistory(key: string): string[] {
  * only — never sent to the server, never shared across devices/browsers,
  * scoped by a caller-chosen `key` (e.g. "transcriber-url",
  * "profile-search-instagram") so different boxes on the same page (or
- * different platforms in the same widget) keep separate histories. Feeds a
- * native `<datalist>` via the returned `listId` — no custom dropdown UI
- * needed, and it degrades to "just an input" in browsers/contexts where
- * `localStorage` throws (private mode, disabled storage).
+ * different platforms in the same widget) keep separate histories.
+ *
+ * Feeds `components/ui/history-suggestions.tsx`'s custom dropdown, not a
+ * native `<datalist>` (an earlier version of this hook returned a
+ * `listId` for exactly that) — `<datalist>`'s rendering turned out to be
+ * genuinely poor and inconsistent (an unstyled, misaligned popup in
+ * Chrome; largely invisible on iOS Safari, this project's own priority
+ * platform), unlike `<select>`, so this isn't a case where "let the
+ * browser render it" is the right call. Degrades to "just an input" in
+ * browsers/contexts where `localStorage` throws (private mode, disabled
+ * storage).
  */
 export function useInputHistory(key: string) {
   const [history, setHistory] = useState<string[]>([]);
@@ -55,5 +62,5 @@ export function useInputHistory(key: string) {
     [key],
   );
 
-  return { history, addToHistory, listId: `history-${key}` };
+  return { history, addToHistory };
 }
