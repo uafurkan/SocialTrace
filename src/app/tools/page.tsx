@@ -49,8 +49,16 @@ const TOOLS: Array<{ title: string; description: string; href?: string }> = [
     href: "/tools/anonymous-facebook-viewer",
   },
   { title: "Profile analyzer", description: "Summaries derived from observed public data." },
-  { title: "Follower checker", description: "Search an indexed follower dataset." },
-  { title: "Following checker", description: "Search an indexed following dataset." },
+  {
+    title: "Follower checker",
+    description: "Search an indexed follower dataset.",
+    href: "/tools/instagram-follower-checker",
+  },
+  {
+    title: "Following checker",
+    description: "Search an indexed following dataset.",
+    href: "/tools/instagram-following-checker",
+  },
   { title: "Following compare", description: "Compare following snapshots over time." },
   { title: "Username history", description: "See recorded username changes." },
   {
