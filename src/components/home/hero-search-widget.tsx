@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search, Captions, Music2, Facebook, Instagram } from "lucide-react";
+import { Search, Captions, Music2, Facebook, Instagram, BarChart3, AtSign, Hash, Download, History, Users } from "lucide-react";
 import { z } from "zod";
 
 import type { Platform } from "@/lib/domain/types";
@@ -57,6 +57,23 @@ const SOCIAL_PLATFORMS: { id: Platform; label: string; icon: typeof Search; plac
   { id: "instagram", label: "Instagram", icon: Instagram, placeholder: copy.home.searchPlaceholder, profilePath: (u) => `/profile/${u}` },
   { id: "tiktok", label: "TikTok", icon: Music2, placeholder: "@username or tiktok.com/@username", profilePath: (u) => `/profile/tiktok/${u}` },
   { id: "facebook", label: "Facebook", icon: Facebook, placeholder: "Page name or facebook.com/page", profilePath: (u) => `/profile/facebook/${u}` },
+];
+
+/**
+ * A curated quick-launch strip, not a second `/tools` grid inline — six
+ * tools chosen from this session's own competitor research into what
+ * visitors search for most; the full list is one click away via "See all
+ * tools" (and via primary nav, src/components/layout/site-header.tsx).
+ * Renders identically regardless of `mode`/`platform` above — it's not
+ * part of either form, so switching tabs never disturbs it.
+ */
+const QUICK_TOOLS: { href: string; label: string; icon: typeof Search }[] = [
+  { href: "/tools/instagram-engagement-calculator", label: "Engagement calculator", icon: BarChart3 },
+  { href: "/tools/username-availability-checker", label: "Username checker", icon: AtSign },
+  { href: "/tools/hashtag-generator", label: "Hashtag generator", icon: Hash },
+  { href: "/tools/video-downloader", label: "Video downloader", icon: Download },
+  { href: "/tools/instagram-bio-history", label: "Bio history", icon: History },
+  { href: "/tools/instagram-follower-checker", label: "Follower checker", icon: Users },
 ];
 
 export function HeroSearchWidget() {
@@ -250,6 +267,25 @@ export function HeroSearchWidget() {
             <p className="mt-3 text-sm text-muted">YouTube, TikTok, Instagram, or Facebook — free, no sign-up required.</p>
           </form>
         )}
+      </div>
+
+      <div className="mt-6 border-t border-border pt-4">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted">More tools</p>
+        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {QUICK_TOOLS.map((tool) => (
+            <Link
+              key={tool.href}
+              href={tool.href}
+              className="flex items-center gap-1.5 rounded-button border border-border bg-surface px-2.5 py-2 text-xs font-medium text-secondary transition-colors hover:border-primary/40 hover:text-primary"
+            >
+              <tool.icon className="size-3.5 shrink-0" aria-hidden="true" />
+              <span className="truncate">{tool.label}</span>
+            </Link>
+          ))}
+        </div>
+        <Link href="/tools" className="mt-2 inline-block text-xs font-medium text-brand-strong hover:underline">
+          See all tools →
+        </Link>
       </div>
     </div>
   );
