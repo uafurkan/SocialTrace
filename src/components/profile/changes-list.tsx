@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 
 interface ChangesListProps {
   changes: ChangeEvent[];
+  emptyLabel?: string;
 }
 
 const FIELD_LABELS: Record<string, string> = {
@@ -61,12 +62,12 @@ function FieldChangeRow({ change }: { change: ChangeEvent }) {
   );
 }
 
-export function ChangesList({ changes }: ChangesListProps) {
+export function ChangesList({ changes, emptyLabel }: ChangesListProps) {
   if (changes.length === 0) {
     return (
       <p className="rounded-card border border-dashed border-border-strong bg-surface-subtle px-6 py-16 text-center text-sm text-muted">
-        No changes detected yet. Changes are computed automatically each time a new snapshot is captured (see the
-        History tab) and compared against the previous one — capture at least two snapshots to see anything here.
+        {emptyLabel ??
+          "No changes detected yet. Changes are computed automatically each time a new snapshot is captured (see the History tab) and compared against the previous one — capture at least two snapshots to see anything here."}
       </p>
     );
   }

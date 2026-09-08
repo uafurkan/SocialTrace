@@ -53,7 +53,11 @@ const TOOLS: Array<{ title: string; description: string; href?: string }> = [
   { title: "Following checker", description: "Search an indexed following dataset." },
   { title: "Following compare", description: "Compare following snapshots over time." },
   { title: "Username history", description: "See recorded username changes." },
-  { title: "Bio history", description: "See recorded bio changes." },
+  {
+    title: "Bio history",
+    description: "See recorded bio changes for a profile.",
+    href: "/tools/instagram-bio-history",
+  },
   {
     title: "Engagement calculator",
     description: "Engagement rate from a profile's most recent public posts.",

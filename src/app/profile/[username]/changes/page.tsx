@@ -6,8 +6,17 @@ import { ChangesList } from "@/components/profile/changes-list";
 
 export const maxDuration = 60;
 
-export default async function ProfileChangesPage(props: { params: Promise<{ username: string }> }) {
+const FIELD_EMPTY_LABELS: Record<string, string> = {
+  bio: "No bio changes recorded yet for this profile.",
+  username: "No username changes recorded yet for this profile.",
+};
+
+export default async function ProfileChangesPage(props: {
+  params: Promise<{ username: string }>;
+  searchParams: Promise<{ field?: string }>;
+}) {
   const params = await props.params;
+  const searchParams = await props.searchParams;
   const profile = await requireProfile(params.username);
 
   if (!isDbConfigured()) {
@@ -17,5 +26,7 @@ export default async function ProfileChangesPage(props: { params: Promise<{ user
   }
 
   const changes = await listChanges(profile.username);
-  return <ChangesList changes={changes} />;
+  const field = searchParams.field;
+  const filtered = field ? changes.filter((change) => change.field === field) : changes;
+  return <ChangesList changes={filtered} emptyLabel={field ? FIELD_EMPTY_LABELS[field] : undefined} />;
 }
