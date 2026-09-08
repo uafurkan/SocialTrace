@@ -20,6 +20,8 @@ const STATUS_BY_REASON: Record<EngagementErrorReason, number> = {
   profile_not_found: 404,
   private_account: 403,
   no_posts: 422,
+  // 503, not 502: the profile is fine, our data source is temporarily out.
+  source_unavailable: 503,
 };
 
 interface SideResult {

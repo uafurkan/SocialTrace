@@ -1,4 +1,5 @@
 import type { Platform } from "@/lib/domain/types";
+import { getCachedProfile } from "@/lib/cache/profile-cache";
 import { collectPages } from "@/lib/providers/collect";
 import { getProvider } from "@/lib/providers";
 import { ProfileNotFoundError } from "@/lib/providers/types";
@@ -6,7 +7,7 @@ import { ProfileNotFoundError } from "@/lib/providers/types";
 /** How many recent posts are sampled — matches the sample size competitor engagement calculators (Hootsuite, Modash) disclose for their own tools. */
 const SAMPLE_SIZE = 12;
 
-export type EngagementErrorReason = "profile_not_found" | "private_account" | "no_posts";
+export type EngagementErrorReason = "profile_not_found" | "private_account" | "no_posts" | "source_unavailable";
 
 export class EngagementError extends Error {
   constructor(
@@ -30,17 +31,30 @@ export interface EngagementResult {
   perPost: Array<{ id: string; likeCount: number; commentCount: number; postedAt: string }>;
 }
 
+/** Anything that isn't a statement about the profile itself is a source failure — surfaced as a retryable 503 rather than a generic 502 that reads as "this profile is broken". */
+function asEngagementError(error: unknown, platform: Platform, username: string): EngagementError {
+  if (error instanceof ProfileNotFoundError) {
+    return new EngagementError("profile_not_found", `No public ${platform} profile found for "${username}".`);
+  }
+  if (error instanceof EngagementError) return error;
+  return new EngagementError(
+    "source_unavailable",
+    "We couldn't reach the data source for this profile right now. Please try again shortly.",
+  );
+}
+
 export async function calculateEngagement(platform: Platform, username: string): Promise<EngagementResult> {
   const provider = getProvider(platform);
 
+  // Goes through the cache rather than straight to the provider: this used to
+  // re-fetch on every calculation, so two visitors checking the same profile
+  // paid for it twice. The cache also carries the last-known-good fallback, so
+  // a provider outage degrades to slightly stale numbers instead of an error.
   let profileResult;
   try {
-    profileResult = await provider.getProfile(username);
+    profileResult = platform === "instagram" ? await getCachedProfile(username, platform) : await provider.getProfile(username);
   } catch (error) {
-    if (error instanceof ProfileNotFoundError) {
-      throw new EngagementError("profile_not_found", `No public ${platform} profile found for "${username}".`);
-    }
-    throw error;
+    throw asEngagementError(error, platform, username);
   }
   const { profile } = profileResult;
 
@@ -48,7 +62,12 @@ export async function calculateEngagement(platform: Platform, username: string):
     throw new EngagementError("private_account", "This account is private — engagement can't be calculated from a private profile.");
   }
 
-  const posts = await collectPages((cursor) => provider.getPosts(profile.id, cursor), SAMPLE_SIZE);
+  let posts;
+  try {
+    posts = await collectPages((cursor) => provider.getPosts(profile.id, cursor), SAMPLE_SIZE);
+  } catch (error) {
+    throw asEngagementError(error, platform, username);
+  }
   if (posts.length === 0) {
     throw new EngagementError("no_posts", "This profile has no public posts to sample.");
   }

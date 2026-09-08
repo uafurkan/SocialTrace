@@ -1,17 +1,13 @@
-import type { CoverageStatus, Profile } from "@/lib/domain/types";
+import type { Profile } from "@/lib/domain/types";
 import { ProfileNotFoundError } from "../types";
+import { coverageFor, MEMBER_FETCH_CAP } from "../coverage";
+import { fetchWebProfileInfo, toProfile } from "../instagram-public/web-profile-info";
 import { runApifyActor } from "./client";
 
 const PROFILE_ACTOR_ID = "apify~instagram-profile-scraper";
 
-/**
- * Upper bound on how many followers/following this integration will ever
- * pull for one profile (see followers.ts). Coverage here is computed
- * against that cap, not a live count — see docs/PROVIDER_CONTRACT.md for
- * why calling a follower-scraper actor on every profile view is too
- * expensive to do eagerly.
- */
-export const MEMBER_FETCH_CAP = 200;
+// Re-exported so existing importers (apify/index.ts) keep their import path.
+export { MEMBER_FETCH_CAP };
 
 interface ApifyProfileItem {
   id: string;
@@ -26,19 +22,24 @@ interface ApifyProfileItem {
   postsCount?: number;
 }
 
-function coverageFor(indexed: number, total: number): CoverageStatus {
-  const raw = total === 0 ? 0 : (indexed / total) * 100;
-  const coveragePercent = raw === 0 ? 0 : raw < 1 ? Math.round(raw * 100) / 100 : Math.round(raw * 10) / 10;
-  return {
-    status: coveragePercent >= 99.5 ? "available" : indexed > 0 ? "partial" : "unavailable",
-    coveragePercent,
-    indexedCount: indexed,
-    totalCount: total,
-    lastCheckedAt: new Date().toISOString(),
-  };
-}
-
+/**
+ * Source chain: the free public endpoint first, the paid actor second.
+ *
+ * Free-first is both cheaper and faster (~300ms vs. a billed ~10s actor run),
+ * and it means an exhausted Apify quota or a failing actor no longer takes
+ * profile lookups down with it. The free source returns `null` — never a
+ * partial result — when it can't answer, so a fall-through is always safe.
+ *
+ * `ProfileNotFoundError` propagates instead of falling through: a confirmed
+ * "no such user" is an answer, and retrying it against a paid actor would burn
+ * a billed call to be told the same thing.
+ */
 export async function fetchApifyProfile(username: string): Promise<Profile> {
+  const publicUser = await fetchWebProfileInfo(username);
+  if (publicUser) {
+    return toProfile(publicUser);
+  }
+
   const items = (await runApifyActor(PROFILE_ACTOR_ID, { usernames: [username] })) as ApifyProfileItem[];
   const item = Array.isArray(items) ? items[0] : undefined;
 

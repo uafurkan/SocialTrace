@@ -14,12 +14,13 @@ const PLATFORMS: Array<{ id: Platform; label: string }> = [
   { id: "facebook", label: "Facebook" },
 ];
 
-type ErrorReason = "profile_not_found" | "private_account" | "no_posts" | "engagement_failed";
+type ErrorReason = "profile_not_found" | "private_account" | "no_posts" | "source_unavailable" | "engagement_failed";
 
 const ERROR_COPY: Record<ErrorReason, string> = {
   profile_not_found: "No public profile found for that username.",
   private_account: "This account is private — engagement can't be calculated from a private profile.",
   no_posts: "This profile has no public posts to sample.",
+  source_unavailable: "We couldn't reach the data source for this profile right now. Please try again shortly.",
   engagement_failed: "Something went wrong calculating engagement. Try again in a moment.",
 };
 

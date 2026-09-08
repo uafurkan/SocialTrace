@@ -25,6 +25,48 @@ function isConcurrencyLimitError(message: string): boolean {
   return message.includes("concurrent Actor runs");
 }
 
+/**
+ * An exhausted Apify plan ("Monthly usage hard limit exceeded") is an
+ * account-level condition, not a per-actor one: every actor fails, instantly
+ * and identically, until the quota resets or is raised.
+ */
+export function isApifyQuotaError(error: unknown): boolean {
+  if (!(error instanceof ApifyActorError)) return false;
+  const message = error.message.toLowerCase();
+  return message.includes("usage hard limit") || message.includes("monthly usage");
+}
+
+/**
+ * Circuit breaker for that account-level condition. Without it, the cost is
+ * paid per request and multiplied by every fallback chain: the follower path
+ * tries five actors in sequence, so an exhausted account means five
+ * guaranteed-failing round-trips before the caller sees the same failure it
+ * was always going to get. Latency, not correctness, is the damage.
+ *
+ * Once tripped, `runApifyActor` fails fast without issuing a request, letting
+ * callers fall through to their free source or last-known-good cache
+ * immediately. The window is short and self-healing: a restored quota
+ * recovers on its own with no deploy or manual reset.
+ */
+const QUOTA_BREAKER_WINDOW_MS = 15 * 60 * 1000;
+let quotaExhaustedUntil = 0;
+
+function isQuotaBreakerOpen(): boolean {
+  return Date.now() < quotaExhaustedUntil;
+}
+
+function tripQuotaBreaker(): void {
+  quotaExhaustedUntil = Date.now() + QUOTA_BREAKER_WINDOW_MS;
+  console.error(
+    `[apify] account usage limit hit — skipping all actor calls for ${QUOTA_BREAKER_WINDOW_MS / 60_000} minutes`,
+  );
+}
+
+/** Test seam: lets the quota breaker be reset between cases instead of leaking state across tests. */
+export function resetApifyQuotaBreaker(): void {
+  quotaExhaustedUntil = 0;
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -87,12 +129,23 @@ export async function runApifyActor(actorId: string, input: Record<string, unkno
     throw new Error("APIFY_API_TOKEN is not set — required when SOCIAL_PROVIDER=apify.");
   }
 
+  // Fail fast while the account is known to be out of quota. The thrown error
+  // is the same shape callers already handle, so nothing downstream needs to
+  // learn about the breaker — it just arrives sooner and for free.
+  if (isQuotaBreakerOpen()) {
+    throw new ApifyActorError(actorId, "Monthly usage hard limit exceeded (cached — not retried)");
+  }
+
   await acquireActorRunSlot();
   try {
     for (let attempt = 0; ; attempt++) {
       try {
         return await runApifyActorOnce(actorId, input, token);
       } catch (error) {
+        if (isApifyQuotaError(error)) {
+          tripQuotaBreaker();
+          throw error;
+        }
         const canRetry = attempt < CONCURRENCY_LIMIT_RETRY_DELAYS_MS.length;
         if (!canRetry || !(error instanceof ApifyActorError) || !isConcurrencyLimitError(error.message)) {
           throw error;

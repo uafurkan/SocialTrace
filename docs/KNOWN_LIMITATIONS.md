@@ -186,3 +186,29 @@ hardening (error boundaries, security headers, health check, best-effort
 rate limiting — SEO structured data/content pages deliberately excluded,
 see `docs/PRODUCTION_HARDENING.md`). None of these are complete relative
 to the full spec — each has its own docs file listing what was cut.
+
+- **Instagram profile/posts/reels have a free source; followers,
+  stories and highlights do not.** `web_profile_info` (see
+  docs/DECISIONS.md) covers profile fields, the ~12 most recent posts,
+  and reels — and identifies reels via Instagram's own `product_type`
+  rather than the `type === "Video"` approximation the Apify path still
+  uses. It is an undocumented endpoint: Instagram rate-limits or refuses
+  it outright from datacenter IPs, so on some deployments it never
+  answers and every request falls through to Apify. That is absorbed by
+  the chain, not surfaced as an error.
+  Followers, following, stories, highlights, tagged posts, likers and
+  comments require an authenticated session and remain Apify-only. When
+  Apify is unavailable they serve the last successful snapshot, or an
+  honest "temporarily unavailable" when there has never been one — they
+  do not fall back to any other source, because none exists that doesn't
+  require logging in.
+
+- **Username availability can prove "taken" more often than
+  "available".** YouTube and TikTok give definitive answers both ways.
+  Facebook can only prove *taken* (a resolving alias); it cannot
+  distinguish an unregistered handle from a personal profile, since
+  Facebook no longer exposes personal profiles via Graph — both look
+  identical, so both report "unknown". Instagram answers only from IPs
+  it hasn't rate-limited, and reports "unknown" otherwise. The tool
+  never guesses: three states, and "unknown" is never dressed up as an
+  answer.

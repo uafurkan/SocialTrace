@@ -17,6 +17,7 @@ import { eq } from "drizzle-orm";
 import type { Platform, Profile } from "@/lib/domain/types";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
 import { getProvider } from "@/lib/providers";
+import { ProfileNotFoundError } from "@/lib/providers/types";
 
 export const PROFILE_CACHE_TTL_MS = (Number(process.env.PROFILE_CACHE_TTL_HOURS) || 6) * 60 * 60 * 1000;
 
@@ -79,7 +80,29 @@ export async function getCachedProfile(username: string, platform: Platform = "i
     return { profile: cached.data as Profile };
   }
 
-  const result = await provider.getProfile(username);
-  await writeCache(platform, normalizedUsername, result.profile);
-  return result;
+  try {
+    const result = await provider.getProfile(username);
+    await writeCache(platform, normalizedUsername, result.profile);
+    return result;
+  } catch (error) {
+    // Last known good. An expired row used to be discarded outright, which
+    // meant that when the provider was unreachable — an exhausted Apify quota,
+    // an actor outage — a profile we had successfully fetched a hundred times
+    // returned a hard error instead of slightly old data. Serving it is both
+    // more useful and still honest: `Profile.followerCoverage.lastCheckedAt`
+    // carries the original fetch time and `CoverageBadge` already renders it,
+    // so the page says exactly how old this is without any UI change.
+    //
+    // ProfileNotFoundError is deliberately *not* caught here — "this profile
+    // does not exist" is a real answer about the profile, not a source
+    // failure, and must not be papered over with a stale row.
+    if (cached && !(error instanceof ProfileNotFoundError)) {
+      console.warn(
+        `[profile-cache] serving stale ${platform}/${normalizedUsername} (fetched ${cached.fetchedAt.toISOString()}) — provider unavailable:`,
+        error instanceof Error ? error.message : error,
+      );
+      return { profile: cached.data as Profile };
+    }
+    throw error;
+  }
 }

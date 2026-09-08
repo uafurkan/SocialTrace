@@ -1078,3 +1078,86 @@ the visitor on one page for both the download and the transcript,
 increasing ad-slot dwell/impressions on that page and removing an
 unnecessary page-to-page bounce — zero new backend code, since
 `VideoPreview`'s existing "done" state already renders both outcomes.
+
+**Multi-source data layer — free public Instagram endpoint first, Apify
+second, last-known-good cache third.**
+Every piece of real data on this site went through one paid vendor, and
+when that account hit `Monthly usage hard limit exceeded`, the engagement
+calculator, competitor analyzer and every uncached profile went down
+together — confirmed live, all three platforms failing identically and
+instantly. Apify is now one link in a chain rather than the whole chain:
+
+- **Free first for profile/posts/reels.** `i.instagram.com/api/v1/users/
+  web_profile_info` is the JSON endpoint instagram.com's own logged-out
+  frontend calls. One ~300ms request returns the profile *and* its ~12
+  most recent posts, where the Apify path needs two billed actor runs of
+  ~10s each. `x-ig-app-id: 936619743392459` is Instagram's public
+  web-client app id — a constant in their own client bundle, sent by
+  every logged-out browser. No login, cookie, session or credential is
+  used or stored anywhere; this is the same public data the profile page
+  already served, read from the endpoint that page itself calls.
+- **It also fixes an accuracy bug, not just an availability one.** The
+  free response carries Instagram's own `product_type` field, so a reel
+  is identified rather than inferred. The Apify path can't separate
+  reels from ordinary videos and settles for `type === "Video"` — the
+  best-effort limitation this file and KNOWN_LIMITATIONS.md already
+  recorded.
+- **Verified constraint:** Instagram refuses this endpoint from
+  datacenter IPs (`401 require_login`, later `400`). It returns `null`
+  there and the chain falls through to Apify, so on a blocked IP it
+  costs one fast request and changes nothing; on an unblocked one
+  (residential, or a production deployment that isn't rate-limited) it
+  serves the whole result for free. Every failure mode is `null`, never
+  a partial or zero-filled `Profile` — a strict shape guard enforces
+  this, because silently mapping a changed response into a profile full
+  of zeros wouldn't just show one wrong number, it would write a fake
+  "lost all followers" event into a visitor's tracked history.
+- **Quota circuit breaker.** An exhausted plan is an account-level
+  condition — every actor fails identically. The follower path tries
+  five actors in sequence, so an exhausted account meant five
+  guaranteed-failing round-trips per request. `isApifyQuotaError` trips
+  a 15-minute breaker that fails fast instead; measured live, a repeat
+  request went from 2.25s to 0.16s. Self-healing: a restored quota
+  recovers with no deploy.
+- **Last known good.** Both caches previously discarded expired rows on
+  read, so an outage made a profile we had fetched a hundred times
+  return a hard error. They now serve the stale row when every live
+  source fails. Honesty is preserved rather than traded away:
+  `CoverageStatus.lastCheckedAt` already carries the original fetch time
+  and `CoverageBadge` already renders it, so the page states how old the
+  data is. `ProfileNotFoundError` is deliberately excluded — a confirmed
+  "this profile is gone" is a real answer, and replaying a cached copy
+  of a deleted account would be the cache asserting something untrue
+  rather than merely something old.
+- **Source failure ≠ missing profile.** `ProviderUnavailableError` is
+  distinct from `ProfileNotFoundError`, mapped to 503 rather than 502 or
+  404. The old behaviour told visitors "Could not calculate engagement
+  for this profile" — blaming their profile for what was actually a
+  billing problem on our side. `/profile/*` gets its own error boundary
+  saying the data source is temporarily unreachable, instead of the root
+  boundary's "unexpected error".
+
+**No free path exists for followers, following, stories or highlights.**
+Those require an authenticated session; Apify obtains them by running
+its own logged-in accounts. They stay Apify-only and degrade to
+last-known-good, or to an honest unavailable state when there is no
+cached copy. This was a deliberate decision not to add a second paid
+vendor, and not to pursue any logged-in or session-reuse technique.
+
+**Username availability — what each platform can and cannot prove.**
+Re-verified live against real handles, and one planned mapping was wrong
+in a way worth recording:
+- **Facebook Graph, no token, is one-directional.** `graph.facebook.com/
+  <handle>` returns `error.code 200` ("Provide valid app ID") when the
+  alias *resolves* — definitive proof the handle is taken. But `zuck`, a
+  real profile since 2004, returns the identical `code 100 / subcode 33`
+  as a handle nobody has registered, because Facebook stopped exposing
+  personal profiles through Graph. So code 100 can never mean
+  "available" — it means "unknown". Mapping it to available (the
+  original plan) would have confidently told visitors that taken handles
+  were free.
+- **TikTok now confirms both answers positively.** `"uniqueId":"<handle>"`
+  proves taken and `"statusCode":10221` (TikTok's own not-found code)
+  proves available. Previously "no uniqueId" was *inferred* as
+  available, so any change to that key would have reported every handle
+  on earth as free to register.
