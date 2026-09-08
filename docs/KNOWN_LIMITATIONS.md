@@ -164,6 +164,13 @@ most of `SOCIALTRACE_MASTER_BUILD_SPEC.md`. Explicitly out of scope:
   tracking starts from whenever `external_id` was first recorded for that
   profile, not from account creation. See docs/DECISIONS.md.
 
+- **Video downloader excludes YouTube.** No free official download path
+  exists for YouTube; the only route in is a yt-dlp-style bypass, which
+  compounds the ToS risk already flagged for fetching YouTube video at
+  all. TikTok/Instagram/Facebook are supported. YouTube transcription
+  (the captions fast-path) is unaffected — the exclusion is scoped to
+  downloading only. See docs/DECISIONS.md.
+
 - **Facebook Pages have no stable id to track renames by.** No actor
   field exposes one (`apify~facebook-pages-scraper`'s response has none),
   so `Profile.externalId` is always `null` for Facebook — Facebook

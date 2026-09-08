@@ -99,11 +99,41 @@ function timestampedTextOf(text: string, segments: TranscriptSegment[]): string 
   return segments.map((s) => `[${formatTimestamp(s.start)}] ${s.text}`).join("\n");
 }
 
-function VideoPreview({ videoUrl }: { videoUrl: string }) {
+/**
+ * `download`, when passed, shows a "Download video" button + a visible
+ * attribution link back to the original source URL — per the confirmed
+ * policy in docs/DECISIONS.md ("Watermark-free video downloader"),
+ * excluded for YouTube (no free path, ToS bypass risk) and only shown
+ * once a platform is known (the finished result, not the in-progress
+ * preview, which has no platform yet).
+ */
+function VideoPreview({
+  videoUrl,
+  download,
+}: {
+  videoUrl: string;
+  download?: { sourceUrl: string; platform: string };
+}) {
+  const canDownload = download && download.platform !== "youtube";
   return (
     <Card className="h-fit lg:sticky lg:top-4">
-      <CardContent className="pt-6">
+      <CardContent className="space-y-3 pt-6">
         <video src={videoUrl} controls playsInline className="w-full rounded-card bg-black" style={{ maxHeight: 480 }} />
+        {canDownload ? (
+          <div className="space-y-1.5">
+            <Button asChild size="sm" variant="secondary">
+              <a href={`/api/v1/transcribe/video-proxy?url=${encodeURIComponent(videoUrl)}&download=1&platform=${encodeURIComponent(download.platform)}`}>
+                Download video
+              </a>
+            </Button>
+            <p className="text-xs text-muted">
+              Source:{" "}
+              <a href={download.sourceUrl} target="_blank" rel="noopener noreferrer" className="underline">
+                {download.sourceUrl}
+              </a>
+            </p>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );
@@ -323,7 +353,9 @@ export function TranscriberWidget({
 
       {state.status === "done" ? (
         <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,320px)_1fr] lg:items-start">
-          {state.result.videoUrl ? <VideoPreview videoUrl={state.result.videoUrl} /> : null}
+          {state.result.videoUrl ? (
+            <VideoPreview videoUrl={state.result.videoUrl} download={{ sourceUrl: url, platform: state.result.platform }} />
+          ) : null}
 
           <Card>
             <CardContent className="space-y-4 pt-6">

@@ -60,6 +60,11 @@ const TOOLS: Array<{ title: string; description: string; href?: string }> = [
     href: "/tools/hashtag-generator",
   },
   {
+    title: "Video downloader",
+    description: "Download a public TikTok, Instagram, or Facebook video, with a visible source link.",
+    href: "/tools/video-downloader",
+  },
+  {
     title: "Follower checker",
     description: "Search an indexed follower dataset.",
     href: "/tools/instagram-follower-checker",

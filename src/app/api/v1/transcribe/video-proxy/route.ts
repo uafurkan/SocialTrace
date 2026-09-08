@@ -33,9 +33,16 @@ function isSafeVideoUrl(url: URL): boolean {
   return true;
 }
 
+/** Strips everything but alphanumerics/hyphens — never interpolate raw upstream or query text into a header unescaped. */
+function sanitizeFilenamePart(value: string): string {
+  return value.replace(/[^a-zA-Z0-9-]/g, "").slice(0, 40);
+}
+
 export async function GET(request: NextRequest) {
   const raw = request.nextUrl.searchParams.get("url");
   if (!raw) return NextResponse.json({ error: "url is required" }, { status: 400 });
+  const download = request.nextUrl.searchParams.get("download") === "1";
+  const platformHint = sanitizeFilenamePart(request.nextUrl.searchParams.get("platform") ?? "") || "video";
 
   let target: URL;
   try {
@@ -96,6 +103,10 @@ export async function GET(request: NextRequest) {
   headers.set("Content-Length", String(body.byteLength));
   const contentRange = upstream.headers.get("content-range");
   if (contentRange) headers.set("Content-Range", contentRange);
+  headers.set(
+    "Content-Disposition",
+    download ? `attachment; filename="${platformHint}-${Date.now()}.mp4"` : "inline",
+  );
 
   return new NextResponse(body, { status: upstream.status, headers });
 }

@@ -1024,3 +1024,42 @@ landing pages per intent (accepted), not one page reshaping itself
 (declined, doorway-page anti-pattern). `/transcribe/{youtube,tiktok,
 instagram,facebook}-*` are the transcriber's version of that accepted
 pattern — see docs/TRANSCRIBER.md.
+
+**Watermark-free video downloader — redistribution posture, decided before any code.**
+Every other Apify-backed feature in this project fetches third-party
+video server-side only to transcribe it, then discards it — the
+copyright/ToS question of *redistributing* a downloadable copy of
+someone else's video was never actually decided, and
+`docs/TRANSCRIBER.md`'s existing risk note is about bypass-technique
+risk for fetching YouTube specifically, not about redistribution. Before
+writing this feature, the following was decided explicitly rather than
+inherited silently:
+- **Public content only** — same rule as every other feature here; no
+  private/restricted video was ever fetchable to begin with (the
+  downloader route reuses the exact `video-proxy` pipeline that already
+  enforces this).
+- **Attribution is shown, not optional** — every download is paired
+  with a visible link back to the original source URL the user
+  submitted, rendered next to the download action itself, matching how
+  most competitor "downloader" tools handle this.
+- **YouTube is excluded from this specific feature.** YouTube has no
+  free official download path; the only route in is a yt-dlp-style
+  bypass, which is the exact ToS risk `docs/TRANSCRIBER.md` already
+  flags for *fetching* YouTube video — redistributing a downloadable
+  copy on top of that bypass would compound a risk this project has
+  already chosen not to take on elsewhere. TikTok/Instagram/Facebook are
+  included: free, already-relied-upon fetch paths already exist for all
+  three via the transcriber pipeline. YouTube transcription itself (the
+  captions fast-path) is unaffected — this exclusion is scoped to
+  downloading only.
+
+Implemented as an addition to the existing `video-proxy` route (a
+`?download=1` query param switching `Content-Disposition` from `inline`
+to `attachment`) rather than a new route, since every other concern
+(SSRF guard, buffering, auth headers) already lives there correctly and
+duplicating it would only risk drift. The download button and its
+attribution link live on the existing `/transcribe` widget, plus one
+dedicated `/tools/video-downloader` landing page (cross-platform, like
+`username-availability-checker`, rather than three near-duplicate
+per-platform pages — this is an add-on to the transcriber experience,
+not a distinct tool per platform).
