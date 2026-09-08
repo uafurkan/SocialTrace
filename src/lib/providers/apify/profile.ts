@@ -51,6 +51,7 @@ export async function fetchApifyProfile(username: string): Promise<Profile> {
 
   return {
     id: `profile_${item.username}`,
+    externalId: item.id ?? null,
     platform: "instagram",
     username: item.username,
     displayName: item.fullName || item.username,

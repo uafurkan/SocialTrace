@@ -62,6 +62,7 @@ export async function fetchApifyTikTokProfile(username: string): Promise<Profile
 
   return {
     id: `profile_tiktok_${author.name}`,
+    externalId: author.id ?? null,
     platform: "tiktok",
     username: author.name,
     displayName: author.nickName || author.name,

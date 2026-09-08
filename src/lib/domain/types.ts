@@ -20,6 +20,14 @@ export interface CoverageStatus {
 
 export interface Profile {
   id: string;
+  /**
+   * The platform's own stable user id — the one thing that doesn't change
+   * across a username rename. `null` where a platform's provider has no
+   * such field to read (Facebook Pages, see providers/apify/facebook/profile.ts).
+   * Mock providers synthesize a fake-but-stable one from the username; that
+   * is never real data and must not be treated as such outside mock mode.
+   */
+  externalId: string | null;
   platform: Platform;
   username: string;
   displayName: string;

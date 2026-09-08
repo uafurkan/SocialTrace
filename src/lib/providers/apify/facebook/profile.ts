@@ -43,7 +43,12 @@ export async function fetchApifyFacebookProfile(usernameOrUrl: string): Promise<
   };
 
   return {
+    // No stable numeric page ID field is present in apify~facebook-pages-scraper's
+    // response shape (see docs/DECISIONS.md) — null is the honest value here,
+    // never a hash of the username (that would silently recreate the exact
+    // rename-tracking bug this field exists to fix).
     id: `profile_facebook_${item.pageName}`,
+    externalId: null,
     platform: "facebook",
     username: item.pageName,
     displayName: item.title || item.pageName,

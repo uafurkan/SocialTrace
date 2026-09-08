@@ -56,6 +56,7 @@ function profileFor(username: string): Profile {
   const followingCount = Math.floor(rand() * 500);
   return {
     id: `profile_tiktok_${username}`,
+    externalId: `mock_tiktok_${username}`, // fake-but-stable, mock mode only — never real data
     platform: "tiktok",
     username,
     displayName: username,

@@ -158,6 +158,18 @@ most of `SOCIALTRACE_MASTER_BUILD_SPEC.md`. Explicitly out of scope:
   (`segments: []`), only the fast-path/primary route does. No SRT/VTT
   export, translation, or speaker diarization yet.
 
+- **Username rename history has a real starting point.** A rename that
+  happened before a profile's first snapshot captured after
+  `profiles.external_id` shipped has no prior username in its history —
+  tracking starts from whenever `external_id` was first recorded for that
+  profile, not from account creation. See docs/DECISIONS.md.
+
+- **Facebook Pages have no stable id to track renames by.** No actor
+  field exposes one (`apify~facebook-pages-scraper`'s response has none),
+  so `Profile.externalId` is always `null` for Facebook — Facebook
+  profiles fall back to username-based matching only, same as before
+  this field existed.
+
 See spec §110 (Release Phases) and §228 (First 10 Engineering Milestones)
 for the build order this session has been following: all 10 first
 milestones have a slice now — real DB schema, provider contract for a

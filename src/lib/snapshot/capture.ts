@@ -60,11 +60,20 @@ function toSnapshotSummary(row: typeof schema.profileSnapshots.$inferSelect): Sn
   };
 }
 
-export async function upsertProfileRow(db: ReturnType<typeof getDb>, profile: Profile) {
+/**
+ * `existingRowId`, when given, is the row already found in captureSnapshot's
+ * externalId-or-username lookup (see fetchExistingProfileRow) — updating it
+ * directly by id is what makes a rename land on the *same* row instead of
+ * creating a new one: the (platform, normalized_username) ON CONFLICT target
+ * below can only match when the incoming username is unchanged, so a rename
+ * would otherwise insert a fresh row rather than update the existing one.
+ */
+export async function upsertProfileRow(db: ReturnType<typeof getDb>, profile: Profile, existingRowId?: string) {
   const values = {
     platform: profile.platform,
     username: profile.username,
     normalizedUsername: normalizeUsername(profile.username),
+    externalId: profile.externalId,
     displayName: profile.displayName,
     bio: profile.bio,
     avatarUrl: profile.avatarUrl,
@@ -75,6 +84,12 @@ export async function upsertProfileRow(db: ReturnType<typeof getDb>, profile: Pr
     postCount: profile.postCount,
     updatedAt: new Date(),
   };
+
+  if (existingRowId) {
+    const [row] = await db.update(schema.profiles).set(values).where(eq(schema.profiles.id, existingRowId)).returning();
+    return row;
+  }
+
   const [row] = await db
     .insert(schema.profiles)
     .values(values)
@@ -143,7 +158,26 @@ async function upsertMemberships(
     });
 }
 
-async function fetchExistingProfileRow(db: ReturnType<typeof getDb>, platform: Profile["platform"], normalizedUsername: string) {
+/**
+ * Looks up by the platform's own stable id first — the one thing that
+ * survives a rename — falling back to (platform, normalized_username) for
+ * rows captured before external_id existed, or when the provider has none
+ * to give (Facebook Pages; externalId is null). See docs/DECISIONS.md.
+ */
+export async function fetchExistingProfileRow(
+  db: ReturnType<typeof getDb>,
+  platform: Profile["platform"],
+  normalizedUsername: string,
+  externalId: string | null,
+) {
+  if (externalId) {
+    const [byExternalId] = await db
+      .select()
+      .from(schema.profiles)
+      .where(and(eq(schema.profiles.platform, platform), eq(schema.profiles.externalId, externalId)))
+      .limit(1);
+    if (byExternalId) return byExternalId;
+  }
   const [row] = await db
     .select()
     .from(schema.profiles)
@@ -226,6 +260,7 @@ function diffProfileFields(
   after: Profile,
 ): Array<{ field: string; oldValue: string; newValue: string }> {
   const pairs: Array<[string, string, string]> = [
+    ["username", before.username, after.username],
     ["displayName", before.displayName, after.displayName],
     ["bio", before.bio, after.bio],
     ["avatarUrl", before.avatarUrl, after.avatarUrl],
@@ -242,7 +277,7 @@ export async function captureSnapshot(username: string): Promise<SnapshotSummary
   const { profile } = await provider.getProfile(username);
   const normalizedUsername = normalizeUsername(profile.username);
 
-  const existingProfileRow = await fetchExistingProfileRow(db, profile.platform, normalizedUsername);
+  const existingProfileRow = await fetchExistingProfileRow(db, profile.platform, normalizedUsername, profile.externalId);
   const previousSnapshotRow = existingProfileRow ? await fetchLatestSnapshot(db, existingProfileRow.id) : null;
   const [previousActiveFollowerIds, previousActiveFollowingIds] = existingProfileRow
     ? await Promise.all([
@@ -256,7 +291,7 @@ export async function captureSnapshot(username: string): Promise<SnapshotSummary
     collectPages((cursor) => provider.getFollowing(profile.id, cursor, PAGE_SIZE), SNAPSHOT_MEMBER_LIMIT),
   ]);
 
-  const profileRow = await upsertProfileRow(db, profile);
+  const profileRow = await upsertProfileRow(db, profile, existingProfileRow?.id);
   const [followerIdByUsername, followingIdByUsername] = await Promise.all([
     upsertSocialUsers(db, profile.platform, followers),
     upsertSocialUsers(db, profile.platform, following),

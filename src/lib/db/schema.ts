@@ -38,6 +38,14 @@ export const profiles = pgTable(
     platform: platformEnum("platform").notNull(),
     username: text("username").notNull(),
     normalizedUsername: text("normalized_username").notNull(),
+    /**
+     * The platform's own stable user id (Profile.externalId — see
+     * src/lib/domain/types.ts). Nullable: rows captured before this column
+     * existed, and Facebook Pages (no such field to read), have no value
+     * here. See docs/DECISIONS.md for why this is a nullable column with a
+     * dual lookup rather than a one-time backfill migration.
+     */
+    externalId: text("external_id"),
     displayName: text("display_name").notNull(),
     bio: text("bio").notNull().default(""),
     avatarUrl: text("avatar_url").notNull().default(""),
@@ -55,6 +63,8 @@ export const profiles = pgTable(
       table.platform,
       table.normalizedUsername,
     ),
+    /** Not unique (nullable, and pre-migration rows share `null`) — a lookup index for the rename-detection path in src/lib/snapshot/capture.ts. */
+    externalIdIdx: index("profiles_external_id_idx").on(table.platform, table.externalId),
   }),
 );
 

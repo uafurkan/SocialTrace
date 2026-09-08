@@ -946,6 +946,41 @@ just fixed for the Instagram viewer (see the "Cache all per-profile Apify
 results" entry above). Benefits every Apify-backed feature, not just
 transcription.
 
+**Stable profile identity (`externalId`) — fixing rename tracking.**
+Profiles were matched everywhere by `(platform, normalized_username)`,
+and `Profile.id` was just `` `profile_${username}` `` — not a real
+platform id. A renamed account therefore looked up a different key on
+its next capture and read as a brand-new profile, not a rename. Rather
+than ship "Username history" as another honest limitation, added a real
+`externalId` field. Confirmed field names from this codebase's own
+already-typed Apify response shapes (the safer path available here,
+since the Apify account is over its monthly usage cap and a fresh live
+call wasn't possible this session — the fields below were already typed
+as required, non-optional properties by prior work, meaning they were
+observed in real responses when those integrations were first built,
+not guessed now):
+- **Instagram** (`apify~instagram-profile-scraper`): `id` —
+  `ApifyProfileItem.id` in `src/lib/providers/apify/profile.ts` was
+  already typed as a required field, previously unused in the mapping.
+- **TikTok** (`clockworks~tiktok-profile-scraper`): `authorMeta.id` —
+  same situation in `src/lib/providers/apify/tiktok/profile.ts`.
+- **Facebook** (`apify~facebook-pages-scraper`): no stable numeric page
+  id field exists anywhere in `FacebookPageItem`
+  (`src/lib/providers/apify/facebook/profile.ts`) — `externalId` is
+  `null` for Facebook profiles, a real per-platform limitation, not
+  something to fabricate (e.g. hashing the username would silently
+  recreate the exact bug this field exists to fix).
+
+Chose a **nullable column + dual lookup** (`external_id` lookup first,
+falling back to `(platform, normalized_username)`) over a one-time bulk
+backfill migration: no downtime, no need to re-fetch every tracked
+profile from Apify just to populate one column, since every row
+naturally backfills `external_id` the next time it's captured. The
+tradeoff, recorded as a known limitation: a rename that happened before
+a profile's first post-migration capture has no prior username in its
+history — tracking starts from whenever `external_id` was first recorded
+for that profile, not from account creation.
+
 **Declined: making the homepage itself vary by search keyword.** Asked
 whether the homepage could show different content depending on whether a
 visitor searched "insta viewer" vs. "video transcriber." Not implemented,

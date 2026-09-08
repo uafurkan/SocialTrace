@@ -83,6 +83,20 @@ table needed a schema change when accounts were added.
 `docs/AUTH.md`) are written to and read from as of the auth slice.
 `users.plan` gates the limits in `docs/BILLING.md`.
 
+## `profiles.external_id` (stable platform identity)
+
+`Profile.externalId` (`src/lib/domain/types.ts`) and `profiles.external_id`
+(nullable `text`, indexed on `(platform, external_id)`) hold the
+platform's own stable user id — the one thing that survives a username
+rename, unlike `(platform, normalized_username)`, which is what every
+row was matched on before this column existed. See `docs/DECISIONS.md`
+for the confirmed field name per platform and why this is a nullable
+column with a dual lookup rather than a one-time backfill migration.
+`Profile.id` (app-internal, `` `profile_${username}` ``-shaped) and
+`Profile.externalId` (the platform's own id) are two different things
+serving two different purposes — the former is never meant to be stable
+across a rename, the latter is exactly for that.
+
 ## Not modeled yet
 
 `tracking_jobs` (a real scheduler's job queue — `watchlist_entries`

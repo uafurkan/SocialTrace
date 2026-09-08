@@ -137,6 +137,7 @@ function coverageFor(indexed: number, total: number): CoverageStatus {
 function toProfile(seed: SeedProfile): Profile {
   return {
     id: `profile_${seed.username}`,
+    externalId: `mock_${seed.username}`, // fake-but-stable, mock mode only — never real data
     platform: "instagram",
     username: seed.username,
     displayName: seed.displayName,

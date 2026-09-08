@@ -45,6 +45,7 @@ function profileFor(username: string): Profile {
   const followerCount = Math.floor(rand() * 2_000_000);
   return {
     id: `profile_facebook_${username}`,
+    externalId: `mock_facebook_${username}`, // fake-but-stable, mock mode only — never real data
     platform: "facebook",
     username,
     displayName: username,
