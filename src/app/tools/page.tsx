@@ -55,6 +55,11 @@ const TOOLS: Array<{ title: string; description: string; href?: string }> = [
     href: "/tools/username-availability-checker",
   },
   {
+    title: "Hashtag generator",
+    description: "Get hashtag suggestions for a caption or topic.",
+    href: "/tools/hashtag-generator",
+  },
+  {
     title: "Follower checker",
     description: "Search an indexed follower dataset.",
     href: "/tools/instagram-follower-checker",
