@@ -60,7 +60,11 @@ const TOOLS: Array<{ title: string; description: string; href?: string }> = [
     href: "/tools/instagram-following-checker",
   },
   { title: "Following compare", description: "Compare following snapshots over time." },
-  { title: "Username history", description: "See recorded username changes." },
+  {
+    title: "Username history",
+    description: "See recorded username changes for a profile.",
+    href: "/tools/instagram-username-history",
+  },
   {
     title: "Bio history",
     description: "See recorded bio changes for a profile.",
