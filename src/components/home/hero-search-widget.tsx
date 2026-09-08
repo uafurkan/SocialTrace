@@ -81,11 +81,14 @@ export function HeroSearchWidget() {
   const router = useRouter();
 
   const [platform, setPlatform] = useState<Platform>("instagram");
-  const [username, setUsername] = useState("");
+  // One shared value for both modes' input box — typing a link/username in
+  // either "Profile search" or "Video transcribe" and switching tabs keeps
+  // it there instead of clearing the other box. Each mode still validates
+  // and submits it its own way (extractUsername vs. a bare URL check).
+  const [inputValue, setInputValue] = useState("");
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const { pending, navigate, continueNavigation } = useAdGate();
 
-  const [videoUrl, setVideoUrl] = useState("");
   const [videoError, setVideoError] = useState<string | null>(null);
 
   const activePlatform = SOCIAL_PLATFORMS.find((p) => p.id === platform)!;
@@ -99,18 +102,27 @@ export function HeroSearchWidget() {
     isOpen: isUsernameHistoryOpen,
     setIsOpen: setIsUsernameHistoryOpen,
     matches: usernameHistoryMatches,
-  } = useHistorySuggestions(usernameHistory, username);
+  } = useHistorySuggestions(usernameHistory, inputValue);
   const { history: videoHistory, addToHistory: addVideoToHistory } = useInputHistory("hero-video-url");
   const {
     containerRef: videoHistoryContainerRef,
     isOpen: isVideoHistoryOpen,
     setIsOpen: setIsVideoHistoryOpen,
     matches: videoHistoryMatches,
-  } = useHistorySuggestions(videoHistory, videoUrl);
+  } = useHistorySuggestions(videoHistory, inputValue);
+
+  function switchMode(next: Mode) {
+    setMode(next);
+    // Clear whichever mode's error is stale — the shared value carries over
+    // on purpose, but an old "paste a video link" message shouldn't linger
+    // once you've switched to Profile search, and vice versa.
+    setUsernameError(null);
+    setVideoError(null);
+  }
 
   function handleProfileSubmit(event: React.FormEvent) {
     event.preventDefault();
-    const result = usernameSchema.safeParse(username);
+    const result = usernameSchema.safeParse(inputValue);
     if (!result.success) {
       setUsernameError(result.error.issues[0]?.message ?? "Enter a username or profile link");
       return;
@@ -128,13 +140,13 @@ export function HeroSearchWidget() {
 
   function handleVideoSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (!videoUrl.trim()) {
+    if (!inputValue.trim()) {
       setVideoError("Paste a video link");
       return;
     }
     setVideoError(null);
-    addVideoToHistory(videoUrl.trim());
-    router.push(`/transcribe?url=${encodeURIComponent(videoUrl.trim())}`);
+    addVideoToHistory(inputValue.trim());
+    router.push(`/transcribe?url=${encodeURIComponent(inputValue.trim())}`);
   }
 
   return (
@@ -147,7 +159,7 @@ export function HeroSearchWidget() {
           <button
             key={id}
             type="button"
-            onClick={() => setMode(id)}
+            onClick={() => switchMode(id)}
             aria-pressed={mode === id}
             className={cn(
               "relative z-10 flex min-h-[36px] items-center justify-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-colors",
@@ -191,20 +203,20 @@ export function HeroSearchWidget() {
                   aria-hidden="true"
                 />
                 <Input
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
                   onFocus={() => setIsUsernameHistoryOpen(true)}
                   placeholder={activePlatform.placeholder}
                   aria-label={`${activePlatform.label} username or profile link`}
                   autoComplete="off"
                   className="border-0 pl-9 pr-20 shadow-none focus-visible:border-0 focus-visible:ring-0"
                 />
-                <PasteButton onPaste={setUsername} />
+                <PasteButton onPaste={setInputValue} />
                 {isUsernameHistoryOpen ? (
                   <HistorySuggestionsList
                     items={usernameHistoryMatches}
                     onSelect={(item) => {
-                      setUsername(item);
+                      setInputValue(item);
                       setIsUsernameHistoryOpen(false);
                     }}
                   />
@@ -240,20 +252,20 @@ export function HeroSearchWidget() {
                 />
                 <Input
                   type="url"
-                  value={videoUrl}
-                  onChange={(e) => setVideoUrl(e.target.value)}
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
                   onFocus={() => setIsVideoHistoryOpen(true)}
                   placeholder={copy.transcriber.urlPlaceholder}
                   aria-label="Video URL"
                   autoComplete="off"
                   className="border-0 pl-9 pr-20 shadow-none focus-visible:border-0 focus-visible:ring-0"
                 />
-                <PasteButton onPaste={setVideoUrl} />
+                <PasteButton onPaste={setInputValue} />
                 {isVideoHistoryOpen ? (
                   <HistorySuggestionsList
                     items={videoHistoryMatches}
                     onSelect={(item) => {
-                      setVideoUrl(item);
+                      setInputValue(item);
                       setIsVideoHistoryOpen(false);
                     }}
                   />
