@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 
 import { resolveIdentity } from "@/lib/auth/identity";
+import { isAdminEmail } from "@/lib/auth/admin";
 import { PlanLimitError } from "@/lib/billing/plans";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
 import { clientIdentifierFor, rateLimit } from "@/lib/rate-limit";
@@ -103,14 +104,17 @@ export async function POST(request: NextRequest) {
   }
 
   const identity = await resolveIdentity(request);
+  const isAdmin = isAdminEmail(identity.account?.email);
 
-  try {
-    await assertTranscriptionAllowed(identity.scopeId, identity.account?.plan ?? null);
-  } catch (error) {
-    if (error instanceof PlanLimitError || error instanceof Error) {
-      return NextResponse.json({ error: error.message }, { status: 429 });
+  if (!isAdmin) {
+    try {
+      await assertTranscriptionAllowed(identity.scopeId, identity.account?.plan ?? null);
+    } catch (error) {
+      if (error instanceof PlanLimitError || error instanceof Error) {
+        return NextResponse.json({ error: error.message }, { status: 429 });
+      }
+      throw error;
     }
-    throw error;
   }
 
   const cacheKey = normalizeVideoUrl(url, platform);

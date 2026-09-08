@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { isDbConfigured } from "@/lib/db";
 import { resolveIdentity } from "@/lib/auth/identity";
+import { isAdminEmail } from "@/lib/auth/admin";
 import { ProfileNotFoundError } from "@/lib/providers";
 import { PlanLimitError } from "@/lib/billing/plans";
 import { clientIdentifierFor, rateLimit } from "@/lib/rate-limit";
@@ -53,7 +54,9 @@ export async function POST(request: NextRequest) {
   const identity = await resolveIdentity(request);
 
   try {
-    await createSavedSearch(username, kind as Kind, query, identity.scopeId, identity.account?.plan);
+    // Admin's own account skips plan-limit enforcement — see src/lib/auth/admin.ts.
+    const plan = isAdminEmail(identity.account?.email) ? undefined : identity.account?.plan;
+    await createSavedSearch(username, kind as Kind, query, identity.scopeId, plan);
   } catch (error) {
     if (error instanceof ProfileNotFoundError) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 });
