@@ -220,3 +220,16 @@ to the full spec — each has its own docs file listing what was cut.
   Its embedded data doesn't include the video list, so `getPosts` for
   TikTok is still Apify-only and degrades to last-known-good or an
   honest "not available" empty state under the same quota exhaustion.
+
+- **Bright Data profile warming is background-only and best-effort.** A
+  profile that isn't already cached and can't be answered by the free
+  Instagram source or Apify still gets the same honest response as before
+  (last-known-good or "temporarily unavailable") on the *current* request —
+  Bright Data's job runs afterward and only helps a *later* visit to that
+  same profile. If Bright Data itself doesn't finish within its 4-minute
+  background budget (confirmed to happen — its own completion time varies
+  from ~50s to well over 150s), that later visit gets the same honest
+  fallback again, silently, with no error surfaced anywhere. Only wired for
+  Instagram and Facebook profiles, not TikTok (its dataset ran past 150s
+  without finishing in testing) and not for posts/followers/following on
+  any platform.

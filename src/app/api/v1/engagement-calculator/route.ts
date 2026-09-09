@@ -5,6 +5,10 @@ import { calculateEngagement, EngagementError, type EngagementErrorReason } from
 import { clientIdentifierFor, rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
+// The response no longer blocks on Bright Data (see
+// providers/brightdata/profile.ts), but its background warm via `after()`
+// shares this function's execution budget, so this stays raised past 60.
+export const maxDuration = 90;
 
 const ENGAGEMENT_RATE_LIMIT = 20;
 const ENGAGEMENT_RATE_WINDOW_MS = 10 * 60 * 1000;

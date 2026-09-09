@@ -1,5 +1,6 @@
 import type { CoverageStatus, Profile } from "@/lib/domain/types";
 import { ProfileNotFoundError } from "../../types";
+import { warmBrightDataFacebookProfile } from "../../brightdata/profile";
 import { runApifyActor } from "../client";
 
 const PAGE_ACTOR_ID = "apify~facebook-pages-scraper";
@@ -17,9 +18,20 @@ interface FacebookPageItem {
  * Facebook Pages are always public by definition — there's no private/
  * public toggle to read the way Instagram/TikTok accounts have, so
  * isPrivate is always false here (honest, not a guess).
+ *
+ * Bright Data (an independent vendor/quota — see providers/brightdata/client.ts)
+ * is not called synchronously here for the same reason as the Instagram
+ * fetcher: its confirmed live latency (~66s, sometimes more) is too slow and
+ * variable to block a request on. `warmBrightDataFacebookProfile` instead
+ * fires a background job that writes into the profile cache when it
+ * finishes, warming the *next* visit to this page without making the
+ * current visitor wait for it.
  */
 export async function fetchApifyFacebookProfile(usernameOrUrl: string): Promise<Profile> {
   const url = usernameOrUrl.startsWith("http") ? usernameOrUrl : `https://www.facebook.com/${usernameOrUrl}`;
+
+  warmBrightDataFacebookProfile(url);
+
   const items = (await runApifyActor(PAGE_ACTOR_ID, { startUrls: [{ url }] })) as FacebookPageItem[];
   const item = Array.isArray(items) ? items[0] : undefined;
 

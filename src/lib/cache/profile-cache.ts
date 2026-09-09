@@ -47,6 +47,18 @@ async function readCache(platform: Platform, normalizedUsername: string) {
   return rows.find((row) => row.platform === platform) ?? null;
 }
 
+/**
+ * Exposed for background sources that can't answer within a request's
+ * lifetime (Bright Data — see providers/brightdata/profile.ts): they trigger
+ * a job, return `null` immediately so the current request falls through to
+ * the next source as usual, then call this once the job completes so the
+ * *next* visit to this profile is a fast cache hit instead of another slow
+ * background job.
+ */
+export async function writeCachedProfile(platform: Platform, username: string, profile: Profile): Promise<void> {
+  await writeCache(platform, normalizeUsername(username), profile);
+}
+
 async function writeCache(platform: Platform, normalizedUsername: string, profile: Profile) {
   const db = getDb();
   await db

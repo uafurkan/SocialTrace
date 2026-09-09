@@ -1225,3 +1225,66 @@ from this sandbox → `{ ok: false, status: null }` (matches the known IP
 block) with zero Apify calls made. The still-open question — what this
 reports once deployed — is exactly what this probe exists to answer without
 another round of log-grepping.
+
+## Bright Data as a second, independent vendor — background-warmed, not synchronous
+
+With Apify's account over its monthly quota, the only fully free path left
+for Instagram/Facebook profiles was the sandbox-blocked `web_profile_info`
+endpoint. Bright Data (a completely separate vendor, separate account,
+separate free quota — 5,000 records/month per scraper type, no card
+required) was added as a genuine second source, confirmed live with a real
+API token: `POST /datasets/v3/trigger` with a per-platform `dataset_id`
+(Instagram profiles `gd_l1vikfch901nx3by4`, Facebook posts-by-profile
+`gd_lkaxegm826bjpoo9m5`, which carries page-level fields including a real
+stable `profile_id`), polled via `GET /datasets/v3/progress/{id}` until
+`status: "ready"`, then fetched via `GET /datasets/v3/snapshot/{id}`.
+
+**Why it's not in the synchronous request chain.** Live timing, not a
+guess: Instagram ranged from ~50s (ready) to not-ready-at-all within 50s on
+a second attempt; Facebook ~66s; TikTok's equivalent dataset
+(`gd_l1villgoiiidt09ci`) ran past 150s without finishing at all in the same
+test and is not wired in anywhere. Blocking a page load on this produced
+exactly the failure this phase was meant to fix — a live end-to-end test hit
+a 100s timeout and still 500'd. This is a fundamentally different tool from
+Apify's `run-sync-get-dataset-items` (which blocks for the actor's own
+runtime, typically ~10-30s): Bright Data's dataset API is built for
+snapshot/batch collection, not "user is waiting on this response."
+
+**The actual design**: `providers/brightdata/profile.ts`'s
+`warmBrightDataInstagramProfile`/`warmBrightDataFacebookProfile` trigger a
+job and return `null` immediately — the current request falls through to
+Apify/stale-cache/honest-unavailable exactly as before Bright Data existed.
+Next's `after()` keeps polling in the background once the response has
+already gone out (confirmed live: `after()` survives a request that ends in
+a thrown error, both when the throw is in the page body and in
+`generateMetadata`), and on success calls the newly-exported
+`writeCachedProfile` (`cache/profile-cache.ts`) to write straight into the
+same cache Apify/the free source populate. A small in-memory
+`inFlightWarms` set prevents duplicate concurrent jobs for the same
+platform+username — necessary because a single page view was confirmed to
+call this 3 times (Next renders `generateMetadata` and the page body as
+separate passes that don't share React's request-scoped `cache()`).
+
+**Verified live, end to end**: an Instagram profile never fetched before
+(`puma`) returned its normal fast response (~0.5-1.5s, honest-unavailable,
+unchanged from before this phase) while a background job ran; ~2 minutes
+later the same profile loaded in 0.5s with real Bright Data data
+(followers/bio/avatar/verified, `externalId` from Bright Data's numeric
+`id`). A second profile (`underarmour`) hit Bright Data's own variability
+and didn't finish within the 4-minute background budget — handled as a
+plain warn log, no error surfaced anywhere, no crash, exactly the same
+"this source couldn't answer this time" contract every other link in the
+chain already follows.
+
+`maxDuration` on the profile pages and the engagement-calculator/
+competitor-analyzer routes stays at 90 (raised from 60) even though the
+response no longer blocks on this: Vercel's `after()` work shares the same
+function's execution budget, so the background warm needs that headroom to
+have any chance of finishing before the instance is torn down.
+
+**Explicitly out of scope**: TikTok (confirmed too slow to be worth wiring
+even in the background-warm shape, not attempted), followers/following/
+posts lists for any platform (this phase only warms the profile — the
+dataset IDs above are profile/page-level; a posts or followers dataset
+would need its own separate background-warm wiring and cache write path,
+not built here).

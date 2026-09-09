@@ -2,7 +2,11 @@ import { requireProfile } from "@/lib/server/profile";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCount } from "@/lib/utils";
 
-export const maxDuration = 60;
+// The response itself is fast again (Bright Data no longer blocks it — see
+// providers/brightdata/profile.ts), but Vercel's `after()` background work
+// still shares this function's execution budget, so this stays raised past
+// 60 to give the Bright Data background warm a real chance to finish.
+export const maxDuration = 90;
 
 export default async function ProfileOverviewPage(props: { params: Promise<{ username: string }> }) {
   const params = await props.params;

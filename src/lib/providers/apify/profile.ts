@@ -2,6 +2,7 @@ import type { Profile } from "@/lib/domain/types";
 import { ProfileNotFoundError } from "../types";
 import { coverageFor, MEMBER_FETCH_CAP } from "../coverage";
 import { fetchWebProfileInfo, toProfile } from "../instagram-public/web-profile-info";
+import { warmBrightDataInstagramProfile } from "../brightdata/profile";
 import { runApifyActor } from "./client";
 
 const PROFILE_ACTOR_ID = "apify~instagram-profile-scraper";
@@ -23,12 +24,16 @@ interface ApifyProfileItem {
 }
 
 /**
- * Source chain: the free public endpoint first, the paid actor second.
- *
- * Free-first is both cheaper and faster (~300ms vs. a billed ~10s actor run),
- * and it means an exhausted Apify quota or a failing actor no longer takes
- * profile lookups down with it. The free source returns `null` — never a
- * partial result — when it can't answer, so a fall-through is always safe.
+ * Source chain: the free public endpoint first, the paid Apify actor
+ * second. Bright Data (an independent vendor/quota — see
+ * providers/brightdata/client.ts) is *not* in this synchronous chain —
+ * live testing found its completion time too slow and variable to block a
+ * request on (confirmed ~50s-plus, sometimes not ready at all within that).
+ * Instead, whenever this falls through past the free source,
+ * `warmBrightDataInstagramProfile` fires a background job that writes
+ * straight into the profile cache when it finishes, so a *later* visit to
+ * this same profile can get a fast cache hit even while Apify is out —
+ * without ever making the visitor waiting right now sit through it.
  *
  * `ProfileNotFoundError` propagates instead of falling through: a confirmed
  * "no such user" is an answer, and retrying it against a paid actor would burn
@@ -39,6 +44,8 @@ export async function fetchApifyProfile(username: string): Promise<Profile> {
   if (publicUser) {
     return toProfile(publicUser);
   }
+
+  warmBrightDataInstagramProfile(username);
 
   const items = (await runApifyActor(PROFILE_ACTOR_ID, { usernames: [username] })) as ApifyProfileItem[];
   const item = Array.isArray(items) ? items[0] : undefined;

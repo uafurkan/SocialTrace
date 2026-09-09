@@ -5,6 +5,8 @@ import { calculateEngagement, EngagementError, type EngagementErrorReason, type 
 import { clientIdentifierFor, rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
+// Same reasoning as engagement-calculator/route.ts.
+export const maxDuration = 90;
 
 const COMPETITOR_RATE_LIMIT = 10;
 const COMPETITOR_RATE_WINDOW_MS = 10 * 60 * 1000;
