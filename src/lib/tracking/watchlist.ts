@@ -1,7 +1,7 @@
 import { and, count, desc, eq } from "drizzle-orm";
 
 import { getDb, schema } from "@/lib/db";
-import { provider } from "@/lib/providers";
+import { getCachedProfile } from "@/lib/cache/profile-cache";
 import { normalizeUsername, upsertProfileRow } from "@/lib/snapshot/capture";
 import { assertWithinLimit, type Plan } from "@/lib/billing/plans";
 
@@ -41,12 +41,17 @@ export async function isProfileTracked(username: string, visitorId: string): Pro
 }
 
 /**
- * Fetches the profile fresh (so a never-before-seen profile can be
- * tracked without first capturing a snapshot) and upserts a minimal
- * profiles row for the watchlist entry to reference. `plan` is only
- * provided when `visitorId` is an account scope (`account:<userId>`,
- * see src/lib/auth/identity.ts) — anonymous visitors have no plan to
- * enforce a limit against (docs/BILLING.md).
+ * Fetches the profile (via getCachedProfile — same cost-control/stale-on-error
+ * path the profile page itself uses, not a raw provider.getProfile call) and
+ * upserts a minimal profiles row for the watchlist entry to reference. `plan`
+ * is only provided when `visitorId` is an account scope (`account:<userId>`,
+ * see src/lib/auth/identity.ts) — anonymous visitors have no plan to enforce a
+ * limit against (docs/BILLING.md).
+ *
+ * Routing through the cache matters: calling the raw provider directly meant
+ * an Apify quota outage (with the free Instagram source also blocked from this
+ * deployment's IP — docs/DECISIONS.md) surfaced as an unhandled 500 on Track,
+ * even for profiles that had a perfectly good cached/stale copy available.
  */
 export async function trackProfile(username: string, visitorId: string, plan?: Plan): Promise<void> {
   const db = getDb();
@@ -57,7 +62,7 @@ export async function trackProfile(username: string, visitorId: string, plan?: P
       .where(eq(schema.watchlistEntries.visitorId, visitorId));
     assertWithinLimit(plan, "tracked profiles", row.value);
   }
-  const { profile } = await provider.getProfile(username);
+  const { profile } = await getCachedProfile(username);
   const profileRow = await upsertProfileRow(db, profile);
   await db
     .insert(schema.watchlistEntries)

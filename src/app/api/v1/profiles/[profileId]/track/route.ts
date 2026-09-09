@@ -54,7 +54,15 @@ export async function POST(request: NextRequest) {
     if (error instanceof PlanLimitError) {
       return NextResponse.json({ error: error.message }, { status: 403 });
     }
-    throw error;
+    // Every profile source (cache, free endpoint, Apify) failed and no stale
+    // row existed to fall back on — a temporary outage, not a bug and not
+    // "this profile doesn't exist" (see ProviderUnavailableError's own doc
+    // comment in src/lib/providers/types.ts). Honest 503, never a raw 500.
+    console.error("[track] profile fetch failed, no source available:", error);
+    return NextResponse.json(
+      { error: "This profile's data is temporarily unavailable. Please try again shortly." },
+      { status: 503 },
+    );
   }
 
   const response = NextResponse.json({ tracked: true });
