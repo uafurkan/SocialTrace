@@ -108,7 +108,7 @@ function parseNumberedLines(response: string, expectedCount: number): string[] |
 async function translateSegmentBatch(texts: string[], targetLanguageLabel: string): Promise<string[] | null> {
   const numbered = texts.map((text, i) => `${i + 1}. ${text}`).join("\n");
   const { content } = await completeWithFallback(
-    `You are a professional subtitle translator. Translate each numbered line into ${targetLanguageLabel}. Output EXACTLY ${texts.length} lines, one translated line per input line, in the same order, each still prefixed with its original number. No extra commentary, no blank lines.`,
+    `You are a professional subtitle translator. These numbered lines are consecutive fragments of one continuous transcript, split by timestamp, not by sentence — a sentence, clause, or pronoun reference often carries over from one line to the next or previous line. Read the ENTIRE numbered list first to understand the full context, then translate each line into ${targetLanguageLabel} the way a human subtitler (or DeepL) would: resolve pronouns, continuations, and mid-sentence breaks using the surrounding lines' context, so consecutive lines read as one coherent, natural translation rather than isolated word-for-word fragments. Despite using that context, you must still output EXACTLY ${texts.length} lines, one translated line per input line, in the same order, each still prefixed with its original number — never merge, split, reorder, or drop lines. No extra commentary, no blank lines.`,
     numbered,
   );
   return parseNumberedLines(content, texts.length);
