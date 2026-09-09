@@ -279,12 +279,27 @@ export function TranscriberWidget({
     if (!target) return;
 
     setTranslation({ status: "loading" });
+    const requestBody = JSON.stringify({ text: state.result.text, segments: state.result.segments, targetLanguage: target.code });
+
+    // fetch() rejecting outright (a TypeError — "Load failed" on Safari/iOS,
+    // "Failed to fetch" on Chrome) means the request never reached the
+    // server at all, most often a flaky mobile connection dropping mid-request
+    // — distinct from the server answering with a real error body below. One
+    // silent retry absorbs that common transient case; a real API error still
+    // surfaces immediately with its own message, un-retried.
+    let res: Response;
     try {
-      const res = await fetch("/api/v1/translate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: state.result.text, segments: state.result.segments, targetLanguage: target.code }),
-      });
+      res = await fetch("/api/v1/translate", { method: "POST", headers: { "Content-Type": "application/json" }, body: requestBody });
+    } catch {
+      try {
+        res = await fetch("/api/v1/translate", { method: "POST", headers: { "Content-Type": "application/json" }, body: requestBody });
+      } catch {
+        setTranslation({ status: "error", message: copy.transcriber.translateErrorGeneric });
+        return;
+      }
+    }
+
+    try {
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error ?? copy.transcriber.translateErrorGeneric);
       setTranslation({ status: "done", text: body.result.text, segments: body.result.segments ?? [], languageLabel: target.label });
