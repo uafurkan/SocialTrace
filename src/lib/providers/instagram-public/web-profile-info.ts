@@ -123,6 +123,7 @@ export async function fetchWebProfileInfo(username: string): Promise<WebProfileU
   if (res.status !== 200) {
     // 401 require_login / 429 rate-limited — expected on a blocked IP.
     console.warn(`[instagram-public] web_profile_info unavailable for ${username}: HTTP ${res.status}`);
+    console.log(`[source-chain] instagram profile=${username} source=free unavailable status=${res.status}`);
     return null;
   }
 
@@ -132,6 +133,11 @@ export async function fetchWebProfileInfo(username: string): Promise<WebProfileU
     console.warn(`[instagram-public] web_profile_info returned an unrecognised shape for ${username}`);
     return null;
   }
+  // One greppable line per outcome (see the failure-path console.warn calls
+  // above) — the whole point is that "does the free source work from this
+  // deployment's IP" is answerable with `grep "source=free ok"` on the
+  // Vercel logs, without needing the admin diagnostics route at all.
+  console.log(`[source-chain] instagram profile=${username} source=free ok`);
   return user;
 }
 

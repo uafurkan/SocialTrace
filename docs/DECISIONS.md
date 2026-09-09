@@ -1198,3 +1198,30 @@ Verified live with the Apify quota breaker still open: `addisonre` (never
 cached) rendered a real profile (87.8M followers, `isVerified: true`) via
 this source alone, while its Posts tab correctly still shows the honest
 "not available in this build" degrade rather than a fabricated result.
+
+## Phase 17 Step 1: an admin diagnostics probe for the free-source IP question
+
+Whether the free Instagram source (`web_profile_info`) reaches Instagram at
+all depends on the deployment's outbound IP reputation — confirmed blocked
+(`401`/`400 require_login`) from this sandbox, unknown from production until
+someone actually checks. Previously that meant grepping Vercel logs for a
+`console.warn`. Two additions make it a single page load instead:
+
+- `src/lib/providers/instagram-public/web-profile-info.ts` now logs a
+  greppable `[source-chain] instagram profile=<username> source=free ok` /
+  `unavailable status=<code>` line on every outcome, not just failures.
+- `src/lib/diagnostics/sources.ts` (shared by a new admin-gated route,
+  `src/app/api/v1/diagnostics/sources/route.ts`, and a new "Data sources"
+  card on `/admin`) runs one real `fetchWebProfileInfo` call against a
+  known-stable handle (`instagram`) and reports whether it succeeded, plus
+  the Apify quota breaker's state via a new `isApifyQuotaBreakerOpen()`
+  export. It never calls `runApifyActor` — a diagnostic must not spend a
+  billed run — so the Apify half is free to check on every page load.
+- The route returns `404` for anyone who isn't the admin email, matching a
+  route that doesn't exist, rather than `401`/`403` which would disclose it.
+
+Verified live: anonymous request → `404`; a direct call to `probeSources()`
+from this sandbox → `{ ok: false, status: null }` (matches the known IP
+block) with zero Apify calls made. The still-open question — what this
+reports once deployed — is exactly what this probe exists to answer without
+another round of log-grepping.

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { isDbConfigured, getDb, schema } from "@/lib/db";
 import { resolveIdentityReadOnly } from "@/lib/auth/identity";
 import { isAdminEmail } from "@/lib/auth/admin";
+import { probeSources } from "@/lib/diagnostics/sources";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageMetadata } from "@/lib/seo/metadata";
@@ -36,7 +37,7 @@ export default async function AdminPage() {
   }
 
   const db = getDb();
-  const [[totalUsers], [freeUsers], [proUsers], [todaysTranscriptions], recentUsers] = await Promise.all([
+  const [[totalUsers], [freeUsers], [proUsers], [todaysTranscriptions], recentUsers, sources] = await Promise.all([
     db.select({ value: count() }).from(schema.users),
     db.select({ value: count() }).from(schema.users).where(eq(schema.users.plan, "free")),
     db.select({ value: count() }).from(schema.users).where(eq(schema.users.plan, "pro")),
@@ -49,6 +50,7 @@ export default async function AdminPage() {
       .from(schema.users)
       .orderBy(desc(schema.users.createdAt))
       .limit(20),
+    probeSources(),
   ]);
 
   return (
@@ -74,6 +76,41 @@ export default async function AdminPage() {
           </CardHeader>
           <CardContent className="text-2xl font-semibold text-primary">{todaysTranscriptions.value}</CardContent>
         </Card>
+      </div>
+
+      <div className="mt-10">
+        <h2 className="text-xl font-semibold text-primary">Data sources</h2>
+        <p className="mt-1 text-sm text-secondary">
+          Whether this deployment&apos;s IP can reach the free Instagram source, and whether Apify&apos;s quota
+          breaker is currently tripped.
+        </p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Instagram free source</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Badge variant={sources.instagramPublic.ok ? "success" : "danger"}>
+                {sources.instagramPublic.ok ? "Reachable" : "Blocked"}
+              </Badge>
+              <p className="mt-2 text-sm text-secondary">
+                {sources.instagramPublic.status !== null ? `HTTP ${sources.instagramPublic.status}` : "No response"}
+                {" · "}
+                {sources.instagramPublic.latencyMs}ms
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Apify quota breaker</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Badge variant={sources.apify.quotaBreakerOpen ? "danger" : "success"}>
+                {sources.apify.quotaBreakerOpen ? "Open (skipping calls)" : "Closed (normal)"}
+              </Badge>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       <div className="mt-10">

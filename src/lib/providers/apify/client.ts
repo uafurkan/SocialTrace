@@ -67,6 +67,11 @@ export function resetApifyQuotaBreaker(): void {
   quotaExhaustedUntil = 0;
 }
 
+/** Read-only breaker state for the diagnostics probe (src/app/api/v1/diagnostics/sources/route.ts) — never triggers a call. */
+export function isApifyQuotaBreakerOpen(): boolean {
+  return isQuotaBreakerOpen();
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
