@@ -195,7 +195,12 @@ to the full spec — each has its own docs file listing what was cut.
   uses. It is an undocumented endpoint: Instagram rate-limits or refuses
   it outright from datacenter IPs, so on some deployments it never
   answers and every request falls through to Apify. That is absorbed by
-  the chain, not surfaced as an error.
+  the chain, not surfaced as an error. **Confirmed via the `/admin`
+  diagnostics probe that this project's own production deployment is one
+  such IP** (see docs/DECISIONS.md's Phase 17 Step 2 entry) — this source
+  never answers in production, only in environments with residential-like
+  IP reputation. Bright Data (below) is what actually carries Instagram/
+  Facebook profile data through Apify quota exhaustion in production.
   Followers, following, stories, highlights, tagged posts, likers and
   comments require an authenticated session and remain Apify-only. When
   Apify is unavailable they serve the last successful snapshot, or an

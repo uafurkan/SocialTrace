@@ -1226,6 +1226,37 @@ block) with zero Apify calls made. The still-open question — what this
 reports once deployed — is exactly what this probe exists to answer without
 another round of log-grepping.
 
+## Phase 17 Step 2: production result — the free source is blocked there too
+
+Checked live via `/admin`'s "Data sources" card on the deployed production
+build, signed in as the admin account: **Instagram free source: Blocked, no
+response, 22ms.** That latency is the signature of an immediate
+network-level rejection, not a slow rate-limit response — Vercel's outbound
+IP ranges carry the same datacenter reputation Instagram already blocks
+from this sandbox. This settles the open question from Step 1: there is no
+deployment-specific workaround here, and building one (IP rotation,
+residential proxies) would mean circumventing an access control rather than
+reading a public endpoint — explicitly out of scope per this phase's own
+plan.
+
+This resolves to the plan's "3b" branch: the free path is dead for this
+deployment. Per the plan, the two legitimate responses were (a) a second
+commercial vendor behind the existing `SocialDataProvider` boundary, or (b)
+raise the Apify cap and re-measure now that the quota breaker and
+stale-cache fallback make the existing quota stretch further. (a) is
+already done — Bright Data (see below) was added as exactly this second,
+independent-quota vendor for Instagram and Facebook profiles, inserted at
+the same leaf-fetcher boundary this phase's plan called for. (b) remains
+the user's call, since it's a billing decision Bright Data is now a
+free option that reduces the pressure to make.
+
+Still true after this result: TikTok's free source
+(`tiktok-public/user-detail.ts`) is independent of Instagram's IP
+reputation — it worked in this sandbox — so no change there. The one
+Instagram/Facebook-specific plan item this result forecloses is Step 3a
+(shortening `PROFILE_CACHE_TTL_HOURS` on the assumption the free source is
+now free-and-reliable) — that assumption doesn't hold, so the 6h TTL stays.
+
 ## Bright Data as a second, independent vendor — background-warmed, not synchronous
 
 With Apify's account over its monthly quota, the only fully free path left
