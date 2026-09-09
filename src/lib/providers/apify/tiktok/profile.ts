@@ -1,5 +1,6 @@
 import type { CoverageStatus, Profile } from "@/lib/domain/types";
 import { ProfileNotFoundError } from "../../types";
+import { fetchTikTokUserDetail, toProfile } from "../../tiktok-public/user-detail";
 import { runApifyActor } from "../client";
 
 const PROFILE_ACTOR_ID = "clockworks~tiktok-profile-scraper";
@@ -37,12 +38,17 @@ function coverageFor(indexed: number, total: number): CoverageStatus {
 }
 
 /**
- * One item is enough to read `authorMeta` off of — `resultsPerPage: 1`
- * keeps this call cheap; `getPosts` (posts.ts) makes its own separate call
- * for the actual video list, matching how the Instagram provider keeps
- * profile and posts as independently-cacheable fetches.
+ * Source chain: the free public profile page first, the paid actor second —
+ * same shape as the Instagram provider's fetchApifyProfile. The free source
+ * only covers the profile itself (see tiktok-public/user-detail.ts for why
+ * posts aren't included), so getPosts (posts.ts) always goes through Apify.
  */
 export async function fetchApifyTikTokProfile(username: string): Promise<Profile> {
+  const publicDetail = await fetchTikTokUserDetail(username);
+  if (publicDetail) {
+    return toProfile(publicDetail);
+  }
+
   const items = (await runApifyActor(PROFILE_ACTOR_ID, {
     profiles: [username],
     resultsPerPage: 1,

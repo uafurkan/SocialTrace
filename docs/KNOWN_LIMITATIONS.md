@@ -212,3 +212,11 @@ to the full spec — each has its own docs file listing what was cut.
   it hasn't rate-limited, and reports "unknown" otherwise. The tool
   never guesses: three states, and "unknown" is never dressed up as an
   answer.
+
+- **TikTok profile has a free source; TikTok posts do not.** Like
+  Instagram, TikTok's own logged-out profile page serves the profile
+  and follower/following counts for free, so an uncached TikTok profile
+  now survives an exhausted Apify quota the same way Instagram's does.
+  Its embedded data doesn't include the video list, so `getPosts` for
+  TikTok is still Apify-only and degrades to last-known-good or an
+  honest "not available" empty state under the same quota exhaustion.

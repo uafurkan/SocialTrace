@@ -1161,3 +1161,40 @@ in a way worth recording:
   proves available. Previously "no uniqueId" was *inferred* as
   available, so any change to that key would have reported every handle
   on earth as free to register.
+
+## Free TikTok profile source, mirroring the Instagram fix
+
+The Instagram free-first source (above) only ever covered Instagram —
+TikTok's Apify actor (`clockworks~tiktok-profile-scraper`) stayed a single
+point of failure, so with the Apify account still over its monthly quota,
+every *uncached* TikTok profile threw straight to `ProviderUnavailableError`
+(a cached one already survived via the existing stale-on-error fallback).
+Confirmed live: `/profile/tiktok/addisonre`, never fetched before, 500'd.
+
+TikTok's own logged-out profile page embeds a `<script
+id="__UNIVERSAL_DATA_FOR_REHYDRATION__">` JSON blob carrying
+`webapp.user-detail.userInfo.{user,stats}` — the same class of "public page
+serves its own JSON" trick as the Instagram source and the TikTok
+availability checker's `SIGI_STATE`/`statusCode:10221` reads, just a newer
+embed TikTok has since moved to. No login, cookie, or credential — a plain
+`fetch()` of `https://www.tiktok.com/@<handle>` with a browser user agent,
+confirmed reachable from this sandbox (unlike Instagram's `web_profile_info`,
+which is IP-blocked here).
+
+New `src/lib/providers/tiktok-public/user-detail.ts` mirrors
+`instagram-public/web-profile-info.ts` exactly: `null` on any doubt (network
+failure, missing script tag, unrecognised shape), `ProfileNotFoundError` only
+on TikTok's own confirmed not-found code (`statusCode: 10221`, verified live
+against a nonexistent handle), never a guess. Wired into
+`fetchApifyTikTokProfile` (`apify/tiktok/profile.ts`) as the first link in
+the same free-then-paid chain the Instagram profile fetcher already uses.
+
+**Scope gap, by evidence not oversight:** this page's embedded JSON carries
+an empty `itemList` — TikTok's video grid loads from a separate endpoint
+this session didn't validate — so only the profile is free; `getPosts` still
+goes through Apify unchanged.
+
+Verified live with the Apify quota breaker still open: `addisonre` (never
+cached) rendered a real profile (87.8M followers, `isVerified: true`) via
+this source alone, while its Posts tab correctly still shows the honest
+"not available in this build" degrade rather than a fabricated result.
