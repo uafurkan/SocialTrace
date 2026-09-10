@@ -234,6 +234,25 @@ tied to watchlist/snapshot tables that only ever write `platform:
 
 ## Video transcriber: a separate, non-`SocialDataProvider` pipeline
 
+## LinkedIn profile viewer (`src/lib/linkedin/`, `src/lib/providers/brightdata/linkedin.ts`)
+
+Also not a `SocialDataProvider` implementation — LinkedIn isn't in the
+`Platform` enum. It's a standalone lib, same shape as the Engagement
+Calculator and Username Availability Checker: one lookup function
+(`fetchLinkedInProfile(slug)`), one typed error class
+(`LinkedInLookupError`, reasons `"invalid_url" | "not_found" |
+"provider_unavailable"`), no fallback chain. Bright Data's
+`gd_l1viktl72bvl7bjuj0` ("LinkedIn people profiles") dataset is the
+*only* source — there's no free public endpoint for LinkedIn profile
+data and no Apify actor wired in, so an unconfigured token or a failed
+dataset run is a real 503, not a degraded-but-working response. Unlike
+the Instagram/Facebook Bright Data paths (background-warm only, fired
+via `after()`), this lookup is awaited synchronously by its API route
+(`maxDuration = 60`) since live testing found it reliably completes in
+~15-54s and there's no faster source to serve first while it warms.
+Successful lookups are cached 24h via `withDataCache` under
+`linkedin-profile:<slug>`.
+
 `/transcribe` (docs/TRANSCRIBER.md) is not an Instagram feature and
 doesn't implement `SocialDataProvider` — it's a second product surface
 with its own small pipeline (`src/lib/transcription/`), reusing only

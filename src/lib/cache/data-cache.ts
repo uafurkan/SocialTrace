@@ -27,6 +27,9 @@ const HOUR_MS = 60 * 60 * 1000;
  * - stories expire on their own after 24h, so a long TTL would serve stories
  *   that no longer exist — shorter than the default, not longer.
  * - posts/reels keep the existing default.
+ * - linkedin-profile has no free/Apify fallback at all (Bright Data only,
+ *   ~15-50s per lookup) and LinkedIn profiles change slowly, so it gets a
+ *   long window to avoid re-spending Bright Data quota on repeat lookups.
  */
 export const RESOURCE_CACHE_TTL_MS = {
   posts: DATA_CACHE_TTL_MS,
@@ -34,6 +37,7 @@ export const RESOURCE_CACHE_TTL_MS = {
   followers: 48 * HOUR_MS,
   following: 48 * HOUR_MS,
   stories: 1 * HOUR_MS,
+  "linkedin-profile": 24 * HOUR_MS,
 } as const;
 
 /** Picks the TTL for a `resource:profileId` cache key, falling back to the global default. */

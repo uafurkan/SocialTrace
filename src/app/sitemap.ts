@@ -60,6 +60,7 @@ const ROUTE_TIERS: RouteTier[] = [
   { path: "/tools/username-availability-checker", priority: 0.7, changeFrequency: "monthly", lastModified: "2026-09-08" },
   { path: "/tools/hashtag-generator", priority: 0.7, changeFrequency: "monthly", lastModified: "2026-09-08" },
   { path: "/tools/video-downloader", priority: 0.7, changeFrequency: "monthly", lastModified: "2026-09-08" }, // widget embedded directly on-page
+  { path: "/tools/linkedin-profile-viewer", priority: 0.7, changeFrequency: "monthly", lastModified: "2026-09-10" },
   { path: "/transcribe/youtube-transcript-generator", priority: 0.7, changeFrequency: "monthly", lastModified: "2026-09-08" },
   { path: "/transcribe/tiktok-video-to-text", priority: 0.7, changeFrequency: "monthly", lastModified: "2026-09-08" },
   { path: "/transcribe/instagram-reel-to-text", priority: 0.7, changeFrequency: "monthly", lastModified: "2026-09-08" },

@@ -47,6 +47,11 @@ const TOOL_GROUPS: ToolGroup[] = [
         description: "View a public profile's currently active stories anonymously — no account, no login.",
         href: "/tools/instagram-story-viewer",
       },
+      {
+        title: "LinkedIn profile viewer",
+        description: "See a public LinkedIn profile's headline, about, experience, education, and recent activity.",
+        href: "/tools/linkedin-profile-viewer",
+      },
     ],
   },
   {

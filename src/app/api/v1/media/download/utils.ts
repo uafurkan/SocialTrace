@@ -6,6 +6,7 @@ const ALLOWED_MEDIA_HOSTS = [
   "tiktokcdn-us.com",
   "tiktokv.com",
   "muscdn.com",
+  "licdn.com",
 ];
 
 export function isAllowedMediaHost(hostname: string): boolean {

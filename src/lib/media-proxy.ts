@@ -16,6 +16,7 @@ const HOTLINK_RISK_HOSTS = [
   "tiktokcdn-us.com",
   "tiktokv.com",
   "muscdn.com",
+  "licdn.com",
 ];
 
 export function proxiedMediaUrl<T extends string | undefined | null>(url: T): T | string {

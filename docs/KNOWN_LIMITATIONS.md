@@ -238,3 +238,20 @@ to the full spec — each has its own docs file listing what was cut.
   Instagram and Facebook profiles, not TikTok (its dataset ran past 150s
   without finishing in testing) and not for posts/followers/following on
   any platform.
+
+- **LinkedIn profile viewer is Bright Data-only, with no fallback
+  chain.** Unlike Instagram/TikTok/Facebook, there is no free public
+  endpoint and no Apify actor wired in for LinkedIn — Bright Data's
+  `gd_l1viktl72bvl7bjuj0` dataset is the only source, so a lookup
+  genuinely fails (503) if `BRIGHTDATA_API_TOKEN` isn't configured or
+  the dataset run errors out, rather than degrading to a second source.
+  Confirmed live: Bright Data reports a nonexistent *and* a private
+  profile identically (`error_code: "dead_page"`, "The profile is
+  hidden or private.") — the tool can't and doesn't try to distinguish
+  the two, and reports both as "not found" rather than guessing. Only
+  the 5 most recent roles/schools and 3 most recent posts are shown,
+  not full history. A successful lookup is cached for 24h
+  (`linkedin-profile:<slug>`), so repeat lookups of the same profile
+  are instant; there is no background pre-warming as there is for
+  Instagram/Facebook, since there's no faster source to fall back to
+  first while it warms.

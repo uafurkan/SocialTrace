@@ -1319,3 +1319,66 @@ posts lists for any platform (this phase only warms the profile — the
 dataset IDs above are profile/page-level; a posts or followers dataset
 would need its own separate background-warm wiring and cache write path,
 not built here).
+
+## LinkedIn profile viewer — Bright Data as the only source, synchronous not background-warm
+
+**Dataset confirmed live, not guessed.** Listed the account's real
+available Bright Data datasets via `GET /datasets/list` rather than
+assuming an ID — found `gd_l1viktl72bvl7bjuj0` ("LinkedIn people
+profiles", 115M records). Triggered and fully polled a real lookup
+against a known public profile (`linkedin.com/in/williamhgates/`) and
+recorded the exact response field names before writing any mapper:
+`id`, `name`, `first_name`, `last_name`, `position`, `about`, `city`/
+`location`, `avatar`, `banner_image`, `followers`, `connections`,
+`influencer`, `current_company_name`, `current_company.title`,
+`experience[]` (`title`, `company`, `company_id`, `url`, `start_date`,
+`end_date`), `education[]` (`title`, `url`, `start_year`, `end_year`),
+`posts[]` (`id`, `title`, `link`, `created_at`, `interaction`), `url`,
+`linkedin_id`.
+
+**"Not found" signature, also confirmed live, not assumed.** Triggered
+a second lookup against a deliberately nonexistent slug. The snapshot
+still reached `status: "ready"` (never `failed`/`error`) with
+`records: 0, errors: 1`; fetching it returned one record shaped
+`{ error: "The profile is hidden or private.", error_code: "dead_page" }`
+instead of profile fields. Bright Data does not distinguish "never
+existed" from "private" — `LinkedInLookupError`'s `"not_found"` reason
+honestly covers both rather than inventing a distinction the source
+doesn't provide.
+
+**No fallback chain, unlike Instagram/TikTok/Facebook.** There is no
+free public LinkedIn endpoint and no Apify actor wired into this
+codebase for LinkedIn profiles, so `fetchLinkedInProfile` has exactly
+one source. An unconfigured `BRIGHTDATA_API_TOKEN` or a failed dataset
+run is a real 503 (`LinkedInLookupError("provider_unavailable", ...)`),
+not a degraded-but-working response — there's nothing to degrade to.
+
+**Synchronous, not `after()`-background-warm like `brightdata/profile.ts`.**
+The Instagram/Facebook Bright Data paths are fire-and-forget because
+their completion time was too unpredictable to block a page load on,
+*and* there's always a free/Apify answer to serve on the current
+request while they warm. Neither is true here: live testing found
+LinkedIn's dataset completes in ~15-54s across observed runs (narrower and
+faster than Instagram's ~50s-to-150s+ spread), and since this is the
+only source, there's no faster answer to serve first anyway — blocking
+is the only way to answer the request at all. The API route
+(`/api/v1/linkedin-viewer`) sets `maxDuration = 60` to match, and
+successful lookups are cached 24h via `withDataCache` under
+`linkedin-profile:<slug>` so a repeat lookup is instant.
+
+**Not a `SocialDataProvider`.** LinkedIn isn't in the `Platform` enum
+and this is a single-lookup tool, not a full profile/posts/followers
+surface — modeled as a standalone lib (`src/lib/linkedin/`) plus one
+Bright Data-calling function, the same shape already used for the
+Engagement Calculator and Username Availability Checker.
+
+**Avatar/banner images also need the existing hotlink proxy.** Live
+testing found `media.licdn.com` URLs load fine from a server-side
+`fetch` (curl: 200 OK) but never load in a real browser
+(`img.complete === false`, `naturalWidth === 0`) — the same
+hotlink-protection symptom already documented for `fbcdn.net`/
+`cdninstagram.com` in `src/lib/media-proxy.ts`. Added `licdn.com` to
+both that file's `HOTLINK_RISK_HOSTS` and the media-proxy route's
+`ALLOWED_MEDIA_HOSTS` allowlist, and route the widget's avatar/banner
+`<Image>` tags through `proxiedMediaUrl()` rather than the raw Bright
+Data URL — confirmed live afterward that both images render.
