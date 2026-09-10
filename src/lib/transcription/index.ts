@@ -59,7 +59,7 @@ export async function transcribe(
 ): Promise<TranscriptResult> {
   const platform = detectPlatform(sourceUrl);
   if (!platform) {
-    throw new TranscriptionError("unsupported_url", "This link isn't from a supported platform (YouTube, TikTok, Instagram, or Facebook).");
+    throw new TranscriptionError("unsupported_url", "This link isn't from a supported platform (YouTube, TikTok, Instagram, Facebook, or X/Twitter).");
   }
 
   if (platform === "youtube") {

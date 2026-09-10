@@ -276,7 +276,7 @@ export function HeroSearchWidget() {
               </Button>
             </div>
             {videoError ? <p className="mt-2 text-sm text-danger">{videoError}</p> : null}
-            <p className="mt-3 text-sm text-muted">YouTube, TikTok, Instagram, or Facebook — free, no sign-up required.</p>
+            <p className="mt-3 text-sm text-muted">YouTube, TikTok, Instagram, Facebook, or X (Twitter) — free, no sign-up required.</p>
           </form>
         )}
       </div>

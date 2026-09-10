@@ -12,7 +12,7 @@ const PATH = "/transcribe";
 export const metadata: Metadata = pageMetadata({ title: copy.transcriber.hubTitle, description: copy.transcriber.hubLead, path: PATH });
 
 const HOW_IT_WORKS = [
-  "Paste a public YouTube, TikTok, Instagram, or Facebook video link above.",
+  "Paste a public YouTube, TikTok, Instagram, Facebook, or X (Twitter) video link above.",
   "Wait a few seconds while the video is fetched and transcribed.",
   "Copy the transcript, or read it alongside timestamps where available.",
 ];
@@ -20,7 +20,7 @@ const HOW_IT_WORKS = [
 const FAQ = [
   {
     question: "Which platforms are supported?",
-    answer: "YouTube, TikTok, Instagram, and Facebook video links. Paste any public video URL from these four platforms.",
+    answer: "YouTube, TikTok, Instagram, Facebook, and X (Twitter) video links. Paste any public video URL from these five platforms.",
   },
   {
     question: "Is it free?",
@@ -103,6 +103,9 @@ export default function TranscribePage() {
             </Link>
             <Link href="/transcribe/facebook-video-to-text" className="rounded-card border border-border p-4 transition hover:border-primary/40">
               <span className="font-semibold text-primary">Facebook video to text</span>
+            </Link>
+            <Link href="/transcribe/twitter-video-to-text" className="rounded-card border border-border p-4 transition hover:border-primary/40">
+              <span className="font-semibold text-primary">X (Twitter) video to text</span>
             </Link>
           </div>
         </section>

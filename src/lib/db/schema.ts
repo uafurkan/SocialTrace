@@ -27,7 +27,7 @@ export const membershipEventEnum = pgEnum("membership_event", ["added", "removed
 /** Spec §31's plan model, trimmed to what's enforceable without real billing — see docs/BILLING.md. */
 export const planEnum = pgEnum("plan", ["free", "pro"]);
 /** Video transcriber (docs/TRANSCRIBER.md) — "upload" is reserved for a later slice; this build is link-only. */
-export const transcriptPlatformEnum = pgEnum("transcript_platform", ["youtube", "tiktok", "instagram", "facebook", "upload"]);
+export const transcriptPlatformEnum = pgEnum("transcript_platform", ["youtube", "tiktok", "instagram", "facebook", "twitter", "upload"]);
 export const transcriptStatusEnum = pgEnum("transcript_status", ["processing", "done", "failed"]);
 
 /** Future `profiles` table — see docs/DATA_MODEL.md "Profile" mapping. */

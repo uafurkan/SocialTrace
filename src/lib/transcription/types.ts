@@ -4,7 +4,7 @@
  * this feature has nothing to do with Instagram profiles/posts, it's a
  * second, independent product surface on the same site.
  */
-export type TranscriptPlatform = "youtube" | "tiktok" | "instagram" | "facebook";
+export type TranscriptPlatform = "youtube" | "tiktok" | "instagram" | "facebook" | "twitter";
 
 export interface TranscriptSegment {
   start: number;

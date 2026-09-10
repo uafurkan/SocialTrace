@@ -7,7 +7,7 @@ import { pageMetadata } from "@/lib/seo/metadata";
 
 const TITLE = "Video downloader";
 const DESCRIPTION =
-  "Download a public TikTok, Instagram, or Facebook video and read its transcript — free, with a visible link back to the original source.";
+  "Download a public TikTok, Instagram, Facebook, or X (Twitter) video and read its transcript — free, with a visible link back to the original source.";
 const PATH = "/tools/video-downloader";
 
 export const metadata: Metadata = pageMetadata({ title: TITLE, description: DESCRIPTION, path: PATH });
@@ -26,7 +26,7 @@ const FAQ = [
   {
     question: "Why isn't YouTube supported?",
     answer:
-      "YouTube has no free official download path — the only way in is a bypass technique that carries real terms-of-service risk. This feature covers TikTok, Instagram, and Facebook, where free, reliable paths already exist. YouTube transcription itself is unaffected.",
+      "YouTube has no free official download path — the only way in is a bypass technique that carries real terms-of-service risk. This feature covers TikTok, Instagram, Facebook, and X (Twitter), where free, reliable paths already exist. YouTube transcription itself is unaffected.",
   },
   {
     question: "Can I download private videos?",
@@ -44,7 +44,7 @@ export default function VideoDownloaderPage() {
       <JsonLd id="ld-video-downloader-faq" data={faqJsonLd(FAQ)} />
       <ToolLanding
         title={TITLE}
-        lead="Paste a public TikTok, Instagram, or Facebook video link below to preview it, download it, and read its transcript — all on this page."
+        lead="Paste a public TikTok, Instagram, Facebook, or X (Twitter) video link below to preview it, download it, and read its transcript — all on this page."
         widget={<TranscriberWidget />}
         howItWorks={[
           "Paste the link below.",
@@ -52,7 +52,7 @@ export default function VideoDownloaderPage() {
           "Download the video or read its transcript — both are shown next to the preview once it's ready.",
         ]}
         features={[
-          { title: "Three platforms", body: "TikTok, Instagram, and Facebook — YouTube is intentionally excluded." },
+          { title: "Four platforms", body: "TikTok, Instagram, Facebook, and X (Twitter) — YouTube is intentionally excluded." },
           { title: "Source always shown", body: "A visible link back to the original URL accompanies every download." },
           { title: "Public content only", body: "The same public-data-only rule as every other feature on this site." },
         ]}
@@ -61,7 +61,7 @@ export default function VideoDownloaderPage() {
           "Only public videos can be fetched — private or restricted content is never accessible.",
         ]}
         relatedTools={[
-          { href: "/transcribe", label: "Video transcriber", body: "Turn a video into text across four platforms." },
+          { href: "/transcribe", label: "Video transcriber", body: "Turn a video into text across five platforms." },
           { href: "/tools/hashtag-generator", label: "Hashtag generator", body: "Get hashtag suggestions for a caption or topic." },
         ]}
         faq={FAQ}

@@ -58,6 +58,7 @@ export default function InstagramReelToTextPage() {
         relatedTools={[
           { href: "/transcribe/tiktok-video-to-text", label: "TikTok video to text", body: "The same transcriber for TikTok links." },
           { href: "/tools/anonymous-instagram-viewer", label: "Anonymous Instagram viewer", body: "Browse a public Instagram profile's posts, reels, and stories." },
+          { href: "/transcribe/twitter-video-to-text", label: "X (Twitter) video to text", body: "The same transcriber for X and Twitter links." },
         ]}
         faq={FAQ}
       />

@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
   const platform = detectPlatform(url);
   if (!platform) {
     return NextResponse.json(
-      { error: "This link isn't from a supported platform (YouTube, TikTok, Instagram, or Facebook)." },
+      { error: "This link isn't from a supported platform (YouTube, TikTok, Instagram, Facebook, or X/Twitter)." },
       { status: 400 },
     );
   }

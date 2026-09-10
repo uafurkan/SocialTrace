@@ -14,6 +14,7 @@ const PLATFORM_HOST_PATTERNS: Array<{ platform: TranscriptPlatform; hosts: RegEx
   { platform: "tiktok", hosts: /(^|\.)tiktok\.com$/i },
   { platform: "instagram", hosts: /(^|\.)instagram\.com$/i },
   { platform: "facebook", hosts: /(^|\.)(facebook\.com|fb\.watch)$/i },
+  { platform: "twitter", hosts: /(^|\.)(twitter\.com|x\.com)$/i },
 ];
 
 export function detectPlatform(rawUrl: string): TranscriptPlatform | null {

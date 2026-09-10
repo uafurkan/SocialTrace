@@ -1,0 +1,1 @@
+ALTER TYPE "public"."transcript_platform" ADD VALUE 'twitter' BEFORE 'upload';

@@ -65,6 +65,7 @@ const ROUTE_TIERS: RouteTier[] = [
   { path: "/transcribe/tiktok-video-to-text", priority: 0.7, changeFrequency: "monthly", lastModified: "2026-09-08" },
   { path: "/transcribe/instagram-reel-to-text", priority: 0.7, changeFrequency: "monthly", lastModified: "2026-09-08" },
   { path: "/transcribe/facebook-video-to-text", priority: 0.7, changeFrequency: "monthly", lastModified: "2026-09-08" },
+  { path: "/transcribe/twitter-video-to-text", priority: 0.7, changeFrequency: "monthly", lastModified: "2026-09-10" },
 
   // Pricing sits between product pages and reference content — commercial
   // intent, but changes rarely.

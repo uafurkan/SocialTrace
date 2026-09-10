@@ -104,8 +104,8 @@ export const copy = {
   },
   transcriber: {
     hubTitle: "Video Transcriber",
-    hubLead: "Paste a YouTube, TikTok, Instagram, or Facebook video link and get a text transcript — free, no sign-up required.",
-    urlPlaceholder: "Paste a video link (YouTube, TikTok, Instagram, Facebook)",
+    hubLead: "Paste a YouTube, TikTok, Instagram, Facebook, or X (Twitter) video link and get a text transcript — free, no sign-up required.",
+    urlPlaceholder: "Paste a video link (YouTube, TikTok, Instagram, Facebook, X)",
     submitCta: "Transcribe",
     stageDownloading: "Fetching the video…",
     stageTranscribing: "Transcribing…",

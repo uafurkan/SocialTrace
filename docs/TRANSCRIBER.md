@@ -2,7 +2,8 @@
 
 A second, independent product surface (`/transcribe`) alongside
 SocialTrace's Instagram-analytics identity: paste a public YouTube,
-TikTok, Instagram, or Facebook video link and get a text transcript back.
+TikTok, Instagram, Facebook, or X (Twitter) video link and get a text
+transcript back.
 Link-only in this slice — file upload is a documented future slice, not
 built yet (`transcript_platform`'s `"upload"` enum value is reserved for
 it).
@@ -344,6 +345,41 @@ Two independent copy actions, both available whenever segments exist
   separately-fetched or reformatted copy) — the version someone pastes
   into a video editor's subtitle timeline. Hidden entirely when there are
   no segments (nothing to copy with timestamps that doesn't exist).
+
+## X/Twitter support
+
+Added as a fifth platform, following the exact same architecture as the
+other four — no new pipeline shape, only a new `downloadTwitterFree`
+leg in `downloader.ts` and `"twitter"` added to `TranscriptPlatform`
+(`types.ts`), `PLATFORM_HOST_PATTERNS` (`platform.ts`), and the
+`transcript_platform` DB enum (`drizzle/0014_powerful_dark_beast.sql`).
+
+**No Apify actor at all — confirmed live to be unnecessary.** Every
+other platform's download step exists because plain `yt-dlp` is blocked
+from a cloud/datacenter IP for that platform (YouTube, Instagram) or
+because a dedicated actor/free API was the only reliable option found
+(TikTok's paid fallback, Facebook). X/Twitter is different: confirmed
+live this session that `yt-dlp` (already bundled in this app for the
+local last-resort fallback every platform shares) is **not** blocked
+here — `ytdlp(url, { dumpSingleJson: true })` against a real, current
+x.com video post resolved in ~3s and returned a direct
+`video.twimg.com` CDN link, separately confirmed fetchable with a plain
+`curl` (200, `video/mp4`, no special headers, no auth). Since this only
+extracts metadata (no file written to disk, no `ffmpeg` invocation —
+unlike the local-fallback path that downloads and transcodes), it's
+fast enough to be the **primary** path rather than a last resort, and
+needs no Apify actor or paid fallback at all. If it ever breaks (a
+future yt-dlp/X change), the existing generic local yt-dlp+ffmpeg
+last-resort (`downloadWithYtDlp`) still covers it automatically, same
+as every other platform.
+
+**Everything downstream is unchanged.** The video preview
+(`fetchFreeVideoPreview`), the download button (`canDownload =
+platform !== "youtube"`), and `/video-proxy`'s generic host allowlist
+(any `https:` host that isn't localhost/an internal IP) all already
+handled an arbitrary platform without modification — X/Twitter gets
+the full "watch while it transcribes" + download experience for free,
+identically to TikTok/Instagram/Facebook.
 
 ## Explicitly out of scope this slice
 

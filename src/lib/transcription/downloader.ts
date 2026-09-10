@@ -7,6 +7,21 @@ import ytdlp from "yt-dlp-exec";
 import { runApifyActor } from "@/lib/providers/apify/client";
 import type { TranscriptPlatform } from "./types";
 
+interface YtDlpFormat {
+  url?: string;
+  vcodec?: string;
+  acodec?: string;
+  height?: number;
+  ext?: string;
+  protocol?: string;
+}
+
+interface YtDlpInfo {
+  duration?: number;
+  title?: string;
+  formats?: YtDlpFormat[];
+}
+
 /**
  * Per-platform download chain (docs/TRANSCRIBER.md architecture).
  *
@@ -34,6 +49,11 @@ import type { TranscriptPlatform } from "./types";
  *    actor found (across two prior sessions of searching) that returns a
  *    direct Facebook CDN media file at all; still no follower/media-file
  *    support elsewhere in the Facebook provider (docs/PROVIDER_CONTRACT.md).
+ *  - X/Twitter: **free primary, no Apify actor at all** — confirmed live
+ *    that plain `yt-dlp` (already bundled for the local last-resort below)
+ *    isn't blocked here the way it is for YouTube/Instagram, and resolves
+ *    a real status URL to a direct `video.twimg.com` link in ~3s. See
+ *    `downloadTwitterFree` below.
  */
 const TIKTOK_ACTOR_ID = "reinventingai~video-or-audio-downloader";
 const YOUTUBE_ACTOR_ID = "streamers~youtube-video-downloader";
@@ -303,6 +323,61 @@ async function downloadFacebook(sourceUrl: string): Promise<DownloadedAudio | nu
 }
 
 /**
+ * Free, no-Apify-spend primary path for X/Twitter — confirmed live this
+ * session: `yt-dlp` (already bundled for the local last-resort fallback
+ * below) resolves a real x.com/twitter.com status URL in ~3s and returns a
+ * direct, unauthenticated `video.twimg.com` CDN link — confirmed
+ * separately with a plain `curl` (200, `video/mp4`, no special headers) —
+ * unlike YouTube/Instagram, which this project already found yt-dlp
+ * blocked on from a cloud IP. This only extracts metadata (`dumpSingleJson`,
+ * no file written to disk) rather than downloading, so it's fast enough to
+ * be the primary path rather than the local-download last resort every
+ * other platform falls back to.
+ */
+async function downloadTwitterFree(sourceUrl: string): Promise<DownloadedAudio | null> {
+  try {
+    const info = (await ytdlp(sourceUrl, {
+      dumpSingleJson: true,
+      noWarnings: true,
+      noPlaylist: true,
+      quiet: true,
+    })) as YtDlpInfo;
+
+    // Twitter's own formats list mixes progressive, already-muxed .mp4
+    // files (`protocol: "https"`, Twitter's normal native-video format —
+    // confirmed live these carry both audio and video despite yt-dlp not
+    // always reporting explicit `vcodec`/`acodec` values for them) with
+    // HLS (`protocol: "m3u8_native"`) renditions at the *same* heights.
+    // Picking by height alone can select an HLS manifest, which is plain
+    // text, not media — Whisper rejects it outright ("could not process
+    // file"), confirmed live. Only a real, single-file, non-manifest
+    // format (`protocol: "https"`/`"http"`) is a valid candidate here.
+    const formats = (info.formats ?? []).filter(
+      (f) => Boolean(f.url) && (f.protocol === "https" || f.protocol === "http"),
+    );
+    // Prefer a format explicitly reporting both an audio and video codec
+    // (a real muxed file with both tracks) — but don't require the field to
+    // be *present*, only that it isn't explicitly "none": Twitter's own
+    // combined mp4 formats often omit `vcodec`/`acodec` entirely rather
+    // than stating them, and requiring a truthy value would wrongly
+    // exclude the exact format this pipeline needs.
+    const combined = formats.filter((f) => f.vcodec !== "none" && f.acodec !== "none");
+    const pool = combined.length > 0 ? combined : formats;
+    const best = pool.sort((a, b) => (b.height ?? 0) - (a.height ?? 0))[0];
+    if (!best?.url) return null;
+
+    return {
+      audioUrl: best.url,
+      videoUrl: best.url,
+      durationSeconds: info.duration ?? 0,
+      title: info.title ?? "",
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Absolute last resort, tried only when every platform's free path *and*
  * every paid Apify actor above has failed or is unavailable (billing cap
  * hit, actor down, etc. — the exact scenario the user asked to be covered:
@@ -310,7 +385,7 @@ async function downloadFacebook(sourceUrl: string): Promise<DownloadedAudio | nu
  * yt-dlp binary bundled by `yt-dlp-exec` directly in this serverless
  * function, extracting audio with the `ffmpeg-static` binary (via yt-dlp's
  * own `--ffmpeg-location`) to this function's own /tmp — no external
- * service, no per-call cost, works for all four platforms since yt-dlp
+ * service, no per-call cost, works for all five platforms since yt-dlp
  * supports them natively. Slower and less reliable than the dedicated
  * actors above under normal conditions (same datacenter-IP blocking risk
  * documented for YouTube/Instagram at the top of this file) — that's why
@@ -392,6 +467,8 @@ export async function fetchFreeVideoPreview(sourceUrl: string, platform: Transcr
         return (await downloadInstagramFree(sourceUrl))?.videoUrl ?? null;
       case "facebook":
         return (await downloadFacebookFree(sourceUrl))?.videoUrl ?? null;
+      case "twitter":
+        return (await downloadTwitterFree(sourceUrl))?.videoUrl ?? null;
       case "youtube":
         return null;
     }
@@ -450,5 +527,7 @@ async function downloadViaProvider(sourceUrl: string, platform: TranscriptPlatfo
       return downloadInstagram(sourceUrl);
     case "facebook":
       return downloadFacebook(sourceUrl);
+    case "twitter":
+      return downloadTwitterFree(sourceUrl);
   }
 }

@@ -59,6 +59,7 @@ export default function YoutubeTranscriptGeneratorPage() {
         relatedTools={[
           { href: "/transcribe/tiktok-video-to-text", label: "TikTok video to text", body: "The same transcriber for TikTok links." },
           { href: "/transcribe/instagram-reel-to-text", label: "Instagram Reel to text", body: "Transcribe public Instagram Reels." },
+          { href: "/transcribe/twitter-video-to-text", label: "X (Twitter) video to text", body: "The same transcriber for X and Twitter links." },
         ]}
         faq={FAQ}
       />

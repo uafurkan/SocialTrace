@@ -16,7 +16,7 @@ const SITE_URL = "https://www.socialtrace.co";
 const LINES = [
   "# SocialTrace",
   "",
-  "> Free tools to view public Instagram/TikTok/Facebook profiles and to transcribe public YouTube/TikTok/Instagram/Facebook videos to text. Public data only — no login, no private-account access.",
+  "> Free tools to view public Instagram/TikTok/Facebook profiles and to transcribe public YouTube/TikTok/Instagram/Facebook/X (Twitter) videos to text. Public data only — no login, no private-account access.",
   "",
   "## Product",
   `- [Home](${SITE_URL}/): Search a public Instagram, TikTok, or Facebook profile.`,

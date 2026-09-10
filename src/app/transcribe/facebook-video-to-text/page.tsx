@@ -58,6 +58,7 @@ export default function FacebookVideoToTextPage() {
         relatedTools={[
           { href: "/transcribe/youtube-transcript-generator", label: "YouTube transcript generator", body: "Transcribe YouTube videos and Shorts." },
           { href: "/transcribe/instagram-reel-to-text", label: "Instagram Reel to text", body: "Transcribe public Instagram Reels." },
+          { href: "/transcribe/twitter-video-to-text", label: "X (Twitter) video to text", body: "The same transcriber for X and Twitter links." },
         ]}
         faq={FAQ}
       />
