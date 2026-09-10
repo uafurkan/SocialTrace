@@ -44,6 +44,8 @@ interface TranscriptResultPayload {
   durationSeconds: number;
   platform: string;
   videoUrl: string | null;
+  /** Best-effort source title — null on a cache hit (never persisted, see TranscriptResult.title's doc comment) or when a platform's path doesn't return one. */
+  title: string | null;
 }
 
 /**
@@ -65,6 +67,7 @@ function toPayload(result: TranscriptResult): TranscriptResultPayload {
     durationSeconds: result.durationSeconds,
     platform: result.platform,
     videoUrl: toProxiedVideoUrl(result.videoUrl ?? null),
+    title: result.title || null,
   };
 }
 
@@ -143,6 +146,7 @@ export async function POST(request: NextRequest) {
         durationSeconds: existing.durationSeconds ?? 0,
         platform: existing.platform,
         videoUrl: toProxiedVideoUrl(freshVideoUrl),
+        title: null,
       },
     });
     if (identity.visitorCookieToIssue) response.cookies.set(VISITOR_COOKIE, identity.visitorCookieToIssue, VISITOR_COOKIE_OPTIONS);

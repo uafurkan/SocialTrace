@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, Instagram, Facebook, Music2, Youtube, XIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { HistorySuggestionsList, useHistorySuggestions } from "@/components/ui/history-suggestions";
@@ -27,6 +27,25 @@ interface TranscriptResultPayload {
   durationSeconds: number;
   platform: string;
   videoUrl: string | null;
+  title: string | null;
+}
+
+/** Same platform set as `TranscriptPlatform` — icon/label pairs for the post-preview card, matching the icon choices `hero-search-widget.tsx` already uses for Instagram/TikTok/Facebook. */
+const PLATFORM_INFO: Record<string, { label: string; icon: typeof Instagram }> = {
+  youtube: { label: "YouTube", icon: Youtube },
+  tiktok: { label: "TikTok", icon: Music2 },
+  instagram: { label: "Instagram", icon: Instagram },
+  facebook: { label: "Facebook", icon: Facebook },
+  twitter: { label: "X (Twitter)", icon: XIcon },
+};
+
+function formatClockDuration(seconds: number): string {
+  if (!seconds) return "";
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  const mm = h > 0 ? m.toString().padStart(2, "0") : String(m);
+  return h > 0 ? `${h}:${mm}:${s.toString().padStart(2, "0")}` : `${mm}:${s.toString().padStart(2, "0")}`;
 }
 
 type WidgetState =
@@ -100,24 +119,54 @@ function timestampedTextOf(text: string, segments: TranscriptSegment[]): string 
 }
 
 /**
+ * A compact "post preview" card — platform badge, title, and duration up
+ * top (the "video details" a plain `<video>` tag doesn't show), the player
+ * itself, then download + attribution. `download`/`title`/`durationSeconds`
+ * are only known once a platform is identified (the finished result, not
+ * the in-progress preview which has no metadata yet) — the header row
+ * simply omits whatever it doesn't have rather than showing a placeholder.
+ *
  * `download`, when passed, shows a "Download video" button + a visible
  * attribution link back to the original source URL — per the confirmed
  * policy in docs/DECISIONS.md ("Watermark-free video downloader"),
- * excluded for YouTube (no free path, ToS bypass risk) and only shown
- * once a platform is known (the finished result, not the in-progress
- * preview, which has no platform yet).
+ * excluded for YouTube (no free path, ToS bypass risk).
  */
 function VideoPreview({
   videoUrl,
+  title,
+  durationSeconds,
   download,
 }: {
   videoUrl: string;
+  title?: string | null;
+  durationSeconds?: number;
   download?: { sourceUrl: string; platform: string };
 }) {
   const canDownload = download && download.platform !== "youtube";
+  const platformInfo = download ? PLATFORM_INFO[download.platform] : undefined;
+  const clockDuration = durationSeconds ? formatClockDuration(durationSeconds) : "";
+  const hasHeader = platformInfo || clockDuration || title;
   return (
-    <Card className="h-fit lg:sticky lg:top-4">
+    <Card className="h-fit overflow-hidden lg:sticky lg:top-4">
       <CardContent className="space-y-3 pt-6">
+        {hasHeader ? (
+          <div className="space-y-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {platformInfo ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-surface-subtle px-2 py-0.5 text-xs font-medium text-secondary">
+                  <platformInfo.icon className="size-3 shrink-0" aria-hidden="true" />
+                  {platformInfo.label}
+                </span>
+              ) : null}
+              {clockDuration ? (
+                <span className="rounded-full bg-surface-subtle px-2 py-0.5 text-xs font-medium tabular-nums text-secondary">
+                  {clockDuration}
+                </span>
+              ) : null}
+            </div>
+            {title ? <p className="line-clamp-2 text-sm font-medium text-primary">{title}</p> : null}
+          </div>
+        ) : null}
         <video src={videoUrl} controls playsInline className="w-full rounded-card bg-black" style={{ maxHeight: 480 }} />
         {canDownload ? (
           <div className="space-y-1.5">
@@ -379,7 +428,12 @@ export function TranscriberWidget({
       {state.status === "done" ? (
         <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,320px)_1fr] lg:items-start">
           {state.result.videoUrl ? (
-            <VideoPreview videoUrl={state.result.videoUrl} download={{ sourceUrl: url, platform: state.result.platform }} />
+            <VideoPreview
+              videoUrl={state.result.videoUrl}
+              title={state.result.title}
+              durationSeconds={state.result.durationSeconds}
+              download={{ sourceUrl: url, platform: state.result.platform }}
+            />
           ) : null}
 
           <Card>

@@ -28,6 +28,8 @@ export interface TranscriptResult {
    * pipeline is the only way to get a fresh playable URL again).
    */
   videoUrl?: string | null;
+  /** Best-effort source title (yt-dlp/actor metadata) — empty string when a platform's path doesn't return one. Never persisted (same lifetime as `videoUrl`). */
+  title?: string;
 }
 
 export type TranscriptionErrorReason =

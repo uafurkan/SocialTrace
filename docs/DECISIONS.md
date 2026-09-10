@@ -1428,3 +1428,27 @@ reported 31-minute video with real margin), and the route's `maxDuration`
 larger, longer download real headroom within Vercel's function budget.
 Confirmed live end-to-end against the exact reported URL after the fix:
 full pipeline (download → transcribe) succeeds.
+
+## Transcriber: "post preview" card (platform badge, title, duration) instead of a bare video tag
+
+Per a user request for a "niche and nice" preview instead of a plain
+`<video>` element with no context. Two real gaps fixed together:
+
+1. **`title` was already fetched by every downloader but discarded before
+   reaching the client.** `DownloadedAudio.title` (`downloader.ts`) was
+   never copied onto `TranscriptResult` in `index.ts`, so the API response
+   never carried it. Threaded it through: `TranscriptResult.title` →
+   `TranscriptResultPayload.title` (route.ts) → the widget. Not persisted
+   to `transcript_cache` (same lifetime as `videoUrl` — both are
+   short-lived, source-fetched metadata, not stored transcript data), so a
+   cache-hit response has `title: null`, same honest gap `videoUrl`
+   already has.
+2. **`VideoPreview` (transcriber-widget.tsx) rendered a bare `<video>` with
+   no context.** Added a header row above the player — a platform badge
+   (icon + label, reusing the same icon choices `hero-search-widget.tsx`
+   already uses for Instagram/TikTok/Facebook, `XIcon` for X/Twitter,
+   `Youtube` for YouTube) and a duration pill — plus the title (when
+   present) below it, line-clamped to 2 lines. All three are optional and
+   independently omitted when absent (in-progress preview during the
+   "transcribing" stage has none of them yet; a cache-hit result has no
+   title) — never a placeholder or a guessed value.

@@ -135,6 +135,7 @@ export async function transcribe(
         platform,
         provider: result.provider,
         videoUrl: downloaded.videoUrl,
+        title: downloaded.title || undefined,
       };
     } catch (error) {
       if (error instanceof TranscriptionError) throw error;
