@@ -325,16 +325,36 @@ async function downloadFacebook(sourceUrl: string): Promise<DownloadedAudio | nu
 /**
  * Free, no-Apify-spend primary path for X/Twitter — confirmed live this
  * session: `yt-dlp` (already bundled for the local last-resort fallback
- * below) resolves a real x.com/twitter.com status URL in ~3s and returns a
- * direct, unauthenticated `video.twimg.com` CDN link — confirmed
- * separately with a plain `curl` (200, `video/mp4`, no special headers) —
- * unlike YouTube/Instagram, which this project already found yt-dlp
- * blocked on from a cloud IP. This only extracts metadata (`dumpSingleJson`,
- * no file written to disk) rather than downloading, so it's fast enough to
- * be the primary path rather than the local-download last resort every
- * other platform falls back to.
+ * below) resolves a real x.com/twitter.com status URL and, unlike
+ * YouTube/Instagram (which this project already found yt-dlp blocked on
+ * from a cloud IP), isn't blocked here at all.
+ *
+ * **Extracts real audio-only, not the smallest video file.** The first
+ * version of this function just picked Twitter's smallest *video*
+ * resolution and sent that whole mp4 (video track included) to Whisper.
+ * That broke on a real 31-minute video reported by a user: even the
+ * smallest (270p) rendition was 26.7MB — just over Groq's ~25MB request
+ * cap, confirmed live (`413 request_too_large`) — despite Whisper never
+ * reading the video track at all. Twitter has no progressive audio-only
+ * *file*, but it does have HLS audio-only *manifests* (`hls-audio-*`,
+ * e.g. 32/64/128kbps) that yt-dlp can download and remux with the
+ * `ffmpeg-static` binary already bundled for `downloadWithYtDlp` below —
+ * `format: "worstaudio/worst"` picks the lowest-bitrate one. Confirmed
+ * live on the same 31-minute video: **7.5MB**, comfortably under the
+ * limit, in ~46s (well inside this route's `maxDuration`). Writes to
+ * this function's own /tmp, exactly like `downloadWithYtDlp`'s
+ * `localAudioPath` — the caller (index.ts) reads and deletes it the same
+ * way.
  */
-async function downloadTwitterFree(sourceUrl: string): Promise<DownloadedAudio | null> {
+/**
+ * Metadata-only (`dumpSingleJson`, no download) — fast (~3s), used only
+ * for `fetchFreeVideoPreview`'s cache-hit re-preview below, which must
+ * stay near-instant like the other platforms' free preview fetchers.
+ * `downloadTwitterFree` below is heavier (a real audio download+extract,
+ * ~seconds-to-tens-of-seconds depending on length) and is only worth that
+ * cost on a fresh pipeline run that's transcribing anyway.
+ */
+async function downloadTwitterPreviewUrl(sourceUrl: string): Promise<string | null> {
   try {
     const info = (await ytdlp(sourceUrl, {
       dumpSingleJson: true,
@@ -342,37 +362,64 @@ async function downloadTwitterFree(sourceUrl: string): Promise<DownloadedAudio |
       noPlaylist: true,
       quiet: true,
     })) as YtDlpInfo;
-
-    // Twitter's own formats list mixes progressive, already-muxed .mp4
-    // files (`protocol: "https"`, Twitter's normal native-video format —
-    // confirmed live these carry both audio and video despite yt-dlp not
-    // always reporting explicit `vcodec`/`acodec` values for them) with
-    // HLS (`protocol: "m3u8_native"`) renditions at the *same* heights.
-    // Picking by height alone can select an HLS manifest, which is plain
-    // text, not media — Whisper rejects it outright ("could not process
-    // file"), confirmed live. Only a real, single-file, non-manifest
-    // format (`protocol: "https"`/`"http"`) is a valid candidate here.
     const formats = (info.formats ?? []).filter(
       (f) => Boolean(f.url) && (f.protocol === "https" || f.protocol === "http"),
     );
-    // Prefer a format explicitly reporting both an audio and video codec
-    // (a real muxed file with both tracks) — but don't require the field to
-    // be *present*, only that it isn't explicitly "none": Twitter's own
-    // combined mp4 formats often omit `vcodec`/`acodec` entirely rather
-    // than stating them, and requiring a truthy value would wrongly
-    // exclude the exact format this pipeline needs.
     const combined = formats.filter((f) => f.vcodec !== "none" && f.acodec !== "none");
     const pool = combined.length > 0 ? combined : formats;
-    const best = pool.sort((a, b) => (b.height ?? 0) - (a.height ?? 0))[0];
-    if (!best?.url) return null;
+    const smallest = pool.sort((a, b) => (a.height ?? 0) - (b.height ?? 0))[0];
+    return smallest?.url ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function downloadTwitterFree(sourceUrl: string): Promise<DownloadedAudio | null> {
+  const prefix = `twitter-${randomUUID()}`;
+  const outTemplate = join(tmpdir(), `${prefix}.%(ext)s`);
+  try {
+    const info = (await ytdlp(sourceUrl, {
+      output: outTemplate,
+      format: "worstaudio/worst",
+      extractAudio: true,
+      audioFormat: "best",
+      ffmpegLocation: ffmpegPath ?? undefined,
+      noWarnings: true,
+      noPlaylist: true,
+      quiet: true,
+      printJson: true,
+    })) as YtDlpInfo;
+
+    const files = await readdir(tmpdir());
+    const match = files.find((f) => f.startsWith(prefix));
+    if (!match) return null;
+
+    // Separately pick a real, single-file (non-HLS-manifest) video URL
+    // purely for the "watch while it transcribes" browser preview — the
+    // audio-only file above has no picture and isn't browser-playable.
+    // Twitter's formats list mixes progressive, already-muxed .mp4 files
+    // (`protocol: "https"`, carrying both audio and video despite yt-dlp
+    // not always reporting explicit `vcodec`/`acodec` for them) with HLS
+    // (`protocol: "m3u8_native"`) renditions at the same heights — an
+    // HLS manifest is plain text, not a playable `<video src>`. Smallest
+    // real resolution is plenty for a preview and keeps this fast.
+    const formats = (info.formats ?? []).filter(
+      (f) => Boolean(f.url) && (f.protocol === "https" || f.protocol === "http"),
+    );
+    const combined = formats.filter((f) => f.vcodec !== "none" && f.acodec !== "none");
+    const pool = combined.length > 0 ? combined : formats;
+    const smallestVideo = pool.sort((a, b) => (a.height ?? 0) - (b.height ?? 0))[0];
 
     return {
-      audioUrl: best.url,
-      videoUrl: best.url,
+      audioUrl: "",
+      videoUrl: smallestVideo?.url ?? null,
       durationSeconds: info.duration ?? 0,
       title: info.title ?? "",
+      localAudioPath: join(tmpdir(), match),
     };
   } catch {
+    const leftovers = await readdir(tmpdir()).catch(() => []);
+    await Promise.all(leftovers.filter((f) => f.startsWith(prefix)).map((f) => unlink(join(tmpdir(), f)).catch(() => {})));
     return null;
   }
 }
@@ -468,7 +515,7 @@ export async function fetchFreeVideoPreview(sourceUrl: string, platform: Transcr
       case "facebook":
         return (await downloadFacebookFree(sourceUrl))?.videoUrl ?? null;
       case "twitter":
-        return (await downloadTwitterFree(sourceUrl))?.videoUrl ?? null;
+        return downloadTwitterPreviewUrl(sourceUrl);
       case "youtube":
         return null;
     }

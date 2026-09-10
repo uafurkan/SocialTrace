@@ -7,8 +7,15 @@ import { transcribeAudio } from "./speech-to-text";
 import { TranscriptionError, type TranscriptResult } from "./types";
 import { extractYouTubeVideoId, tryYouTubeCaptions } from "./youtube-captions";
 
-/** Hard cap protecting the ~60s serverless budget and unbounded Apify/Groq spend (docs/TRANSCRIBER.md bad-outcome #6). */
-export const MAX_VIDEO_DURATION_SECONDS = 30 * 60;
+/**
+ * Hard cap protecting the serverless budget and unbounded Apify/Groq spend
+ * (docs/TRANSCRIBER.md bad-outcome #6). Raised from 30 to 45 minutes after
+ * a real user report: a 31-minute X/Twitter video hit this cap, and fixing
+ * the actual production failure (downloader.ts picking Twitter's largest
+ * resolution — a 720MB file for that same video — instead of the smallest,
+ * identical-audio one) made a video this long safe to allow through.
+ */
+export const MAX_VIDEO_DURATION_SECONDS = 45 * 60;
 
 export { detectPlatform, normalizeVideoUrl, fetchFreeVideoPreview };
 export type { TranscriptResult };

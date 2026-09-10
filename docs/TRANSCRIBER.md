@@ -247,7 +247,7 @@ confirmed to be the same category of block, checked live, not guessed.
 | Private/deleted/geo-restricted video | Downloader returns a clean empty/error result, mapped to an honest `private_or_restricted`-style message — never an infinite spinner. |
 | Unsupported URL | `detectPlatform()` rejects client- and server-side before any external call — zero cost. |
 | No speech in the video | Detected and shown as an honest "no speech detected" state, not a blank success. |
-| Very long video | Hard 30-minute cap (`MAX_VIDEO_DURATION_SECONDS`), enforced once duration is known from the downloader's metadata, before transcribing. |
+| Very long video | Hard 45-minute cap (`MAX_VIDEO_DURATION_SECONDS`), enforced once duration is known from the downloader's metadata, before transcribing. |
 | Vercel's function budget | `maxDuration = 60` (same pattern as the rest of the app) plus the length cap above keeps realistic runs well under budget. |
 | Duplicate concurrent requests for the same viral link | `transcript_cache` row inserted with `status="processing"` via `ON CONFLICT DO NOTHING` before work starts; a second request finds the in-flight row and polls it instead of re-triggering a second paid run. |
 | Bot/scripted abuse driving cost | Layered: per-visitor rate limiting (`src/lib/rate-limit.ts`), a daily per-scope quota (`src/lib/transcription/quota.ts` — anonymous 3/day, free account 15/day, Pro 100/day, per `PLAN_LIMITS` in `src/lib/billing/plans.ts`), and a global daily *billed* ceiling (300/day) that refuses new uncached requests once crossed. |

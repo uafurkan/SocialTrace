@@ -152,7 +152,7 @@ most of `SOCIALTRACE_MASTER_BUILD_SPEC.md`. Explicitly out of scope:
 
 - **Video transcriber (`/transcribe`, docs/TRANSCRIBER.md) is link-only.**
   No file upload yet — that needs storage infra (`@vercel/blob` or
-  similar) that doesn't exist in this build. Videos over 30 minutes
+  similar) that doesn't exist in this build. Videos over 45 minutes
   aren't supported (a hard cap protecting the serverless time budget and
   cost). The fallback actor path returns no per-segment timestamps
   (`segments: []`), only the fast-path/primary route does. No SRT/VTT

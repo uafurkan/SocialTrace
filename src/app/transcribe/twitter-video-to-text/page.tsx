@@ -56,7 +56,7 @@ export default function TwitterVideoToTextPage() {
         ]}
         limitations={[
           "Protected (private) accounts and deleted posts can't be transcribed.",
-          "Videos longer than 30 minutes aren't supported yet.",
+          "Videos longer than 45 minutes aren't supported yet.",
           "Speech-to-text accuracy drops with loud background music or overlapping voices.",
         ]}
         relatedTools={[

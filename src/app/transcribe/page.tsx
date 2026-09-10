@@ -70,7 +70,7 @@ export default function TranscribePage() {
           <h2 className="text-xl font-semibold text-primary">Limitations</h2>
           <ul className="mt-4 list-disc space-y-2 pl-6 text-secondary">
             <li>Only public videos can be transcribed — private or restricted content is not supported.</li>
-            <li>Videos longer than 30 minutes aren&apos;t supported yet.</li>
+            <li>Videos longer than 45 minutes aren&apos;t supported yet.</li>
             <li>A daily limit applies per visitor to keep this free for everyone; signing up for a free account raises it.</li>
           </ul>
         </section>

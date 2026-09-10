@@ -1395,3 +1395,36 @@ never forces a second fetch or spends a second Bright Data run just to
 unlock data that was already fetched. The widget shows a plain "Sign in
 to see this profile's recent posts" prompt linking to `/login` in place
 of the post list for a logged-out visitor.
+
+## X/Twitter transcriber: real production bug — always picking the largest video resolution
+
+A user reported a real 31-minute X/Twitter video failing to transcribe.
+Live-testing the exact URL through `downloadTwitterFree` (`src/lib/
+transcription/downloader.ts`) surfaced two compounding problems, not one:
+
+1. **The 30-minute cap was correctly rejecting a 31-minute video** —
+   working as designed, but too tight for a real, legitimate video the
+   user wanted transcribed.
+2. **The format-selection bug that made raising that cap unsafe without
+   a fix.** `downloadTwitterFree` picked the *largest* available
+   resolution (sorted by `height` descending). For this exact video,
+   confirmed live via `curl -I`: the 1440p file was **719,911,578 bytes**
+   (~720MB) vs. the 270p file at **26,756,471 bytes** (~26.7MB) — a 27x
+   difference for *the exact same audio track*, since Twitter has no
+   separate audio-only progressive stream (only HLS audio manifests,
+   already excluded). Whisper never reads the video track at all, so
+   "best" was silently downloading hundreds of extra megabytes for zero
+   transcription benefit — the real reason longer Twitter videos were
+   failing (timeout/memory fetching a huge file in a serverless function,
+   well before Groq's own request-size limit).
+
+**Fix**: `downloadTwitterFree` now sorts ascending and picks the
+*smallest* available resolution — still a real, watchable preview, and
+now the audio-carrying file is small enough that duration is the only
+real constraint. With that fixed, `MAX_VIDEO_DURATION_SECONDS` (`src/lib/
+transcription/index.ts`) was raised from 30 to 45 minutes (covers the
+reported 31-minute video with real margin), and the route's `maxDuration`
+(`src/app/api/v1/transcribe/route.ts`) raised from 60 to 120 to give the
+larger, longer download real headroom within Vercel's function budget.
+Confirmed live end-to-end against the exact reported URL after the fix:
+full pipeline (download → transcribe) succeeds.

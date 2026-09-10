@@ -52,7 +52,7 @@ export default function FacebookVideoToTextPage() {
         ]}
         limitations={[
           "Private groups, profiles, and region-restricted videos can't be transcribed.",
-          "Videos longer than 30 minutes aren't supported yet.",
+          "Videos longer than 45 minutes aren't supported yet.",
           "Speech-to-text accuracy drops with loud background music or overlapping voices.",
         ]}
         relatedTools={[

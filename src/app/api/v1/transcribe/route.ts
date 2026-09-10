@@ -18,7 +18,11 @@ import { assertTranscriptionAllowed, deleteUsageReservation, markUsageBilled, re
 import { VISITOR_COOKIE, VISITOR_COOKIE_OPTIONS } from "@/lib/tracking/visitor-cookie";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// Raised from 60: MAX_VIDEO_DURATION_SECONDS in lib/transcription/index.ts
+// went from 30 to 45 minutes, and even the smallest-resolution download
+// (see downloader.ts's Twitter fix) needs real headroom to fetch a longer
+// file before Groq's own transcription (seconds, per docs/TRANSCRIBER.md).
+export const maxDuration = 120;
 
 const TRANSCRIBE_RATE_LIMIT = 10;
 const TRANSCRIBE_RATE_WINDOW_MS = 10 * 60 * 1000;

@@ -52,7 +52,7 @@ export default function InstagramReelToTextPage() {
         ]}
         limitations={[
           "Private accounts can't be transcribed — only public content.",
-          "Videos longer than 30 minutes aren't supported yet.",
+          "Videos longer than 45 minutes aren't supported yet.",
           "Speech-to-text accuracy drops with loud background music or overlapping voices.",
         ]}
         relatedTools={[
