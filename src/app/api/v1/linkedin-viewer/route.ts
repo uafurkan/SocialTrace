@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { resolveIdentity } from "@/lib/auth/identity";
 import { withDataCache } from "@/lib/cache/data-cache";
 import { extractLinkedInSlug } from "@/lib/linkedin/extract-slug";
 import { LinkedInLookupError } from "@/lib/linkedin/types";
@@ -45,7 +46,17 @@ export async function POST(request: NextRequest) {
 
   try {
     const profile = await withDataCache(`linkedin-profile:${slug}`, () => fetchLinkedInProfile(slug));
-    return NextResponse.json({ profile });
+
+    // Recent posts require a signed-in account — everything else about a
+    // public profile (headline, about, experience, education, followers)
+    // stays free. The cached profile always carries the real posts fetched
+    // from Bright Data (caching happens above auth, so a signed-in visitor
+    // doesn't force a re-fetch); this only strips them from the response
+    // for an anonymous caller, it never re-fetches or re-bills.
+    const identity = await resolveIdentity(request);
+    const signedIn = identity.account !== null;
+    const response = signedIn ? profile : { ...profile, posts: [] };
+    return NextResponse.json({ profile: response, postsRequireSignIn: !signedIn && profile.posts.length > 0 });
   } catch (error) {
     if (error instanceof LinkedInLookupError) {
       if (error.reason === "not_found") {

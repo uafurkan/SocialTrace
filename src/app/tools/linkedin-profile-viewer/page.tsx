@@ -33,6 +33,11 @@ const FAQ = [
     answer:
       "Name, headline, location, follower and connection counts, about section, current company and title, up to five recent roles and schools, and up to three recent posts — exactly what's public on the profile, nothing inferred or estimated.",
   },
+  {
+    question: "Do I need to sign in to see everything?",
+    answer:
+      "Headline, about, location, followers, current role, experience, and education are free for anyone. Recent posts require a free SocialTrace account signed in — everything else about the profile stays open.",
+  },
 ];
 
 export default function LinkedInProfileViewerPage() {
@@ -62,6 +67,7 @@ export default function LinkedInProfileViewerPage() {
           "A first-time lookup can take up to a minute — there's no fast/free path for LinkedIn data.",
           "Private or restricted profiles return \"not found,\" since LinkedIn doesn't distinguish the two to a logged-out request.",
           "Shows the 5 most recent roles/schools and 3 most recent posts, not full history.",
+          "Recent posts require a free signed-in account — everything else about the profile is open to anyone.",
         ]}
         relatedTools={[
           { href: "/tools/username-availability-checker", label: "Username availability checker", body: "Check a handle across Instagram, TikTok, Facebook, and YouTube at once." },

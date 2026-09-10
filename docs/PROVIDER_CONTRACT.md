@@ -248,10 +248,13 @@ data and no Apify actor wired in, so an unconfigured token or a failed
 dataset run is a real 503, not a degraded-but-working response. Unlike
 the Instagram/Facebook Bright Data paths (background-warm only, fired
 via `after()`), this lookup is awaited synchronously by its API route
-(`maxDuration = 60`) since live testing found it reliably completes in
+(`maxDuration = 90`) since live testing found it reliably completes in
 ~15-54s and there's no faster source to serve first while it warms.
 Successful lookups are cached 24h via `withDataCache` under
-`linkedin-profile:<slug>`.
+`linkedin-profile:<slug>` — the cache always holds the full profile
+including posts; the API route strips `posts` from the JSON response
+for a signed-out caller (`resolveIdentity(request).account === null`),
+so only that one field is gated behind sign-in, not the lookup itself.
 
 `/transcribe` (docs/TRANSCRIBER.md) is not an Instagram feature and
 doesn't implement `SocialDataProvider` — it's a second product surface

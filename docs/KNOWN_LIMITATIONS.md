@@ -254,4 +254,6 @@ to the full spec — each has its own docs file listing what was cut.
   (`linkedin-profile:<slug>`), so repeat lookups of the same profile
   are instant; there is no background pre-warming as there is for
   Instagram/Facebook, since there's no faster source to fall back to
-  first while it warms.
+  first while it warms. Recent posts require a signed-in account —
+  everything else about the profile (headline, about, experience,
+  education, followers) is open to anyone.

@@ -1362,7 +1362,7 @@ LinkedIn's dataset completes in ~15-54s across observed runs (narrower and
 faster than Instagram's ~50s-to-150s+ spread), and since this is the
 only source, there's no faster answer to serve first anyway — blocking
 is the only way to answer the request at all. The API route
-(`/api/v1/linkedin-viewer`) sets `maxDuration = 60` to match, and
+(`/api/v1/linkedin-viewer`) sets `maxDuration = 90` to match, and
 successful lookups are cached 24h via `withDataCache` under
 `linkedin-profile:<slug>` so a repeat lookup is instant.
 
@@ -1382,3 +1382,16 @@ both that file's `HOTLINK_RISK_HOSTS` and the media-proxy route's
 `ALLOWED_MEDIA_HOSTS` allowlist, and route the widget's avatar/banner
 `<Image>` tags through `proxiedMediaUrl()` rather than the raw Bright
 Data URL — confirmed live afterward that both images render.
+
+**Recent posts require a signed-in account; the rest of the profile
+stays free.** Per the user's explicit request. Headline, about,
+location, followers, current role, experience, and education are
+available to any visitor, same as the rest of this tool. `posts` is
+stripped from the JSON response for an anonymous caller
+(`/api/v1/linkedin-viewer` checks `resolveIdentity(request).account`
+after the cache lookup, not before it) — the cached row itself always
+carries the real posts fetched from Bright Data, so a signed-in visitor
+never forces a second fetch or spends a second Bright Data run just to
+unlock data that was already fetched. The widget shows a plain "Sign in
+to see this profile's recent posts" prompt linking to `/login` in place
+of the post list for a logged-out visitor.
