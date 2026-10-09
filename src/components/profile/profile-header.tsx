@@ -2,6 +2,7 @@ import { BadgeCheck } from "lucide-react";
 import Link from "next/link";
 
 import type { Profile } from "@/lib/domain/types";
+import { FEATURES } from "@/lib/features";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { CoverageBadge } from "@/components/profile/coverage-badge";
@@ -52,21 +53,25 @@ export function ProfileHeader({ profile, initialTracked, dbAvailable }: ProfileH
       </div>
 
       <div className="grid grid-cols-1 gap-2 sm:w-44 sm:shrink-0">
-        <TrackButton
-          profileId={profile.id}
-          username={profile.username}
-          initialTracked={initialTracked}
-          available={dbAvailable}
-        />
-        {dbAvailable ? (
-          <Button asChild variant="secondary" className="w-full">
-            <Link href={`/profile/${profile.username}/compare`}>{copy.profile.compareCta}</Link>
-          </Button>
-        ) : (
-          <Button variant="secondary" disabled title={copy.profile.comingSoon} className="w-full">
-            {copy.profile.compareCta}
-          </Button>
-        )}
+        {FEATURES.tracking ? (
+          <TrackButton
+            profileId={profile.id}
+            username={profile.username}
+            initialTracked={initialTracked}
+            available={dbAvailable}
+          />
+        ) : null}
+        {FEATURES.snapshots ? (
+          dbAvailable ? (
+            <Button asChild variant="secondary" className="w-full">
+              <Link href={`/profile/${profile.username}/compare`}>{copy.profile.compareCta}</Link>
+            </Button>
+          ) : (
+            <Button variant="secondary" disabled title={copy.profile.comingSoon} className="w-full">
+              {copy.profile.compareCta}
+            </Button>
+          )
+        ) : null}
         <ExportMenu profileId={profile.id} username={profile.username} />
       </div>
     </div>

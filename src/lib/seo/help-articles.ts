@@ -1,3 +1,5 @@
+import { isPathEnabled } from "@/lib/features";
+
 export interface HelpArticle {
   slug: string;
   section: string;
@@ -19,9 +21,9 @@ export const HELP_ARTICLES: HelpArticle[] = [
 
 Every dataset that can be partial (followers, following) shows a coverage badge. If it reads "Coverage: 92%", the number below it is that fraction of the real dataset — not the total. This is the honesty rule the whole product is built on: no dataset is displayed as if it were complete unless it actually is.
 
-If you want to keep tabs on a profile, click Track. If you want to see how something changed between two moments in time, capture a snapshot from the History tab and then compare from the Changes tab or the Compare snapshots view.
+Search a public @username on the homepage, open its profile, and browse its tabs. Exports and the transcriber work without an account.
 
-What this build does not do: sign-in, billing, notifications, or scheduled captures. Snapshots only update when you (or someone else) manually capture one.`,
+Accounts, billing, tracking and saved searches are not available in this version.`,
   },
   {
     slug: "snapshots",
@@ -41,11 +43,11 @@ There is no scheduler in this build. A profile you're tracking only gets a new s
     section: "Methodology",
     title: "What coverage means",
     description:
-      "Coverage is the fraction of a profile's real follower or following list that a snapshot actually captured. Below 99.5%, diffs are withheld.",
+      "Coverage is the fraction of a profile's real follower or following list that SocialTrace actually captured. Each list holds up to 500 accounts, so larger lists show partial coverage.",
     datePublished: "2026-09-04",
     body: `Coverage is not a quality score — it's a measurement. If a profile reports 12,400 followers and a snapshot captured 500 of them, the coverage badge reads 4% and shows both numbers: "Indexed 500 of 12,400 — Coverage 4%". Never 12,400 as if 500 were the whole set.
 
-The diff engine — the thing that decides "these accounts followed" and "these accounts unfollowed" between two snapshots — refuses to run when either snapshot is below 99.5% coverage. Below that threshold the missing accounts could easily be members the crawl just didn't reach, not real unfollows, so the honest answer is "comparison unavailable", not a fabricated list. The same rule applies to Follower Compare and to Saved Searches.`,
+Searching a list or exporting it only covers the part that was captured. A name that isn't in the captured part may simply be outside it, so check the coverage figure on the list before treating a missing name as a real absence.`,
   },
   {
     slug: "tracking",
@@ -91,7 +93,7 @@ Between the profile's two most recent snapshots, the dashboard shows which match
     datePublished: "2026-09-04",
     body: `The Export button on a profile page opens a dropdown with the currently available formats: JSON or XML for the full profile bundle, CSV for one resource at a time (followers, following, posts, reels). The file is generated synchronously inside the request and streamed back — there is no background job, no signed URL, and no email delivery.
 
-Each list is capped at 500 items per format, matching the snapshot capture bound. Coverage numbers travel with the data so a downstream reader can see what fraction of the real dataset an export represents.`,
+Each list is capped at 500 items per format. The profile page shows the coverage figure for each list, so you can see what fraction of the real list an export represents.`,
   },
 ];
 
@@ -102,6 +104,8 @@ export function getHelpArticle(slug: string): HelpArticle | undefined {
 export function helpArticlesBySection(): Array<{ section: string; articles: HelpArticle[] }> {
   const map = new Map<string, HelpArticle[]>();
   for (const article of HELP_ARTICLES) {
+    // Articles about switched-off features (src/lib/features.ts) are not listed.
+    if (!isPathEnabled(`/help/${article.slug}`)) continue;
     const existing = map.get(article.section) ?? [];
     existing.push(article);
     map.set(article.section, existing);

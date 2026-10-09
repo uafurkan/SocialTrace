@@ -42,6 +42,7 @@ export default function InstagramGrowthTrackerPage() {
       />
       <JsonLd id="ld-growth-tracker-faq" data={faqJsonLd(FAQ)} />
       <ToolLanding
+        path={PATH}
         title={TITLE}
         lead="Track any set of public profiles on one dashboard. Each row shows the follower delta since that profile's previous snapshot — real change, not estimation."
         primaryCta={{ href: "/tracking", label: "Open the dashboard" }}

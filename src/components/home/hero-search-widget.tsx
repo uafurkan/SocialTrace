@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search, Captions, Music2, Facebook, Instagram, BarChart3, AtSign, Hash, Download, History, Users } from "lucide-react";
+import { Search, Captions, Music2, Facebook, Instagram, BarChart3, AtSign, Hash, Download, Users } from "lucide-react";
 import { z } from "zod";
 
 import type { Platform } from "@/lib/domain/types";
@@ -68,11 +68,10 @@ const SOCIAL_PLATFORMS: { id: Platform; label: string; icon: typeof Search; plac
  * part of either form, so switching tabs never disturbs it.
  */
 const QUICK_TOOLS: { href: string; label: string; icon: typeof Search }[] = [
-  { href: "/tools/instagram-engagement-calculator", label: "Engagement calculator", icon: BarChart3 },
+  { href: "/tools/instagram-engagement-calculator", label: "Engagement rate", icon: BarChart3 },
   { href: "/tools/username-availability-checker", label: "Username checker", icon: AtSign },
   { href: "/tools/hashtag-generator", label: "Hashtag generator", icon: Hash },
   { href: "/tools/video-downloader", label: "Video downloader", icon: Download },
-  { href: "/tools/instagram-bio-history", label: "Bio history", icon: History },
   { href: "/tools/instagram-follower-checker", label: "Follower checker", icon: Users },
 ];
 
@@ -187,7 +186,7 @@ export function HeroSearchWidget() {
                   }}
                   aria-pressed={platform === p.id}
                   className={cn(
-                    "relative z-10 flex items-center justify-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                    "relative z-10 flex min-h-11 items-center justify-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors sm:min-h-0",
                     platform === p.id ? "text-primary" : "text-muted hover:text-secondary",
                   )}
                 >
@@ -283,19 +282,19 @@ export function HeroSearchWidget() {
 
       <div className="mt-6 border-t border-border pt-4">
         <p className="text-xs font-medium uppercase tracking-wide text-muted">More tools</p>
-        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 [&>a:last-child:nth-child(odd)]:col-span-2 sm:[&>a:last-child:nth-child(odd)]:col-span-1">
           {QUICK_TOOLS.map((tool) => (
             <Link
               key={tool.href}
               href={tool.href}
-              className="flex items-center gap-1.5 rounded-button border border-border bg-surface px-2.5 py-2 text-xs font-medium text-secondary transition-colors hover:border-primary/40 hover:text-primary"
+              className="flex min-h-11 items-center gap-1.5 rounded-button border border-border bg-surface px-2.5 py-2 text-xs font-medium text-secondary transition-colors hover:border-primary/40 hover:text-primary sm:min-h-0"
             >
               <tool.icon className="size-3.5 shrink-0" aria-hidden="true" />
               <span className="truncate">{tool.label}</span>
             </Link>
           ))}
         </div>
-        <Link href="/tools" className="mt-2 inline-block text-xs font-medium text-brand-strong hover:underline">
+        <Link href="/tools" className="mt-2 inline-flex min-h-11 items-center text-xs font-medium text-brand-strong hover:underline sm:min-h-0">
           See all tools →
         </Link>
       </div>

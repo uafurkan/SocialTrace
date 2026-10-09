@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { isPathEnabled } from "@/lib/features";
 import { copy } from "@/lib/copy";
 
 const columns = [
@@ -9,7 +10,7 @@ const columns = [
       { href: "/tools", label: "Tools" },
       { href: "/pricing", label: "Pricing" },
       { href: "/changelog", label: "Changelog" },
-    ],
+    ].filter((link) => isPathEnabled(link.href)),
   },
   {
     title: "Learn",
@@ -40,7 +41,10 @@ export function SiteFooter() {
               <ul className="mt-3 space-y-2">
                 {col.links.map((link) => (
                   <li key={link.href}>
-                    <Link href={link.href} className="text-sm text-secondary hover:text-primary">
+                    <Link
+                      href={link.href}
+                      className="inline-flex min-h-[44px] items-center text-sm text-secondary hover:text-primary md:min-h-0"
+                    >
                       {link.label}
                     </Link>
                   </li>

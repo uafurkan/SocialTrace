@@ -38,6 +38,7 @@ export default function InstagramUsernameHistoryPage() {
       />
       <JsonLd id="ld-username-history-faq" data={faqJsonLd(FAQ)} />
       <ToolLanding
+        path={PATH}
         title={TITLE}
         lead="Search a public Instagram profile and see every rename recorded between its captured snapshots — old username, new username, and when it changed."
         widget={<ProfileFieldHistoryWidget field="username" />}

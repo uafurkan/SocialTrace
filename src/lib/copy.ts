@@ -56,8 +56,10 @@ export const copy = {
   home: {
     heroHeadline: "Trace what changes.",
     heroSubhead:
-      "Explore public social profiles, search available audience data, compare snapshots, and export structured datasets.",
-    searchPlaceholder: "@username or instagram.com/username",
+      "View public Instagram, TikTok and Facebook profiles without an account, see followers and following, and transcribe public videos to text.",
+    searchPlaceholder: "@username or profile link",
+    /** Shorter version for the mobile header box, where the full one gets cut off. */
+    searchPlaceholderCompact: "@username or link",
     searchCta: "Explore",
     noAccountNote: "No account required for basic public exploration.",
     valueCards: [
@@ -70,8 +72,8 @@ export const copy = {
         body: "Search eligible follower and following datasets instead of stopping at a tiny recent list.",
       },
       {
-        title: "Trace",
-        body: "Save snapshots and see meaningful changes over time.",
+        title: "Transcribe",
+        body: "Turn public YouTube, TikTok, Instagram, Facebook and X (Twitter) videos into text.",
       },
     ],
     proofStatement:
@@ -106,6 +108,8 @@ export const copy = {
     hubTitle: "Video Transcriber",
     hubLead: "Paste a YouTube, TikTok, Instagram, Facebook, or X (Twitter) video link and get a text transcript — free, no sign-up required.",
     urlPlaceholder: "Paste a video link (YouTube, TikTok, Instagram, Facebook, X)",
+    /** Shorter version for the mobile header box, where the full one gets cut off. */
+    urlPlaceholderCompact: "Paste a video link",
     submitCta: "Transcribe",
     stageDownloading: "Fetching the video…",
     stageTranscribing: "Transcribing…",

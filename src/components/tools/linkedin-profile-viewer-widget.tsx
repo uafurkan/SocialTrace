@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
-import { Building2, GraduationCap, Lock, Users } from "lucide-react";
+import { Building2, GraduationCap, Users } from "lucide-react";
 
 import type { LinkedInProfile } from "@/lib/linkedin/types";
 import { proxiedMediaUrl } from "@/lib/media-proxy";
@@ -14,7 +13,6 @@ export function LinkedInProfileViewerWidget() {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState<LinkedInProfile | null>(null);
-  const [postsRequireSignIn, setPostsRequireSignIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(event: React.FormEvent) {
@@ -28,7 +26,6 @@ export function LinkedInProfileViewerWidget() {
     setLoading(true);
     setError(null);
     setProfile(null);
-    setPostsRequireSignIn(false);
     try {
       const res = await fetch("/api/v1/linkedin-viewer", {
         method: "POST",
@@ -41,7 +38,6 @@ export function LinkedInProfileViewerWidget() {
         return;
       }
       setProfile(data.profile as LinkedInProfile);
-      setPostsRequireSignIn(Boolean(data.postsRequireSignIn));
     } catch {
       setError("Couldn't reach the server. Please try again.");
     } finally {
@@ -195,16 +191,6 @@ export function LinkedInProfileViewerWidget() {
                     </li>
                   ))}
                 </ul>
-              </div>
-            ) : postsRequireSignIn ? (
-              <div className="mt-5 flex items-center justify-between gap-3 rounded-button border border-dashed border-border bg-surface-subtle px-4 py-3">
-                <div className="flex items-center gap-2 text-sm text-secondary">
-                  <Lock className="size-4 shrink-0 text-muted" aria-hidden="true" />
-                  <span>Sign in to see this profile&apos;s recent posts.</span>
-                </div>
-                <Link href="/login" className="shrink-0 text-sm font-medium text-brand-strong hover:underline">
-                  Sign in
-                </Link>
               </div>
             ) : null}
 

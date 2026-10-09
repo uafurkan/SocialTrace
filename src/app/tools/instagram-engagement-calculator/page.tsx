@@ -37,6 +37,7 @@ export default function EngagementCalculatorPage() {
       />
       <JsonLd id="ld-engagement-calculator-faq" data={faqJsonLd(FAQ)} />
       <ToolLanding
+        path={PATH}
         title={TITLE}
         lead="Paste a public profile from Instagram, TikTok, or Facebook and get its engagement rate — worked out from real recent posts, not an estimate."
         widget={<EngagementCalculatorWidget />}

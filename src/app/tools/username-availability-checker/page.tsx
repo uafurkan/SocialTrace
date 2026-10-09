@@ -39,6 +39,7 @@ export default function UsernameAvailabilityCheckerPage() {
       />
       <JsonLd id="ld-username-availability-faq" data={faqJsonLd(FAQ)} />
       <ToolLanding
+        path={PATH}
         title={TITLE}
         lead="Type a handle and check whether it's taken on Instagram, TikTok, Facebook, and YouTube — all four platforms at once."
         widget={<UsernameAvailabilityWidget />}

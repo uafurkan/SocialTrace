@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { isPathEnabled } from "@/lib/features";
 import { cn } from "@/lib/utils";
 
 interface ProfileTabsProps {
@@ -25,11 +26,12 @@ const TABS = [
 export function ProfileTabs({ username }: ProfileTabsProps) {
   const pathname = usePathname();
   const base = `/profile/${username}`;
+  const visibleTabs = TABS.filter((tab) => isPathEnabled(tab.slug ? `${base}/${tab.slug}` : base));
 
   return (
     <div className="relative border-b border-border">
       <nav aria-label="Profile sections" className="flex items-center gap-1 overflow-x-auto scrollbar-none">
-        {TABS.map((tab) => {
+        {visibleTabs.map((tab) => {
           const href = tab.slug ? `${base}/${tab.slug}` : base;
           const isActive = pathname === href;
           return (

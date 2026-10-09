@@ -7,6 +7,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    date: "2026-10-09",
+    title: "Focused on public lookups and exports",
+    description:
+      "Accounts, paid plans, tracking, and snapshot history are switched off. The site now runs on the public tools, which are free to use without signing in.",
+    highlights: [
+      "Pages for the switched-off areas redirect to the home page.",
+      "New landing pages: followers export, who liked an Instagram post, highlights viewer, reels viewer, and TikTok follower checker.",
+      "Mobile search and tap targets improved.",
+    ],
+  },
+  {
     date: "2026-09-04",
     title: "Saved searches",
     description:

@@ -4,17 +4,18 @@ import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
 
+import { FEATURES } from "@/lib/features";
 import { copy } from "@/lib/copy";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { TrackNavBadge } from "@/components/layout/track-nav-badge";
 
 const links = [
-  { href: "/#explore", label: copy.nav.explore, badge: false },
-  { href: "/tracking", label: copy.nav.track, badge: true },
-  { href: "/transcribe", label: copy.nav.transcribe, badge: false },
-  { href: "/tools", label: copy.nav.tools, badge: false },
-  { href: "/pricing", label: copy.nav.pricing, badge: false },
-];
+  { href: "/#explore", label: copy.nav.explore, badge: false, enabled: true },
+  { href: "/tracking", label: copy.nav.track, badge: true, enabled: FEATURES.tracking },
+  { href: "/transcribe", label: copy.nav.transcribe, badge: false, enabled: true },
+  { href: "/tools", label: copy.nav.tools, badge: false, enabled: true },
+  { href: "/pricing", label: copy.nav.pricing, badge: false, enabled: FEATURES.billing },
+].filter((link) => link.enabled);
 
 export function MobileNav() {
   const [open, setOpen] = useState(false);
@@ -53,9 +54,11 @@ export function MobileNav() {
                 </Link>
               ))}
             </nav>
-            <div className="mt-3 border-t border-border pt-3">
-              <AccountMenu />
-            </div>
+            {FEATURES.accounts ? (
+              <div className="mt-3 border-t border-border pt-3">
+                <AccountMenu />
+              </div>
+            ) : null}
           </div>
         </>
       ) : null}

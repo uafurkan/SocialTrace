@@ -34,7 +34,7 @@ export async function assertTranscriptionAllowed(scopeId: string, plan: Plan | n
   if (plan) {
     assertWithinLimit(plan, "transcriptions per day", scopeCount);
   } else if (scopeCount >= ANONYMOUS_DAILY_LIMIT) {
-    throw new Error(`Free anonymous usage is limited to ${ANONYMOUS_DAILY_LIMIT} transcriptions per day. Sign up for a free account for a higher limit.`);
+    throw new Error(`Free usage is limited to ${ANONYMOUS_DAILY_LIMIT} transcriptions per day. Try again tomorrow.`);
   }
 
   const billedToday = await countUsageSince(and(eq(schema.transcriptionUsage.billed, true), gte(schema.transcriptionUsage.createdAt, since)));

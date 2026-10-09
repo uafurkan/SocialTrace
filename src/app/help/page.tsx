@@ -9,7 +9,7 @@ import { AdSlot } from "@/components/ads/ad-slot";
 
 const TITLE = "Help center";
 const DESCRIPTION =
-  "How SocialTrace works — snapshots, coverage, tracking, comparisons, and exports, with the same honesty rules applied everywhere.";
+  "How SocialTrace works — coverage, caching, and exports, with the same honesty rules applied to every list.";
 const PATH = "/help";
 
 export const metadata: Metadata = pageMetadata({ title: TITLE, description: DESCRIPTION, path: PATH });

@@ -4,11 +4,12 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AdSlot } from "@/components/ads/ad-slot";
+import { isPathEnabled } from "@/lib/features";
 import { pageMetadata } from "@/lib/seo/metadata";
 
 export const metadata: Metadata = pageMetadata({
-  title: "Tools",
-  description: "Free Instagram tools: anonymous viewer, story viewer, follower history, follower compare, and growth tracker — no account required.",
+  title: "Free Instagram & TikTok tools",
+  description: "Free Instagram, TikTok and Facebook tools: anonymous viewers, follower checkers, followers export, engagement calculator, video downloader. No account needed.",
   path: "/tools",
 });
 
@@ -48,34 +49,19 @@ const TOOL_GROUPS: ToolGroup[] = [
         href: "/tools/instagram-story-viewer",
       },
       {
+        title: "Highlights viewer",
+        description: "View a public Instagram profile's story highlights, where the data provider supplies them.",
+        href: "/tools/instagram-highlights-viewer",
+      },
+      {
+        title: "Reels viewer",
+        description: "Browse a public Instagram profile's latest reels anonymously, with a CSV export.",
+        href: "/tools/instagram-reels-viewer",
+      },
+      {
         title: "LinkedIn profile viewer",
         description: "See a public LinkedIn profile's headline, about, experience, education, and recent activity.",
         href: "/tools/linkedin-profile-viewer",
-      },
-    ],
-  },
-  {
-    heading: "History & tracking",
-    tools: [
-      {
-        title: "Follower history",
-        description: "Track a profile's follower count over captured snapshots.",
-        href: "/tools/instagram-follower-history",
-      },
-      {
-        title: "Growth tracker",
-        description: "One dashboard, per-profile deltas since the last snapshot.",
-        href: "/tools/instagram-growth-tracker",
-      },
-      {
-        title: "Bio history",
-        description: "See recorded bio changes for a profile.",
-        href: "/tools/instagram-bio-history",
-      },
-      {
-        title: "Username history",
-        description: "See recorded username changes for a profile.",
-        href: "/tools/instagram-username-history",
       },
     ],
   },
@@ -93,9 +79,9 @@ const TOOL_GROUPS: ToolGroup[] = [
         href: "/tools/instagram-following-checker",
       },
       {
-        title: "Follower compare",
-        description: "Compare any two snapshots and see who joined or left.",
-        href: "/tools/instagram-follower-compare",
+        title: "TikTok follower checker",
+        description: "Search a public TikTok account's followers and following lists by name or username.",
+        href: "/tools/tiktok-follower-checker",
       },
       {
         title: "Competitor analyzer",
@@ -135,11 +121,23 @@ const TOOL_GROUPS: ToolGroup[] = [
     ],
   },
   {
-    heading: "Coming soon",
+    heading: "Exports & engagement",
     tools: [
-      { title: "Profile analyzer", description: "Summaries derived from observed public data." },
-      { title: "Following compare", description: "Compare following snapshots over time." },
+      {
+        title: "Followers export",
+        description: "Export a public profile's followers, following, posts or reels to CSV, or the full profile to JSON or XML.",
+        href: "/tools/instagram-followers-export",
+      },
+      {
+        title: "Who liked a post",
+        description: "See the likers and comments on a public Instagram post. TikTok and Facebook show comments.",
+        href: "/tools/instagram-post-likers",
+      },
     ],
+  },
+  {
+    heading: "Coming soon",
+    tools: [{ title: "Profile analyzer", description: "Summaries derived from observed public data." }],
   },
 ];
 
@@ -160,18 +158,24 @@ function ToolCard({ tool }: { tool: Tool }) {
   return tool.href ? <Link href={tool.href}>{card}</Link> : card;
 }
 
+// Drops switched-off tools (src/lib/features.ts) and any category left empty by that.
+const VISIBLE_GROUPS = TOOL_GROUPS.map((group) => ({
+  ...group,
+  tools: group.tools.filter((tool) => !tool.href || isPathEnabled(tool.href)),
+})).filter((group) => group.tools.length > 0);
+
 export default function ToolsPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
       <h1 className="text-2xl font-semibold text-primary">Tools</h1>
       <p className="mt-2 max-w-2xl text-secondary">
-        Public profile exploration, snapshot history, and comparisons — search a profile from the
-        homepage to reach every current tool. Tools below are organized by category; each landing
+        Public profile exploration and analysis — search a profile from the homepage to reach every
+        current tool. Tools below are organized by category; each landing
         page explains that tool in more depth.
       </p>
 
       <div className="mt-8 space-y-10">
-        {TOOL_GROUPS.map((group) => (
+        {VISIBLE_GROUPS.map((group) => (
           <section key={group.heading}>
             <h2 className="text-xl font-semibold text-primary">{group.heading}</h2>
             <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

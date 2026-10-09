@@ -38,6 +38,7 @@ export default function InstagramBioHistoryPage() {
       />
       <JsonLd id="ld-bio-history-faq" data={faqJsonLd(FAQ)} />
       <ToolLanding
+        path={PATH}
         title={TITLE}
         lead="Search a public Instagram profile and see every bio change recorded between its captured snapshots — old text, new text, and when it changed."
         widget={<ProfileFieldHistoryWidget field="bio" />}

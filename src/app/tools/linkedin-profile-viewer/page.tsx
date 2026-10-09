@@ -49,6 +49,7 @@ export default function LinkedInProfileViewerPage() {
       />
       <JsonLd id="ld-linkedin-profile-viewer-faq" data={faqJsonLd(FAQ)} />
       <ToolLanding
+        path={PATH}
         title={TITLE}
         lead="Paste a public LinkedIn profile link and see its headline, about section, current role, experience, education, and recent activity — without opening LinkedIn or signing in."
         widget={<LinkedInProfileViewerWidget />}

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { FEATURES } from "@/lib/features";
 import { copy } from "@/lib/copy";
 import { BrandMark } from "@/components/layout/brand-mark";
 import { AccountMenu } from "@/components/layout/account-menu";
@@ -19,26 +20,32 @@ export function SiteHeader() {
           <span aria-hidden="true" className="md:hidden" />
 
           <nav className="hidden items-center gap-6 text-sm font-medium text-secondary md:flex">
-            <Link href="/#explore" className="hover:text-primary">
+            <Link href="/#explore" className="inline-flex min-h-[44px] items-center hover:text-primary">
               {copy.nav.explore}
             </Link>
-            <Link href="/tracking" className="flex items-center hover:text-primary">
-              {copy.nav.track}
-              <TrackNavBadge />
-            </Link>
-            <Link href="/transcribe" className="hover:text-primary">
+            {FEATURES.tracking ? (
+              <Link href="/tracking" className="flex items-center hover:text-primary">
+                {copy.nav.track}
+                <TrackNavBadge />
+              </Link>
+            ) : null}
+            <Link href="/transcribe" className="inline-flex min-h-[44px] items-center hover:text-primary">
               {copy.nav.transcribe}
             </Link>
-            <Link href="/tools" className="hover:text-primary">
+            <Link href="/tools" className="inline-flex min-h-[44px] items-center hover:text-primary">
               {copy.nav.tools}
             </Link>
-            <Link href="/pricing" className="hover:text-primary">
-              {copy.nav.pricing}
-            </Link>
+            {FEATURES.billing ? (
+              <Link href="/pricing" className="hover:text-primary">
+                {copy.nav.pricing}
+              </Link>
+            ) : null}
           </nav>
-          <div className="hidden items-center md:flex">
-            <AccountMenu />
-          </div>
+          {FEATURES.accounts ? (
+            <div className="hidden items-center md:flex">
+              <AccountMenu />
+            </div>
+          ) : null}
         </div>
 
         <div className="pb-3 md:hidden">

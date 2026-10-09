@@ -52,6 +52,7 @@ export default function AnonymousInstagramViewerPage() {
       />
       <JsonLd id="ld-anon-viewer-faq" data={faqJsonLd(FAQ)} />
       <ToolLanding
+        path={PATH}
         title={TITLE}
         lead="Search any public @username to browse its posts, reels, stories, highlights, and tagged posts — no account, no login, and the profile is never notified."
         primaryCta={{ href: "/", label: "Search a profile" }}

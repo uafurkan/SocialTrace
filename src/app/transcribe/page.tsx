@@ -24,12 +24,12 @@ const FAQ = [
   },
   {
     question: "Is it free?",
-    answer: "Yes — a limited number of transcriptions per day, no sign-up required. Creating a free account raises the daily limit.",
+    answer: "Yes — no sign-up required. Each visitor can run 3 transcriptions a day. Transcripts already cached from an earlier request don't count against that limit.",
   },
   {
     question: "How accurate is it?",
     answer:
-      "For YouTube videos with existing captions, the transcript comes directly from those captions. Otherwise, speech-to-text (90+ languages) is used, which is generally accurate for clear audio but can struggle with heavy background noise, overlapping speakers, or strong accents.",
+      "Speech-to-text is generally accurate for clear audio. It can struggle with heavy background noise, overlapping speakers, or strong accents. For YouTube, the transcript can come from the video's own captions when YouTube provides them.",
   },
   {
     question: "Does this work on private accounts or videos?",
@@ -71,7 +71,7 @@ export default function TranscribePage() {
           <ul className="mt-4 list-disc space-y-2 pl-6 text-secondary">
             <li>Only public videos can be transcribed — private or restricted content is not supported.</li>
             <li>Videos longer than 45 minutes aren&apos;t supported yet.</li>
-            <li>A daily limit applies per visitor to keep this free for everyone; signing up for a free account raises it.</li>
+            <li>Each visitor can run 3 transcriptions a day, to keep this free for everyone. Cached transcripts don&apos;t count.</li>
           </ul>
         </section>
 
