@@ -64,12 +64,12 @@ export function ProfileSearchForm({ size = "default" }: { size?: "default" | "co
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onFocus={() => setIsOpen(true)}
-            placeholder={copy.home.searchPlaceholder}
+            placeholder={isCompact ? copy.home.searchPlaceholderCompact : copy.home.searchPlaceholder}
             aria-label="Instagram username or profile link"
             autoComplete="off"
-            className={isCompact ? "pl-9 pr-20" : "border-0 pl-9 pr-20 shadow-none focus-visible:border-0 focus-visible:ring-0"}
+            className={isCompact ? "pl-9 pr-12" : "border-0 pl-9 pr-20 shadow-none focus-visible:border-0 focus-visible:ring-0"}
           />
-          <PasteButton onPaste={setValue} />
+          <PasteButton onPaste={setValue} compact={isCompact} />
           {isOpen ? (
             <HistorySuggestionsList
               items={matches}

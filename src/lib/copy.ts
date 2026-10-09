@@ -58,6 +58,8 @@ export const copy = {
     heroSubhead:
       "View public Instagram, TikTok and Facebook profiles without an account, see followers and following, and transcribe public videos to text.",
     searchPlaceholder: "@username or instagram.com/username",
+    /** Shorter version for the mobile header box, where the full one gets cut off. */
+    searchPlaceholderCompact: "@username or link",
     searchCta: "Explore",
     noAccountNote: "No account required for basic public exploration.",
     valueCards: [
@@ -106,6 +108,8 @@ export const copy = {
     hubTitle: "Video Transcriber",
     hubLead: "Paste a YouTube, TikTok, Instagram, Facebook, or X (Twitter) video link and get a text transcript — free, no sign-up required.",
     urlPlaceholder: "Paste a video link (YouTube, TikTok, Instagram, Facebook, X)",
+    /** Shorter version for the mobile header box, where the full one gets cut off. */
+    urlPlaceholderCompact: "Paste a video link",
     submitCta: "Transcribe",
     stageDownloading: "Fetching the video…",
     stageTranscribing: "Transcribing…",

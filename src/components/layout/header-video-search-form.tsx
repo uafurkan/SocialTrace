@@ -45,12 +45,12 @@ export function HeaderVideoSearchForm() {
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onFocus={() => setIsOpen(true)}
-          placeholder={copy.transcriber.urlPlaceholder}
+          placeholder={copy.transcriber.urlPlaceholderCompact}
           aria-label="Video URL"
           autoComplete="off"
-          className="pl-9 pr-20"
+          className="pl-9 pr-12"
         />
-        <PasteButton onPaste={setValue} />
+        <PasteButton onPaste={setValue} compact />
         {isOpen ? (
           <HistorySuggestionsList
             items={matches}

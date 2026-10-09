@@ -20,7 +20,7 @@ export function SiteHeader() {
           <span aria-hidden="true" className="md:hidden" />
 
           <nav className="hidden items-center gap-6 text-sm font-medium text-secondary md:flex">
-            <Link href="/#explore" className="hover:text-primary">
+            <Link href="/#explore" className="inline-flex min-h-[44px] items-center hover:text-primary">
               {copy.nav.explore}
             </Link>
             {FEATURES.tracking ? (
@@ -29,10 +29,10 @@ export function SiteHeader() {
                 <TrackNavBadge />
               </Link>
             ) : null}
-            <Link href="/transcribe" className="hover:text-primary">
+            <Link href="/transcribe" className="inline-flex min-h-[44px] items-center hover:text-primary">
               {copy.nav.transcribe}
             </Link>
-            <Link href="/tools" className="hover:text-primary">
+            <Link href="/tools" className="inline-flex min-h-[44px] items-center hover:text-primary">
               {copy.nav.tools}
             </Link>
             {FEATURES.billing ? (
