@@ -57,7 +57,7 @@ export const copy = {
     heroHeadline: "Trace what changes.",
     heroSubhead:
       "View public Instagram, TikTok and Facebook profiles without an account, see followers and following, and transcribe public videos to text.",
-    searchPlaceholder: "@username or instagram.com/username",
+    searchPlaceholder: "@username or profile link",
     /** Shorter version for the mobile header box, where the full one gets cut off. */
     searchPlaceholderCompact: "@username or link",
     searchCta: "Explore",

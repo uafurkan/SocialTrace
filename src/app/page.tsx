@@ -65,21 +65,22 @@ export default function HomePage() {
       <section className="py-16">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <h2 className="text-2xl font-semibold text-primary">Popular tools</h2>
-          <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Mobile: compact rows with the names only. Desktop: cards with descriptions. */}
+          <ul className="mt-6 grid gap-2 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
             {POPULAR_TOOLS.map((tool) => (
               <li key={tool.href}>
                 <Link
                   href={tool.href}
-                  className="block h-full rounded-card border border-border bg-surface p-4 transition hover:border-primary/40"
+                  className="block h-full rounded-card border border-border bg-surface px-4 py-3 transition hover:border-primary/40 sm:p-4"
                 >
                   <span className="font-medium text-primary">{tool.label}</span>
-                  <span className="mt-1 block text-sm text-secondary">{tool.body}</span>
+                  <span className="mt-1 hidden text-sm text-secondary sm:block">{tool.body}</span>
                 </Link>
               </li>
             ))}
           </ul>
           <p className="mt-6 text-sm">
-            <Link href="/tools" className="font-medium text-brand-strong hover:underline">
+            <Link href="/tools" className="inline-flex min-h-11 items-center font-medium text-brand-strong hover:underline sm:min-h-0">
               See all tools
             </Link>
           </p>

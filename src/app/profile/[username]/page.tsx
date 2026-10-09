@@ -13,7 +13,7 @@ export default async function ProfileOverviewPage(props: { params: Promise<{ use
   const profile = await requireProfile(params.username);
 
   return (
-    <div className="grid gap-4 sm:grid-cols-3">
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
       <Card>
         <CardHeader>
           <CardTitle>Followers</CardTitle>
@@ -36,7 +36,7 @@ export default async function ProfileOverviewPage(props: { params: Promise<{ use
           </p>
         </CardContent>
       </Card>
-      <Card>
+      <Card className="col-span-2 sm:col-span-1">
         <CardHeader>
           <CardTitle>Posts</CardTitle>
         </CardHeader>

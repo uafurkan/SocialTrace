@@ -39,7 +39,7 @@ export function PasteButton({
       aria-label="Paste from clipboard"
       className={cn(
         "absolute right-2 top-1/2 flex -translate-y-1/2 items-center justify-center rounded-full border border-border bg-surface-subtle text-xs font-medium text-secondary transition-colors hover:bg-surface hover:text-brand-strong",
-        compact ? "size-9" : "gap-1 px-2 py-1",
+        compact ? "size-9" : "h-9 gap-1 px-3 sm:h-auto sm:px-2 sm:py-1",
         className,
       )}
     >

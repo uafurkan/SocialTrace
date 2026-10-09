@@ -14,5 +14,7 @@ import { HeaderVideoSearchForm } from "@/components/layout/header-video-search-f
  */
 export function HeaderSearch() {
   const pathname = usePathname();
+  // The home page already shows the full search box right under the header, so the mobile header skips its own copy there.
+  if (pathname === "/") return null;
   return pathname?.startsWith("/transcribe") ? <HeaderVideoSearchForm /> : <ProfileSearchForm size="compact" />;
 }
