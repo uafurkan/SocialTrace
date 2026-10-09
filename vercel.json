@@ -1,8 +1,3 @@
 {
-  "crons": [
-    {
-      "path": "/api/cron/capture-tracked",
-      "schedule": "0 4 * * *"
-    }
-  ]
+  "crons": []
 }

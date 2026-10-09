@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AdSlot } from "@/components/ads/ad-slot";
+import { isPathEnabled } from "@/lib/features";
 
 export interface ToolLandingProps {
   title: string;
@@ -91,7 +92,7 @@ export function ToolLanding(props: ToolLandingProps) {
       <section className="mt-14">
         <h2 className="text-xl font-semibold text-primary">Related tools</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          {props.relatedTools.map((tool) => (
+          {props.relatedTools.filter((tool) => isPathEnabled(tool.href)).map((tool) => (
             <Link key={tool.href} href={tool.href}>
               <Card className="h-full transition hover:border-primary/40">
                 <CardHeader>

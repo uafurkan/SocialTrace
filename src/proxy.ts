@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { isPathEnabled } from "@/lib/features";
+
 /**
  * A real Content Security Policy, not the placeholder previously deferred
  * in docs/PRODUCTION_HARDENING.md ("a CSP written now would either be
@@ -24,10 +26,9 @@ import { NextRequest, NextResponse } from "next/server";
  * can't be enumerated (docs/PROVIDER_CONTRACT.md) — the mock provider
  * emits no avatarUrl at all, so this only matters once SOCIAL_PROVIDER=apify.
  *
- * Deliberately NOT running middleware on /api/* — those responses aren't
- * HTML, so a script/style CSP doesn't apply to them, and skipping the
- * nonce generation there avoids pointless per-request overhead on the
- * highest-traffic paths.
+ * API routes are passed straight through without a CSP, because their
+ * responses aren't HTML. The only work done for them is the feature-gate
+ * check below, which is a single regex test.
  *
  * frame-src/connect-src only widen to any https origin when
  * NEXT_PUBLIC_EZOIC_ENABLED=true (see docs/ADS.md) — Ezoic's ad exchanges
@@ -64,6 +65,23 @@ import { NextRequest, NextResponse } from "next/server";
  * Independent of the ads/Turnstile flags for the same reason Turnstile is.
  */
 export function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Switched-off features (src/lib/features.ts) never reach their route.
+  // API callers get a plain 404; a page visit goes to the nearest page that
+  // still exists — the profile itself for a snapshot tab, otherwise home.
+  if (!isPathEnabled(pathname)) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    const profileBase = pathname.match(/^\/profile\/[^/]+/)?.[0];
+    return NextResponse.redirect(new URL(profileBase ?? "/", request.url), 307);
+  }
+
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.next();
+  }
+
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   // AdSense (docs/ADS.md) shares the same "can't enumerate ad-server
   // domains" situation as Ezoic below, so it widens frame-src/connect-src
@@ -118,5 +136,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { getProfileByUsername, requireProfile } from "@/lib/server/profile";
 import { isDbConfigured } from "@/lib/db";
+import { FEATURES } from "@/lib/features";
 import { resolveIdentityReadOnly } from "@/lib/auth/identity";
 import { isProfileTracked } from "@/lib/tracking/watchlist";
 import { ProfileHeader } from "@/components/profile/profile-header";
@@ -38,9 +39,10 @@ export default async function ProfileLayout(props: ProfileLayoutProps) {
   const profile = await requireProfile(params.username);
 
   const dbAvailable = isDbConfigured();
-  const initialTracked = dbAvailable
-    ? await isProfileTracked(profile.username, (await resolveIdentityReadOnly()).scopeId)
-    : false;
+  const initialTracked =
+    FEATURES.tracking && dbAvailable
+      ? await isProfileTracked(profile.username, (await resolveIdentityReadOnly()).scopeId)
+      : false;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">

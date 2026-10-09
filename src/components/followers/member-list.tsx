@@ -8,6 +8,7 @@ import type { CursorPage, SocialUser } from "@/lib/domain/types";
 import { Avatar } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { FEATURES } from "@/lib/features";
 import { copy } from "@/lib/copy";
 
 interface MemberListProps {
@@ -121,7 +122,7 @@ export function MemberList({
             aria-label={placeholder}
           />
         </div>
-        {supportsSavedSearch && dbAvailable && query.trim() ? (
+        {FEATURES.tracking && supportsSavedSearch && dbAvailable && query.trim() ? (
           <Button
             variant="tertiary"
             size="sm"

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { isPathEnabled } from "@/lib/features";
 import { copy } from "@/lib/copy";
 
 const columns = [
@@ -9,7 +10,7 @@ const columns = [
       { href: "/tools", label: "Tools" },
       { href: "/pricing", label: "Pricing" },
       { href: "/changelog", label: "Changelog" },
-    ],
+    ].filter((link) => isPathEnabled(link.href)),
   },
   {
     title: "Learn",

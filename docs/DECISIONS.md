@@ -1452,3 +1452,35 @@ Per a user request for a "niche and nice" preview instead of a plain
    independently omitted when absent (in-progress preview during the
    "transcribing" stage has none of them yet; a cache-hit result has no
    title) — never a placeholder or a guessed value.
+
+## Ads-only monetization: accounts, billing, tracking and snapshots switched off
+
+The site earns only from ads (docs/ADS.md). Everything that needed an
+account, a paid plan, or server-side saved history is switched off through
+`FEATURES` in `src/lib/features.ts`: login/signup/Google sign-in, /account,
+/admin and admin diagnostics; /pricing and Paddle checkout/portal/webhook;
+the /tracking dashboard, saved searches, the Track button and the daily
+capture cron; and snapshot-based history, changes, compare, and the four
+tool pages built on them (follower history, follower compare, growth
+tracker, bio/username history).
+
+`src/proxy.ts` enforces the flags: a gated API route returns 404, and a
+gated page redirects (to the profile for a snapshot tab, otherwise home).
+Navigation, the tools index, related-tool cards, the sitemap and llms.txt
+all filter through the same check, so nothing links to a switched-off page.
+
+The code, database tables and env-var reads are kept on purpose, so each
+area comes back by flipping its flag. Not gated, because they never needed
+an account: profile lookups, export, the transcriber, and the other tools.
+
+Two consequences of this choice:
+- Transcriber: with no logged-in accounts, every visitor gets the anonymous
+  daily cap (3/day, src/lib/transcription/quota.ts), not the 15/day free
+  account cap.
+- LinkedIn profile viewer: recent posts were gated behind sign-in, and that
+  gate can no longer be satisfied, so posts stay hidden and the sign-in
+  prompt is gone.
+
+Not done yet: the FAQ, changelog, help articles and data-methodology copy
+still describe tracking and snapshots in the present tense. Those pages
+still exist, so the copy needs its own pass.

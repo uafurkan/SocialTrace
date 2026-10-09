@@ -4,11 +4,12 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AdSlot } from "@/components/ads/ad-slot";
+import { isPathEnabled } from "@/lib/features";
 import { pageMetadata } from "@/lib/seo/metadata";
 
 export const metadata: Metadata = pageMetadata({
   title: "Tools",
-  description: "Free Instagram tools: anonymous viewer, story viewer, follower history, follower compare, and growth tracker — no account required.",
+  description: "Free social media tools: anonymous viewers, story viewer, engagement calculator, hashtag generator, video downloader and more — no account required.",
   path: "/tools",
 });
 
@@ -160,18 +161,24 @@ function ToolCard({ tool }: { tool: Tool }) {
   return tool.href ? <Link href={tool.href}>{card}</Link> : card;
 }
 
+// Drops switched-off tools (src/lib/features.ts) and any category left empty by that.
+const VISIBLE_GROUPS = TOOL_GROUPS.map((group) => ({
+  ...group,
+  tools: group.tools.filter((tool) => !tool.href || isPathEnabled(tool.href)),
+})).filter((group) => group.tools.length > 0);
+
 export default function ToolsPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
       <h1 className="text-2xl font-semibold text-primary">Tools</h1>
       <p className="mt-2 max-w-2xl text-secondary">
-        Public profile exploration, snapshot history, and comparisons — search a profile from the
-        homepage to reach every current tool. Tools below are organized by category; each landing
+        Public profile exploration and analysis — search a profile from the homepage to reach every
+        current tool. Tools below are organized by category; each landing
         page explains that tool in more depth.
       </p>
 
       <div className="mt-8 space-y-10">
-        {TOOL_GROUPS.map((group) => (
+        {VISIBLE_GROUPS.map((group) => (
           <section key={group.heading}>
             <h2 className="text-xl font-semibold text-primary">{group.heading}</h2>
             <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

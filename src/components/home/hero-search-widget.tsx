@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search, Captions, Music2, Facebook, Instagram, BarChart3, AtSign, Hash, Download, History, Users } from "lucide-react";
+import { Search, Captions, Music2, Facebook, Instagram, BarChart3, AtSign, Hash, Download, Users } from "lucide-react";
 import { z } from "zod";
 
 import type { Platform } from "@/lib/domain/types";
@@ -72,7 +72,6 @@ const QUICK_TOOLS: { href: string; label: string; icon: typeof Search }[] = [
   { href: "/tools/username-availability-checker", label: "Username checker", icon: AtSign },
   { href: "/tools/hashtag-generator", label: "Hashtag generator", icon: Hash },
   { href: "/tools/video-downloader", label: "Video downloader", icon: Download },
-  { href: "/tools/instagram-bio-history", label: "Bio history", icon: History },
   { href: "/tools/instagram-follower-checker", label: "Follower checker", icon: Users },
 ];
 

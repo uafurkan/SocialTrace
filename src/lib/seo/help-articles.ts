@@ -1,3 +1,5 @@
+import { isPathEnabled } from "@/lib/features";
+
 export interface HelpArticle {
   slug: string;
   section: string;
@@ -102,6 +104,8 @@ export function getHelpArticle(slug: string): HelpArticle | undefined {
 export function helpArticlesBySection(): Array<{ section: string; articles: HelpArticle[] }> {
   const map = new Map<string, HelpArticle[]>();
   for (const article of HELP_ARTICLES) {
+    // Articles about switched-off features (src/lib/features.ts) are not listed.
+    if (!isPathEnabled(`/help/${article.slug}`)) continue;
     const existing = map.get(article.section) ?? [];
     existing.push(article);
     map.set(article.section, existing);

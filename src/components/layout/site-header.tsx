@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { FEATURES } from "@/lib/features";
 import { copy } from "@/lib/copy";
 import { BrandMark } from "@/components/layout/brand-mark";
 import { AccountMenu } from "@/components/layout/account-menu";
@@ -22,23 +23,29 @@ export function SiteHeader() {
             <Link href="/#explore" className="hover:text-primary">
               {copy.nav.explore}
             </Link>
-            <Link href="/tracking" className="flex items-center hover:text-primary">
-              {copy.nav.track}
-              <TrackNavBadge />
-            </Link>
+            {FEATURES.tracking ? (
+              <Link href="/tracking" className="flex items-center hover:text-primary">
+                {copy.nav.track}
+                <TrackNavBadge />
+              </Link>
+            ) : null}
             <Link href="/transcribe" className="hover:text-primary">
               {copy.nav.transcribe}
             </Link>
             <Link href="/tools" className="hover:text-primary">
               {copy.nav.tools}
             </Link>
-            <Link href="/pricing" className="hover:text-primary">
-              {copy.nav.pricing}
-            </Link>
+            {FEATURES.billing ? (
+              <Link href="/pricing" className="hover:text-primary">
+                {copy.nav.pricing}
+              </Link>
+            ) : null}
           </nav>
-          <div className="hidden items-center md:flex">
-            <AccountMenu />
-          </div>
+          {FEATURES.accounts ? (
+            <div className="hidden items-center md:flex">
+              <AccountMenu />
+            </div>
+          ) : null}
         </div>
 
         <div className="pb-3 md:hidden">

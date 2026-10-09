@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 
+import { isPathEnabled } from "@/lib/features";
 import { HELP_ARTICLES } from "@/lib/seo/help-articles";
 
 /**
@@ -85,14 +86,14 @@ const ROUTE_TIERS: RouteTier[] = [
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = "https://www.socialtrace.co";
 
-  const tieredRoutes = ROUTE_TIERS.map((route) => ({
+  const tieredRoutes = ROUTE_TIERS.filter((route) => isPathEnabled(route.path)).map((route) => ({
     url: `${base}${route.path}`,
     lastModified: route.lastModified,
     changeFrequency: route.changeFrequency,
     priority: route.priority,
   }));
 
-  const helpRoutes = HELP_ARTICLES.map((article) => ({
+  const helpRoutes = HELP_ARTICLES.filter((article) => isPathEnabled(`/help/${article.slug}`)).map((article) => ({
     url: `${base}/help/${article.slug}`,
     lastModified: article.datePublished,
     changeFrequency: "monthly" as const,
