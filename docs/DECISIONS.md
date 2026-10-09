@@ -1465,7 +1465,10 @@ tool pages built on them (follower history, follower compare, growth
 tracker, bio/username history).
 
 `src/proxy.ts` enforces the flags: a gated API route returns 404, and a
-gated page redirects (to the profile for a snapshot tab, otherwise home).
+gated page returns a permanent 301 to the home page. The removed URLs are
+meant to be dropped from the index in favour of the site. Browsers cache
+301s, so re-enabling an area later needs a note that returning visitors may
+still be sent to home from a cached redirect.
 Navigation, the tools index, related-tool cards, the sitemap and llms.txt
 all filter through the same check, so nothing links to a switched-off page.
 

@@ -68,14 +68,13 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Switched-off features (src/lib/features.ts) never reach their route.
-  // API callers get a plain 404; a page visit goes to the nearest page that
-  // still exists — the profile itself for a snapshot tab, otherwise home.
+  // API callers get a plain 404; a page visit is a permanent (301) redirect
+  // to home, so search engines drop the removed URLs in favour of the site.
   if (!isPathEnabled(pathname)) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
-    const profileBase = pathname.match(/^\/profile\/[^/]+/)?.[0];
-    return NextResponse.redirect(new URL(profileBase ?? "/", request.url), 307);
+    return NextResponse.redirect(new URL("/", request.url), 301);
   }
 
   if (pathname.startsWith("/api/")) {
