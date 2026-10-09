@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { headers } from "next/headers";
+import { Analytics } from "@vercel/analytics/next";
 
 import "./globals.css";
 import { SiteHeader } from "@/components/layout/site-header";
@@ -72,6 +73,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <main className="flex-1">{children}</main>
         <SiteFooter />
         <AnchorAdSlot />
+        <Analytics />
       </body>
     </html>
   );
