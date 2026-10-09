@@ -38,6 +38,7 @@ export default function CompetitorAnalyzerPage() {
       />
       <JsonLd id="ld-competitor-analyzer-faq" data={faqJsonLd(FAQ)} />
       <ToolLanding
+        path={PATH}
         title={TITLE}
         lead="Paste two public profiles and see their engagement rate, followers, and post samples side by side — worked out from real recent posts, not an estimate."
         widget={<CompetitorAnalyzerWidget />}

@@ -43,6 +43,7 @@ export default function VideoDownloaderPage() {
       />
       <JsonLd id="ld-video-downloader-faq" data={faqJsonLd(FAQ)} />
       <ToolLanding
+        path={PATH}
         title={TITLE}
         lead="Paste a public TikTok, Instagram, Facebook, or X (Twitter) video link below to preview it, download it, and read its transcript — all on this page."
         widget={<TranscriberWidget />}

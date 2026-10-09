@@ -50,6 +50,7 @@ export default function AnonymousTikTokViewerPage() {
       />
       <JsonLd id="ld-anon-tiktok-faq" data={faqJsonLd(FAQ)} />
       <ToolLanding
+        path={PATH}
         title={TITLE}
         lead="Search any public TikTok @username to browse its videos, comments, and followers/following — no account, no login, and the profile is never notified."
         primaryCta={{ href: "/", label: "Search a TikTok profile" }}

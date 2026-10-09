@@ -4,10 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AdSlot } from "@/components/ads/ad-slot";
 import { isPathEnabled } from "@/lib/features";
+import { JsonLd, softwareApplicationJsonLd } from "@/lib/seo/json-ld";
 
 export interface ToolLandingProps {
   title: string;
   lead: string;
+  /** The page's own path. When given, the page also gets SoftwareApplication markup (free, no ratings). */
+  path?: string;
   /** Either this or `widget` should be given — most tool pages link elsewhere to actually use the tool. */
   primaryCta?: { href: string; label: string };
   /** The transcriber pages embed the real, usable widget right on the landing page instead of just linking to it — takes priority over `primaryCta` when both are given. */
@@ -22,6 +25,12 @@ export interface ToolLandingProps {
 export function ToolLanding(props: ToolLandingProps) {
   return (
     <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6">
+      {props.path ? (
+        <JsonLd
+          id={`ld-app-${props.path.replace(/\//g, "-")}`}
+          data={softwareApplicationJsonLd({ name: props.title, description: props.lead, path: props.path })}
+        />
+      ) : null}
       <h1 className="text-3xl font-semibold text-primary sm:text-4xl">{props.title}</h1>
       <p className="mt-4 max-w-2xl text-lg text-secondary">{props.lead}</p>
       {props.widget ? (

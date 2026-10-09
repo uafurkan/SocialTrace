@@ -7,9 +7,10 @@ import { AdSlot } from "@/components/ads/ad-slot";
 
 const TITLE = "Data methodology";
 const DESCRIPTION =
-  "How SocialTrace collects, indexes, and reports Instagram public profile data — including the coverage rule that governs every dataset.";
+  "How SocialTrace collects, caches, and reports public social profile data — including the coverage rule that governs every list.";
 const PATH = "/data-methodology";
 const PUBLISHED = "2026-09-04";
+const MODIFIED = "2026-10-09";
 
 export const metadata: Metadata = pageMetadata({ title: TITLE, description: DESCRIPTION, path: PATH });
 
@@ -18,7 +19,7 @@ export default function DataMethodologyPage() {
     <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
       <JsonLd
         id="ld-methodology-article"
-        data={articleJsonLd({ title: TITLE, description: DESCRIPTION, path: PATH, datePublished: PUBLISHED })}
+        data={articleJsonLd({ title: TITLE, description: DESCRIPTION, path: PATH, datePublished: PUBLISHED, dateModified: MODIFIED })}
       />
       <JsonLd
         id="ld-methodology-breadcrumb"
@@ -33,10 +34,11 @@ export default function DataMethodologyPage() {
       <section className="mt-10 space-y-3">
         <h2 className="text-xl font-semibold text-primary">What we collect</h2>
         <p className="text-secondary">
-          Only publicly available Instagram profile fields: display name, bio, verified state,
-          follower and following counts, post and reel metadata, and the public identities behind
-          the follower and following lists a snapshot successfully captures. No private profiles,
-          no login-required content, no stories or highlights.
+          Only publicly available profile data: display name, bio, verified state, follower and
+          following counts, post and reel metadata, and where the data provider supplies them,
+          stories, highlights, tagged posts, likers and comments on public posts. For follower and
+          following lists, we include the public accounts captured up to the list limit. No private
+          profiles and no login-required content.
         </p>
       </section>
 
@@ -45,9 +47,10 @@ export default function DataMethodologyPage() {
         <p className="text-secondary">
           The default build ships with a deterministic mock provider so nothing costs money out of
           the box. With <code className="rounded bg-surface px-1 py-0.5 text-xs">SOCIAL_PROVIDER=apify</code>{" "}
-          and an Apify API token, an opt-in real provider fetches Instagram public data via Apify
-          actors, with a fallback chain across five follower-scraper actors so a single actor
-          failing does not break capture. See{" "}
+          and an Apify API token, an opt-in real provider fetches public data via Apify actors, with a
+          fallback chain across five follower-scraper actors so a single actor failing does not break
+          the lookup. What a provider can supply varies: when a section such as highlights isn&apos;t
+          available, the page says so instead of showing an empty list. See{" "}
           <Link className="text-brand hover:underline" href="/help/getting-started">
             Getting started
           </Link>
@@ -58,41 +61,34 @@ export default function DataMethodologyPage() {
       <section className="mt-10 space-y-3">
         <h2 className="text-xl font-semibold text-primary">Coverage — the honesty rule</h2>
         <p className="text-secondary">
-          Every snapshot captures up to 500 followers and 500 following identities per profile.
-          For larger accounts that means a snapshot&apos;s list is genuinely partial, and the coverage
-          badge shows exactly what fraction of the real dataset the snapshot represents (for
-          example, &quot;Indexed 500 of 12,400 — Coverage 4%&quot;). We never display the total as
-          if the indexed subset were the total.
-        </p>
-        <p className="text-secondary">
-          Comparisons — the automatic diff engine, the Compare snapshots page, and saved searches
-          — are withheld when either side is below 99.5% coverage. Missing accounts below that
-          threshold cannot be distinguished from real unfollows, so the honest answer is
-          &quot;comparison unavailable&quot; rather than a fabricated list.
+          Each follower or following list holds up to 500 accounts per load. For larger accounts
+          that means the list is genuinely partial, and the coverage figure shows exactly what share
+          of the real list is included (for example, &quot;Indexed 500 of 12,400 — Coverage 4%&quot;).
+          Searching or exporting a list only covers the part that was captured. We never display the
+          total as if the included part were the whole.
         </p>
       </section>
 
       <section className="mt-10 space-y-3">
-        <h2 className="text-xl font-semibold text-primary">How snapshots become diffs</h2>
+        <h2 className="text-xl font-semibold text-primary">How long results are kept</h2>
         <p className="text-secondary">
-          Each snapshot writes profile counts and one membership row per captured identity, with
-          the timestamp it was first seen. When a subsequent snapshot runs, membership rows whose
-          identity was not seen this time get a <code className="rounded bg-surface px-1 py-0.5 text-xs">removed_at</code>{" "}
-          timestamp; identities newly present get a new membership row. Diffs are read off those
-          two columns — no separate per-snapshot log is needed.
+          Some results are cached in a database so repeat visits load faster. Posts and reels are
+          cached for a few hours, stories for about an hour, follower and following lists for up to two
+          days, and LinkedIn profiles for a day. A cached result can be older than the profile is right
+          now, and the page shows when it was last checked.
         </p>
       </section>
 
       <section className="mt-10 space-y-3">
         <h2 className="text-xl font-semibold text-primary">What this build does not do</h2>
         <ul className="list-disc space-y-2 pl-6 text-secondary">
-          <li>No sign-in, billing, or accounts — anonymous browser-cookie identity only.</li>
-          <li>No scheduler — snapshots only run when someone captures one manually.</li>
-          <li>No notification channel — the dashboard is pull, not push.</li>
-          <li>No stories or highlights — no actor covers them in this build.</li>
+          <li>No sign-in, accounts, or billing. The tools work without an account.</li>
+          <li>No private accounts and no content that requires a login.</li>
+          <li>No background updates. Data refreshes when someone opens a profile, subject to the cache windows above.</li>
+          <li>No notifications and no tracking of profiles over time.</li>
         </ul>
         <p className="text-secondary">
-          These are recorded honestly in the product itself and in the{" "}
+          These limits are also listed in the{" "}
           <Link className="text-brand hover:underline" href="/changelog">
             changelog
           </Link>

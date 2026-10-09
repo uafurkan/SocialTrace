@@ -37,6 +37,7 @@ export default function TikTokFollowerCheckerPage() {
       />
       <JsonLd id="ld-tiktok-follower-checker-faq" data={faqJsonLd(FAQ)} />
       <ToolLanding
+        path={PATH}
         title={TITLE}
         lead="Open a public TikTok profile, then search its followers or following list by name or username, without signing in."
         primaryCta={{ href: "/", label: "Look up a profile" }}

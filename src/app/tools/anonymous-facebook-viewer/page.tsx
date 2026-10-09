@@ -50,6 +50,7 @@ export default function AnonymousFacebookViewerPage() {
       />
       <JsonLd id="ld-anon-facebook-faq" data={faqJsonLd(FAQ)} />
       <ToolLanding
+        path={PATH}
         title={TITLE}
         lead="Search any public Facebook Page to browse its posts and comments — no account, no login, and the Page is never notified."
         primaryCta={{ href: "/", label: "Search a Facebook Page" }}

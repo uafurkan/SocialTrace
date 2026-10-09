@@ -37,6 +37,7 @@ export default function InstagramFollowingCheckerPage() {
       />
       <JsonLd id="ld-following-checker-faq" data={faqJsonLd(FAQ)} />
       <ToolLanding
+        path={PATH}
         title={TITLE}
         lead="Open a public Instagram profile's Following tab to see which accounts it follows, and search that list by name or username."
         primaryCta={{ href: "/", label: "Search a profile" }}

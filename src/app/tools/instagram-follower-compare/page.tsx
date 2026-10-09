@@ -42,6 +42,7 @@ export default function InstagramFollowerComparePage() {
       />
       <JsonLd id="ld-follower-compare-faq" data={faqJsonLd(FAQ)} />
       <ToolLanding
+        path={PATH}
         title={TITLE}
         lead="Two snapshots you captured, side by side. Who followed, who unfollowed, and how the total moved — reconstructed on demand from the membership history, not stored separately."
         primaryCta={{ href: "/", label: "Search a profile" }}

@@ -52,6 +52,7 @@ export default function InstagramStoryViewerPage() {
       />
       <JsonLd id="ld-story-viewer-faq" data={faqJsonLd(FAQ)} />
       <ToolLanding
+        path={PATH}
         title={TITLE}
         lead="Search any public @username and open its Stories tab to see what's currently active — no account, no login, and the account you're viewing is never notified."
         primaryCta={{ href: "/", label: "Search a profile" }}

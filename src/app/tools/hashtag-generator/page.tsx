@@ -39,6 +39,7 @@ export default function HashtagGeneratorPage() {
       />
       <JsonLd id="ld-hashtag-generator-faq" data={faqJsonLd(FAQ)} />
       <ToolLanding
+        path={PATH}
         title={TITLE}
         lead="Paste a caption or describe your video or post, and get a set of matching hashtags — copyable in one click."
         widget={<HashtagGeneratorWidget />}

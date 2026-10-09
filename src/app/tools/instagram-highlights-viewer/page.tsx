@@ -37,6 +37,7 @@ export default function InstagramHighlightsViewerPage() {
       />
       <JsonLd id="ld-highlights-viewer-faq" data={faqJsonLd(FAQ)} />
       <ToolLanding
+        path={PATH}
         title={TITLE}
         lead="View a public Instagram profile's story highlights anonymously, without signing in. Highlights appear wherever the data provider supplies them."
         primaryCta={{ href: "/", label: "Look up a profile" }}

@@ -37,6 +37,7 @@ export default function InstagramPostLikersPage() {
       />
       <JsonLd id="ld-post-likers-faq" data={faqJsonLd(FAQ)} />
       <ToolLanding
+        path={PATH}
         title={TITLE}
         lead="Open a public Instagram post to see the accounts that liked it and the comments underneath, without signing in."
         primaryCta={{ href: "/", label: "Look up a profile" }}

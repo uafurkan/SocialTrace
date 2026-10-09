@@ -38,6 +38,7 @@ export default function InstagramFollowersExportPage() {
       />
       <JsonLd id="ld-followers-export-faq" data={faqJsonLd(FAQ)} />
       <ToolLanding
+        path={PATH}
         title={TITLE}
         lead="Export a public Instagram profile's followers, following, posts or reels as CSV, or the full profile as JSON or XML. Each export holds up to 500 items per list."
         primaryCta={{ href: "/", label: "Look up a profile" }}

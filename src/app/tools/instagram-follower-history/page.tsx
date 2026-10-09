@@ -42,6 +42,7 @@ export default function InstagramFollowerHistoryPage() {
       />
       <JsonLd id="ld-follower-history-faq" data={faqJsonLd(FAQ)} />
       <ToolLanding
+        path={PATH}
         title={TITLE}
         lead="Open a profile, capture a snapshot, and each snapshot's follower count joins the profile's History tab as a real data point — not an estimate."
         primaryCta={{ href: "/", label: "Search a profile" }}

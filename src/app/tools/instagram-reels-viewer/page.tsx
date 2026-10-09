@@ -38,6 +38,7 @@ export default function InstagramReelsViewerPage() {
       />
       <JsonLd id="ld-reels-viewer-faq" data={faqJsonLd(FAQ)} />
       <ToolLanding
+        path={PATH}
         title={TITLE}
         lead="Browse a public Instagram profile's reels anonymously, then export the reels list to CSV. No sign-in needed."
         primaryCta={{ href: "/", label: "Look up a profile" }}

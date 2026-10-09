@@ -66,31 +66,6 @@ const TOOL_GROUPS: ToolGroup[] = [
     ],
   },
   {
-    heading: "History & tracking",
-    tools: [
-      {
-        title: "Follower history",
-        description: "Track a profile's follower count over captured snapshots.",
-        href: "/tools/instagram-follower-history",
-      },
-      {
-        title: "Growth tracker",
-        description: "One dashboard, per-profile deltas since the last snapshot.",
-        href: "/tools/instagram-growth-tracker",
-      },
-      {
-        title: "Bio history",
-        description: "See recorded bio changes for a profile.",
-        href: "/tools/instagram-bio-history",
-      },
-      {
-        title: "Username history",
-        description: "See recorded username changes for a profile.",
-        href: "/tools/instagram-username-history",
-      },
-    ],
-  },
-  {
     heading: "Checkers & comparisons",
     tools: [
       {
@@ -107,11 +82,6 @@ const TOOL_GROUPS: ToolGroup[] = [
         title: "TikTok follower checker",
         description: "Search a public TikTok account's followers and following lists by name or username.",
         href: "/tools/tiktok-follower-checker",
-      },
-      {
-        title: "Follower compare",
-        description: "Compare any two snapshots and see who joined or left.",
-        href: "/tools/instagram-follower-compare",
       },
       {
         title: "Competitor analyzer",

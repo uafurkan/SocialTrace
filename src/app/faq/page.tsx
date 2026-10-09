@@ -7,7 +7,7 @@ import { AdSlot } from "@/components/ads/ad-slot";
 
 const TITLE = "Frequently asked questions";
 const DESCRIPTION =
-  "What SocialTrace does, what it does not do, and how coverage, snapshots, tracking, and exports actually work.";
+  "What SocialTrace does, what it does not do, and how coverage, caching, and exports actually work.";
 const PATH = "/faq";
 
 export const metadata: Metadata = pageMetadata({ title: TITLE, description: DESCRIPTION, path: PATH });
