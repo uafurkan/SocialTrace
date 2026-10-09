@@ -20,6 +20,9 @@ yarn-error.log*
 # local env files
 .env*.local
 
+# Claude Code personal settings (per-machine permission rules)
+.claude/settings.local.json
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
