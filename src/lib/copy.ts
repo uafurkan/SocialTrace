@@ -56,7 +56,7 @@ export const copy = {
   home: {
     heroHeadline: "Trace what changes.",
     heroSubhead:
-      "Explore public social profiles, search available audience data, compare snapshots, and export structured datasets.",
+      "View public Instagram, TikTok and Facebook profiles without an account, see followers and following, and transcribe public videos to text.",
     searchPlaceholder: "@username or instagram.com/username",
     searchCta: "Explore",
     noAccountNote: "No account required for basic public exploration.",
@@ -70,8 +70,8 @@ export const copy = {
         body: "Search eligible follower and following datasets instead of stopping at a tiny recent list.",
       },
       {
-        title: "Trace",
-        body: "Save snapshots and see meaningful changes over time.",
+        title: "Transcribe",
+        body: "Turn public YouTube, TikTok, Instagram, Facebook and X (Twitter) videos into text.",
       },
     ],
     proofStatement:

@@ -21,9 +21,9 @@ export const HELP_ARTICLES: HelpArticle[] = [
 
 Every dataset that can be partial (followers, following) shows a coverage badge. If it reads "Coverage: 92%", the number below it is that fraction of the real dataset — not the total. This is the honesty rule the whole product is built on: no dataset is displayed as if it were complete unless it actually is.
 
-If you want to keep tabs on a profile, click Track. If you want to see how something changed between two moments in time, capture a snapshot from the History tab and then compare from the Changes tab or the Compare snapshots view.
+Search a public @username on the homepage, open its profile, and browse its tabs. Exports and the transcriber work without an account.
 
-What this build does not do: sign-in, billing, notifications, or scheduled captures. Snapshots only update when you (or someone else) manually capture one.`,
+Accounts, billing, tracking and saved searches are not available in this version.`,
   },
   {
     slug: "snapshots",

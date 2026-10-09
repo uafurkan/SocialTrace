@@ -4,7 +4,7 @@ import { pageMetadata } from "@/lib/seo/metadata";
 
 export const metadata: Metadata = pageMetadata({
   title: "Privacy",
-  description: "How SocialTrace handles data.",
+  description: "How SocialTrace handles visitor cookies, data requests and the public profile data it shows.",
   path: "/privacy",
 });
 

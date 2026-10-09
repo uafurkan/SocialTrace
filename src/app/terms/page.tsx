@@ -4,7 +4,7 @@ import { pageMetadata } from "@/lib/seo/metadata";
 
 export const metadata: Metadata = pageMetadata({
   title: "Terms",
-  description: "Terms of use for SocialTrace.",
+  description: "Terms for using SocialTrace's free public profile, export, transcription and tool pages.",
   path: "/terms",
 });
 

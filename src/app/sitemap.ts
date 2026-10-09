@@ -62,6 +62,11 @@ const ROUTE_TIERS: RouteTier[] = [
   { path: "/tools/hashtag-generator", priority: 0.7, changeFrequency: "monthly", lastModified: "2026-09-08" },
   { path: "/tools/video-downloader", priority: 0.7, changeFrequency: "monthly", lastModified: "2026-09-08" }, // widget embedded directly on-page
   { path: "/tools/linkedin-profile-viewer", priority: 0.7, changeFrequency: "monthly", lastModified: "2026-09-10" },
+  { path: "/tools/instagram-followers-export", priority: 0.7, changeFrequency: "monthly", lastModified: "2026-10-09" },
+  { path: "/tools/instagram-post-likers", priority: 0.7, changeFrequency: "monthly", lastModified: "2026-10-09" },
+  { path: "/tools/instagram-highlights-viewer", priority: 0.7, changeFrequency: "monthly", lastModified: "2026-10-09" },
+  { path: "/tools/instagram-reels-viewer", priority: 0.7, changeFrequency: "monthly", lastModified: "2026-10-09" },
+  { path: "/tools/tiktok-follower-checker", priority: 0.7, changeFrequency: "monthly", lastModified: "2026-10-09" },
   { path: "/transcribe/youtube-transcript-generator", priority: 0.7, changeFrequency: "monthly", lastModified: "2026-09-08" },
   { path: "/transcribe/tiktok-video-to-text", priority: 0.7, changeFrequency: "monthly", lastModified: "2026-09-08" },
   { path: "/transcribe/instagram-reel-to-text", priority: 0.7, changeFrequency: "monthly", lastModified: "2026-09-08" },

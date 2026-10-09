@@ -8,8 +8,8 @@ import { isPathEnabled } from "@/lib/features";
 import { pageMetadata } from "@/lib/seo/metadata";
 
 export const metadata: Metadata = pageMetadata({
-  title: "Tools",
-  description: "Free social media tools: anonymous viewers, story viewer, engagement calculator, hashtag generator, video downloader and more — no account required.",
+  title: "Free Instagram & TikTok tools",
+  description: "Free Instagram, TikTok and Facebook tools: anonymous viewers, follower checkers, followers export, engagement calculator, video downloader. No account needed.",
   path: "/tools",
 });
 
@@ -47,6 +47,16 @@ const TOOL_GROUPS: ToolGroup[] = [
         title: "Story viewer",
         description: "View a public profile's currently active stories anonymously — no account, no login.",
         href: "/tools/instagram-story-viewer",
+      },
+      {
+        title: "Highlights viewer",
+        description: "View a public Instagram profile's story highlights, where the data provider supplies them.",
+        href: "/tools/instagram-highlights-viewer",
+      },
+      {
+        title: "Reels viewer",
+        description: "Browse a public Instagram profile's latest reels anonymously, with a CSV export.",
+        href: "/tools/instagram-reels-viewer",
       },
       {
         title: "LinkedIn profile viewer",
@@ -94,6 +104,11 @@ const TOOL_GROUPS: ToolGroup[] = [
         href: "/tools/instagram-following-checker",
       },
       {
+        title: "TikTok follower checker",
+        description: "Search a public TikTok account's followers and following lists by name or username.",
+        href: "/tools/tiktok-follower-checker",
+      },
+      {
         title: "Follower compare",
         description: "Compare any two snapshots and see who joined or left.",
         href: "/tools/instagram-follower-compare",
@@ -136,11 +151,23 @@ const TOOL_GROUPS: ToolGroup[] = [
     ],
   },
   {
-    heading: "Coming soon",
+    heading: "Exports & engagement",
     tools: [
-      { title: "Profile analyzer", description: "Summaries derived from observed public data." },
-      { title: "Following compare", description: "Compare following snapshots over time." },
+      {
+        title: "Followers export",
+        description: "Export a public profile's followers, following, posts or reels to CSV, or the full profile to JSON or XML.",
+        href: "/tools/instagram-followers-export",
+      },
+      {
+        title: "Who liked a post",
+        description: "See the likers and comments on a public Instagram post. TikTok and Facebook show comments.",
+        href: "/tools/instagram-post-likers",
+      },
     ],
+  },
+  {
+    heading: "Coming soon",
+    tools: [{ title: "Profile analyzer", description: "Summaries derived from observed public data." }],
   },
 ];
 
