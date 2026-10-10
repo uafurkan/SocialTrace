@@ -8,7 +8,7 @@ import {
   filterPostsByDate,
   hasDateFilter,
   POST_SORT_OPTIONS,
-  postDayUtc,
+  postDayLocal,
   sortOptionValue,
   sortPosts,
 } from "./grid";
@@ -31,6 +31,15 @@ function post(overrides: Partial<Post> & Pick<Post, "id">): Post {
 
 function ids(posts: Post[]): string[] {
   return posts.map((item) => item.id);
+}
+
+/**
+ * An ISO instant for a wall-clock time in the machine's own zone. Built with
+ * the local Date constructor so the local day is the same whatever TZ the
+ * tests run in.
+ */
+function localAt(year: number, monthIndex: number, day: number, hour = 12, minute = 0): string {
+  return new Date(year, monthIndex, day, hour, minute).toISOString();
 }
 
 describe("sortPosts", () => {
@@ -101,23 +110,29 @@ describe("sortPosts", () => {
   });
 });
 
-describe("postDayUtc", () => {
-  it("returns the UTC calendar day of the stored instant", () => {
-    expect(postDayUtc(post({ id: "a", postedAt: "2026-01-31T23:30:00-05:00" }))).toBe("2026-02-01");
-    expect(postDayUtc(post({ id: "b", postedAt: "2026-03-10T00:00:00.000Z" }))).toBe("2026-03-10");
+describe("postDayLocal", () => {
+  it("returns the local calendar day of the stored instant", () => {
+    expect(postDayLocal(post({ id: "a", postedAt: localAt(2026, 0, 31, 23, 30) }))).toBe("2026-01-31");
+    expect(postDayLocal(post({ id: "b", postedAt: localAt(2026, 2, 10, 0, 5) }))).toBe("2026-03-10");
+  });
+
+  it("agrees with the date the table's column shows for the same post", () => {
+    const postedAt = localAt(2026, 0, 31, 23, 30);
+    expect(postDayLocal(post({ id: "a", postedAt }))).toBe("2026-01-31");
+    expect(new Date(postedAt).toLocaleDateString("en-US")).toBe("1/31/2026");
   });
 
   it("returns null for a missing or unparseable date", () => {
-    expect(postDayUtc(post({ id: "a", postedAt: null }))).toBeNull();
-    expect(postDayUtc(post({ id: "b", postedAt: "soon" }))).toBeNull();
+    expect(postDayLocal(post({ id: "a", postedAt: null }))).toBeNull();
+    expect(postDayLocal(post({ id: "b", postedAt: "soon" }))).toBeNull();
   });
 });
 
 describe("filterPostsByDate", () => {
   const posts = [
-    post({ id: "early", postedAt: "2026-01-01T12:00:00.000Z" }),
-    post({ id: "mid", postedAt: "2026-01-15T08:00:00.000Z" }),
-    post({ id: "late", postedAt: "2026-01-31T23:59:59.000Z" }),
+    post({ id: "early", postedAt: localAt(2026, 0, 1, 12) }),
+    post({ id: "mid", postedAt: localAt(2026, 0, 15, 8) }),
+    post({ id: "late", postedAt: localAt(2026, 0, 31, 23, 59) }),
     post({ id: "unknown", postedAt: null }),
   ];
 
@@ -140,10 +155,14 @@ describe("filterPostsByDate", () => {
     expect(ids(filterPostsByDate(posts, "", "2026-12-31"))).not.toContain("unknown");
   });
 
-  it("compares the UTC day, not the local day", () => {
-    const edge = [post({ id: "edge", postedAt: "2026-01-31T23:30:00-05:00" })];
-    expect(ids(filterPostsByDate(edge, "2026-01-31", "2026-01-31"))).toEqual([]);
-    expect(ids(filterPostsByDate(edge, "2026-02-01", "2026-02-01"))).toEqual(["edge"]);
+  it("compares the local calendar day the table shows", () => {
+    const lateEvening = [post({ id: "evening", postedAt: localAt(2026, 0, 31, 23, 30) })];
+    expect(ids(filterPostsByDate(lateEvening, "2026-01-31", "2026-01-31"))).toEqual(["evening"]);
+    expect(ids(filterPostsByDate(lateEvening, "2026-02-01", "2026-02-01"))).toEqual([]);
+
+    const justAfterMidnight = [post({ id: "dawn", postedAt: localAt(2026, 0, 31, 0, 5) })];
+    expect(ids(filterPostsByDate(justAfterMidnight, "2026-01-31", "2026-01-31"))).toEqual(["dawn"]);
+    expect(ids(filterPostsByDate(justAfterMidnight, "2026-01-30", "2026-01-30"))).toEqual([]);
   });
 
   it("ignores a malformed or impossible bound instead of guessing", () => {

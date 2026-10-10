@@ -182,7 +182,6 @@ export function PostGrid({ posts, platform = "instagram" }: { posts: Post[]; pla
       {filtersActive ? (
         <div className="mb-3 text-xs text-muted">
           <p>{`Showing ${visiblePosts.length} of ${posts.length} loaded posts`}</p>
-          {dateActive ? <p>Date range is compared in UTC.</p> : null}
           {undatedCount > 0 ? (
             <p>
               {`${undatedCount} loaded ${undatedCount === 1 ? "post has" : "posts have"} no known date and ${
