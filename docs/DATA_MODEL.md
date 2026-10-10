@@ -57,20 +57,21 @@ alongside the snapshot, not hand-set.
 (follower/following, `kind`-discriminated), `media_items`,
 `profile_snapshots`, and `change_events`, matching the mappings above.
 
-As of the snapshot + diff engine slices (`src/lib/snapshot/capture.ts`,
-`src/lib/diff/changes.ts` — see `docs/SNAPSHOTS.md`/`docs/DIFF.md`),
-`profiles`, `social_users`, `memberships`, `profile_snapshots`, and
-`change_events` are all actually written to and read from when a user
-captures a profile snapshot: `captureSnapshot` writes the snapshot itself
-and, since it also has the previous snapshot on hand, computes and writes
-any `change_events` (added/removed members, changed profile fields) in
-the same request. `media_items` is still unwritten — snapshot capture
+Snapshot capture (`src/lib/snapshot/capture.ts`, see `docs/SNAPSHOTS.md`
+and `docs/DIFF.md`) writes the `profiles` row, one `profile_snapshots` row,
+and `change_events` for changed profile fields, comparing against the
+previous snapshot, all in the same request. It writes no `social_users` or
+`memberships` rows: a capture never requests a follower or following list,
+so no third party's identity is stored, and the indexed member counts and
+coverage it records are 0. Rows that captures made before that change left
+in `social_users` and `memberships` were not deleted (see
+`docs/DECISIONS.md`). `media_items` is still unwritten: snapshot capture
 deliberately doesn't persist the media feed, since it's out of scope for
 the diff model spec §20 describes.
 `src/lib/providers/mock-provider.ts`/`apify/` still serve all other data
 (profile display, posts, reels, live followers/following browsing) —
-only the History and Changes tabs and the `/tracking` dashboard touch
-Postgres.
+only the History, Changes and Compare views and the `/tracking` dashboard
+touch Postgres.
 
 `watchlist_entries` (spec §21 Tracking/Watchlist, see `docs/TRACKING.md`)
 and `saved_searches` (spec §22, see `docs/SAVED_SEARCHES.md`) are also

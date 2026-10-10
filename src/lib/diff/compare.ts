@@ -6,17 +6,17 @@ import { DIFF_COVERAGE_THRESHOLD, normalizeUsername } from "@/lib/snapshot/captu
 
 /**
  * Spec §23 Follower Comparison — pick two (not necessarily consecutive)
- * snapshots and see who was gained/lost between them. Unlike
- * docs/DIFF.md's automatic diff (previous snapshot -> latest, computed
- * once at capture time), this reconstructs membership state as of an
- * arbitrary past moment from the memberships table's
- * first_seen_at/last_seen_at/removed_at columns, rather than needing a
- * separate per-snapshot membership log: a social_user counts as "active
- * as of time T" if first_seen_at <= T and (removed_at is null or
- * removed_at > T). That's sound precisely because removed_at is only
- * ever set by the coverage-gated logic in capture.ts — it's never set
- * for a low-coverage profile, so this reconstruction naturally can't
- * over-claim removal for one either.
+ * snapshots and see who was gained/lost between them. Unlike the capture-time
+ * change events (previous snapshot -> latest, profile fields only), this reads
+ * membership state as of an arbitrary past moment from the memberships table's
+ * first_seen_at/removed_at columns: a social_user counts as "active as of
+ * time T" if first_seen_at <= T and (removed_at is null or removed_at > T).
+ *
+ * Nothing in src writes those columns any more. Snapshot capture stopped
+ * storing follower identities (src/lib/snapshot/capture.ts), so this only
+ * reads rows that earlier captures left. New snapshots record member coverage
+ * as 0, which fails the coverage gate in compareSnapshots, so their comparisons
+ * report unavailable rather than inferring membership.
  */
 export interface FollowerComparisonSnapshot {
   id: string;

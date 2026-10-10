@@ -15,13 +15,17 @@ Tests are co-located as `<name>.test.ts` next to the module they cover.
 
 ## What's covered
 
-All of this is pure-function testing — no database, no network, no
-mocking of Drizzle or Neon:
+Most of this is pure-function testing — no database, no network. The one
+exception is `capture.test.ts`, which replaces the provider and the
+`@/lib/db` module with an in-memory fake (no Drizzle or Neon connection):
 
-- **`src/lib/snapshot/capture.test.ts`** — `normalizeUsername`,
-  `coveragePercentFor` (the adaptive-precision rounding behind every
-  coverage badge in the product; spec §1.2's "never round a tiny
-  non-zero coverage down to a literal 0%" rule is asserted directly).
+- **`src/lib/snapshot/capture.test.ts`** — `normalizeUsername`; `coverageFor`
+  from `src/lib/providers/coverage.ts` (the adaptive-precision rounding
+  behind every coverage badge in the product; spec §1.2's "never round a
+  tiny non-zero coverage down to a literal 0%" rule is asserted directly);
+  and `captureSnapshot`, which asserts that a capture writes only the
+  profile row, one snapshot row and profile-field change events, and never
+  requests a follower or following list.
 - **`src/lib/diff/compare.test.ts`** — `evaluateCoverageGate` and
   `diffActiveMembers`, extracted as pure functions from
   `compareSnapshots` specifically so the coverage-gate decision and the

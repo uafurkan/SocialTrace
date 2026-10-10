@@ -61,9 +61,9 @@ export default function DataMethodologyPage() {
       <section className="mt-10 space-y-3">
         <h2 className="text-xl font-semibold text-primary">Coverage — the honesty rule</h2>
         <p className="text-secondary">
-          Each follower or following list holds up to 500 accounts per load. For larger accounts
+          Each follower or following list holds up to 200 accounts per load. For larger accounts
           that means the list is genuinely partial, and the coverage figure shows exactly what share
-          of the real list is included (for example, &quot;Indexed 500 of 12,400 — Coverage 4%&quot;).
+          of the real list is included (for example, &quot;Indexed 200 of 12,400 — Coverage 1.6%&quot;).
           Searching or exporting a list only covers the part that was captured. We never display the
           total as if the included part were the whole.
         </p>

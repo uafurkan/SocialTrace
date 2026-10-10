@@ -20,7 +20,7 @@ const FAQ = [
   {
     question: "Does this show everyone, even for large accounts?",
     answer:
-      "No. Each capture indexes up to 500 follower identities per profile, and the tab always shows the real indexed count next to the true follower count — see /data-methodology for exactly how coverage is measured.",
+      "No. The Followers tab holds up to 200 follower accounts per profile, and it always shows the real indexed count next to the true follower count — see /data-methodology for exactly how coverage is measured.",
   },
   {
     question: "Does this work on private accounts?",
@@ -52,7 +52,7 @@ export default function InstagramFollowerCheckerPage() {
           { title: "Honest coverage", body: "The tab always shows how many of the true follower count were actually indexed." },
         ]}
         limitations={[
-          "Each capture indexes up to 500 follower identities — large accounts will show partial coverage.",
+          "The Followers tab holds up to 200 follower accounts — large accounts will show partial coverage.",
           "Only public profiles can be indexed.",
         ]}
         relatedTools={[
