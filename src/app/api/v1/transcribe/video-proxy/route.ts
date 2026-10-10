@@ -1,8 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
+
+import { clientIdentifierFor, rateLimit } from "@/lib/rate-limit";
+import {
+  MAX_MEDIA_BYTES,
+  PayloadTooLargeError,
+  classifyVideoUrl,
+  declaredLengthExceeds,
+  isRedirectStatus,
+  readCappedBody,
+  redirectLimitReached,
+  resolveRedirectLocation,
+  videoProxyMode,
+  type UrlVerdict,
+} from "@/lib/media/guard";
 import { apifyMediaHeaders, isAllowedApifyMediaUrl } from "@/lib/transcription/apify-media";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
+
+const VIDEO_PROXY_RATE_LIMIT = 60;
+const VIDEO_PROXY_RATE_WINDOW_MS = 10 * 60 * 1000;
+const UPSTREAM_TIMEOUT_MS = 50_000;
 
 /**
  * Every platform's video/CDN URL (Instagram's `.mp4`, Facebook's `hd_src`,
@@ -20,17 +38,35 @@ export const maxDuration = 60;
  *
  * Only ever called with a `url` this app itself generated (from
  * `DownloadedAudio.videoUrl`) and handed back to its own client — but the
- * query param is still attacker-reachable directly, so it's restricted to
- * `https:` and a real hostname (no localhost/internal-IP SSRF pivot) rather
- * than trusted blindly.
+ * query param is still attacker-reachable directly, so it is not trusted
+ * blindly. Every URL this route fetches (the initial one and each redirect
+ * hop) is checked by `@/lib/media/guard`: https only, no private or loopback
+ * address (no localhost/internal-IP SSRF pivot), and a host allowlist. The
+ * allowlist runs in `VIDEO_PROXY_MODE`: `log` (default) serves a miss and
+ * logs it so real hosts can be learned, `enforce` refuses it with 403.
+ * Private addresses are refused in both modes.
  */
-function isSafeVideoUrl(url: URL): boolean {
-  if (url.protocol !== "https:") return false;
-  const host = url.hostname.toLowerCase();
-  if (host === "localhost" || host === "127.0.0.1" || host === "::1") return false;
-  if (/^(10\.|127\.|169\.254\.|192\.168\.)/.test(host)) return false;
-  if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(host)) return false;
-  return true;
+
+/**
+ * Host-level verdict for one URL the route is about to fetch (the initial
+ * request or a redirect target). api.apify.com is governed by its own rule:
+ * only key-value-store record URLs pass, because that is the one shape that
+ * receives the Apify token (see apify-media.ts).
+ */
+type HopVerdict = UrlVerdict | { kind: "blocked"; reason: "apify-non-record" };
+
+function verdictFor(url: URL): HopVerdict {
+  if (url.hostname.replace(/\.$/, "") === "api.apify.com") {
+    return isAllowedApifyMediaUrl(url.href)
+      ? { kind: "allowed" }
+      : { kind: "blocked", reason: "apify-non-record" };
+  }
+  return classifyVideoUrl(url);
+}
+
+function warnWouldBlock(url: URL, reason: string): void {
+  // Hostname only: the path and query can carry signed or session values.
+  console.warn(`[video-proxy] would-block host=${url.hostname} reason=${reason}`);
 }
 
 /** Strips everything but alphanumerics/hyphens — never interpolate raw upstream or query text into a header unescaped. */
@@ -50,37 +86,84 @@ export async function GET(request: NextRequest) {
   } catch {
     return NextResponse.json({ error: "invalid url" }, { status: 400 });
   }
-  if (!isSafeVideoUrl(target)) {
+
+  // Rate-limited before the verdict so a flood of requests cannot also flood
+  // the log-mode warnings.
+  const rate = await rateLimit(
+    `video-proxy:${clientIdentifierFor(request)}`,
+    VIDEO_PROXY_RATE_LIMIT,
+    VIDEO_PROXY_RATE_WINDOW_MS,
+  );
+  if (!rate.allowed) {
+    return NextResponse.json(
+      { error: "Too many video requests. Please slow down." },
+      { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } },
+    );
+  }
+
+  const mode = videoProxyMode(process.env.VIDEO_PROXY_MODE);
+  const initial = verdictFor(target);
+  if (initial.kind === "blocked") {
     return NextResponse.json({ error: "url not allowed" }, { status: 400 });
   }
-  // api.apify.com is the host this route attaches the API token to, so it
-  // serves only key-value-store records. Stripping a trailing dot stops
-  // "api.apify.com." from getting past this check as a different hostname.
-  if (target.hostname.replace(/\.$/, "") === "api.apify.com" && !isAllowedApifyMediaUrl(raw)) {
-    return NextResponse.json({ error: "url not allowed" }, { status: 400 });
+  if (initial.kind === "would-block") {
+    if (mode === "enforce") return NextResponse.json({ error: "url not allowed" }, { status: 403 });
+    warnWouldBlock(target, initial.reason);
   }
 
   const range = request.headers.get("range");
+  // One deadline for the whole request, including every redirect hop.
+  const signal = AbortSignal.timeout(UPSTREAM_TIMEOUT_MS);
+  let current = target;
+  let redirectsFollowed = 0;
   let upstream: Response;
-  try {
-    upstream = await fetch(target, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        ...(range ? { Range: range } : {}),
-        // Apify-hosted key-value-store files (TikTok's fallback actor,
-        // YouTube's fast actor) need this to fetch at all — attached here,
-        // server-side, so the token itself never has to travel through the
-        // `url` query param this route was called with (see apify-media.ts).
-        ...apifyMediaHeaders(raw),
-      },
-      signal: AbortSignal.timeout(50_000),
-    });
-  } catch {
-    return NextResponse.json({ error: "upstream fetch failed" }, { status: 502 });
+  for (;;) {
+    try {
+      upstream = await fetch(current, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          ...(range ? { Range: range } : {}),
+          // Apify-hosted key-value-store files (TikTok's fallback actor,
+          // YouTube's fast actor) need this to fetch at all — attached here,
+          // server-side, so the token itself never has to travel through the
+          // `url` query param this route was called with (see apify-media.ts).
+          // Computed per hop, so a redirect to another host never gets it.
+          ...apifyMediaHeaders(current.href),
+        },
+        // Redirects are followed by hand so each hop passes the same checks.
+        redirect: "manual",
+        signal,
+      });
+    } catch {
+      return NextResponse.json({ error: "upstream fetch failed" }, { status: 502 });
+    }
+
+    if (!isRedirectStatus(upstream.status)) break;
+    const next = resolveRedirectLocation(upstream.headers.get("location"), current);
+    if (!next) break; // Returned as-is below: a 3xx is not ok, so the response is 502.
+    await upstream.body?.cancel().catch(() => undefined);
+
+    if (redirectLimitReached(redirectsFollowed)) {
+      return NextResponse.json({ error: "too many redirects" }, { status: 502 });
+    }
+    redirectsFollowed += 1;
+
+    const hop = verdictFor(next);
+    if (hop.kind === "blocked") return NextResponse.json({ error: "url not allowed" }, { status: 403 });
+    if (hop.kind === "would-block") {
+      if (mode === "enforce") return NextResponse.json({ error: "url not allowed" }, { status: 403 });
+      warnWouldBlock(next, hop.reason);
+    }
+    current = next;
   }
 
   if (!upstream.ok && upstream.status !== 206) {
     return NextResponse.json({ error: `upstream returned ${upstream.status}` }, { status: 502 });
+  }
+
+  if (declaredLengthExceeds(upstream.headers.get("content-length"), MAX_MEDIA_BYTES)) {
+    await upstream.body?.cancel().catch(() => undefined);
+    return NextResponse.json({ error: "video too large" }, { status: 413 });
   }
 
   // Buffered, not streamed: piping `upstream.body` straight through as the
@@ -95,10 +178,15 @@ export async function GET(request: NextRequest) {
   // that made every other reproduction succeed — sidesteps whatever in that
   // live relay path (most likely specific to this sandbox's outbound TLS
   // interception proxy) was corrupting the in-flight stream.
+  // The buffer is bounded by MAX_MEDIA_BYTES: readCappedBody counts bytes as
+  // they arrive, so a response with no Content-Length cannot grow past it.
   let body: ArrayBuffer;
   try {
-    body = await upstream.arrayBuffer();
-  } catch {
+    body = upstream.body ? await readCappedBody(upstream.body, MAX_MEDIA_BYTES) : new ArrayBuffer(0);
+  } catch (error) {
+    if (error instanceof PayloadTooLargeError) {
+      return NextResponse.json({ error: "video too large" }, { status: 413 });
+    }
     return NextResponse.json({ error: "upstream body read failed" }, { status: 502 });
   }
 
