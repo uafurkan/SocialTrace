@@ -1,4 +1,5 @@
 const TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
+const TURNSTILE_TIMEOUT_MS = 5_000;
 
 /**
  * Opt-in bot protection for login/signup (same pattern as every other
@@ -22,7 +23,12 @@ export async function verifyTurnstileToken(token: string | undefined | null, rem
   }
 
   try {
-    const res = await fetch(TURNSTILE_VERIFY_URL, { method: "POST", body });
+    // A timeout throws, so it lands in the catch below and fails closed.
+    const res = await fetch(TURNSTILE_VERIFY_URL, {
+      method: "POST",
+      body,
+      signal: AbortSignal.timeout(TURNSTILE_TIMEOUT_MS),
+    });
     if (!res.ok) return false;
     const data = (await res.json()) as { success?: boolean };
     return data.success === true;

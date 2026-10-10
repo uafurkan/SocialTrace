@@ -37,7 +37,7 @@ describe("turnstile", () => {
     await expect(verifyTurnstileToken("valid-token")).resolves.toBe(true);
     expect(fetchMock).toHaveBeenCalledWith(
       "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-      expect.objectContaining({ method: "POST" }),
+      expect.objectContaining({ method: "POST", signal: expect.any(AbortSignal) }),
     );
   });
 
