@@ -62,12 +62,24 @@ limit (10s on Hobby) is shorter than that, and a function killed mid-run
 renders as a generic, unhelpful crash (the `error.tsx` boundary), not the
 honest "couldn't load" empty states `safeProviderCall` is meant to
 produce — those only catch an actual thrown error, not a platform-level
-timeout kill. Every route that can reach a provider call (all
-`profile/[username]/**/page.tsx` and `layout.tsx`, plus
-`/api/v1/profiles/[profileId]/{followers,following}` and
-`/api/v1/posts/engagement`) sets `export const maxDuration = 60;` —
-Vercel's practical max on Hobby — so a slow actor run gets the time it
-needs instead of triggering a platform timeout.
+timeout kill. The `maxDuration` values set in code (checked with
+`grep -rn "export const maxDuration" src/app`) are:
+
+- `60`: the `profile/[username]/**` layout and sub-pages, except
+  `profile/[username]/page.tsx`; `profile/tiktok/[username]/**`;
+  `profile/facebook/[username]/layout.tsx`;
+  `/api/v1/profiles/[profileId]/{followers,following}`;
+  `/api/v1/tiktok/profiles/[profileId]/{followers,following}`;
+  `/api/v1/posts/engagement`.
+- `90`: `profile/[username]/page.tsx` (kept above 60 so the Bright Data
+  background warm can finish, per the comment in that file),
+  `profile/facebook/[username]/page.tsx`, `/api/v1/engagement-calculator`,
+  `/api/v1/competitor-analyzer`, `/api/v1/linkedin-viewer`.
+- `120`: `/api/v1/transcribe`.
+
+`/api/v1/profiles/[profileId]/export` sets no value and uses the platform
+default. Vercel's plan limits are not recorded in this repo, so confirm the
+deployment's plan allows these values before changing them.
 
 ## Real implementation: `ApifyInstagramProvider`
 

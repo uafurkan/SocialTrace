@@ -1487,3 +1487,79 @@ Two consequences of this choice:
 Not done yet: the FAQ, changelog, help articles and data-methodology copy
 still describe tracking and snapshots in the present tense. Those pages
 still exist, so the copy needs its own pass.
+
+## Bulk profile lookup: not built (owner decision)
+
+The owner decided not to build a bulk or batch profile lookup (plan item
+T1). Nothing in the code implements one: `src/lib/features.ts` has no
+`BULK_LOOKUP` flag, and `src` has no reference to "bulk". Do not add a bulk
+endpoint without a new owner decision.
+
+## Post dates: no invented timestamps (decision; code change still pending)
+
+When a source gives no post date, `postedAt` is `null`. It is not filled in
+with the time of the request or with the Unix epoch. Charts and filters skip
+posts whose date is `null`, so a made-up date cannot place a post on the
+wrong day in a posting-frequency chart or a date filter.
+
+This is not built yet. `grep -rn "new Date()\|new Date(0)" src/lib/providers`
+still lists `postedAt` fallbacks, for example
+`src/lib/providers/apify/posts.ts` (request time) and
+`src/lib/providers/instagram-public/web-profile-info.ts` (epoch). Changing the
+type to `string | null` and removing those fallbacks is a separate change
+(plan WS-D).
+
+## Logged-out web_profile_info endpoint: used and documented as an unofficial source (owner decision)
+
+The owner decided to use the logged-out JSON endpoint
+`https://i.instagram.com/api/v1/users/web_profile_info/` as the free
+Instagram source, and to document it. It is tried first on the profile and
+posts paths (`src/lib/providers/apify/profile.ts`,
+`src/lib/providers/apify/posts.ts`). The paid Apify actor runs only when it
+returns `null`. The request sends no login, cookie or session. It sends a
+browser-like User-Agent and Instagram's public web app id
+(`src/lib/providers/instagram-public/web-profile-info.ts`).
+
+Treat it as unofficial and changeable. It is not a documented Instagram API
+and can change or stop without notice. Every failure other than a real 404
+returns `null`, so a break moves the load onto the paid actor; it does not
+produce a wrong profile.
+
+Known constraint: Instagram refuses datacenter IPs. The file header records
+`401 {"require_login": true}` seen from the sandbox. The Phase 17 Step 2
+production check reported the free source as blocked, but the probe only
+returns ok or not ok, so the exact failure on production is not known. The
+one-week log-only read in `docs/PREVIEW_CHECKS.md` measures how often the
+endpoint answers from the preview deployment.
+
+## Snapshot-based tools: off until the owner re-enables them
+
+Besides the profile History, Changes and Compare pages, five tools depend on
+stored snapshots: follower history, follower compare, growth tracker, bio
+history and username history (the `/tools/instagram-*` pages listed in
+`src/lib/features.ts`). They stay switched off. `FEATURES.snapshots` is
+`false`, and `src/proxy.ts` sends their pages to the home page with a 301
+and their API routes get a 404.
+
+The owner's rule is that they open after a database decision. That decision
+is now made (Neon stays; see the next entry), but nothing re-enables them
+automatically. Opening them needs a separate plan for snapshot capture,
+tracking and consent (plan WS-S), and then the owner changes the flag.
+Browsers cache the 301s, so returning visitors may still be sent home after
+the flag is turned back on (see "Ads-only monetization" above).
+
+## Database: Neon stays (owner decision)
+
+The owner decided to keep Neon (Postgres) as the database. The code connects
+with `@neondatabase/serverless` and Drizzle's Neon HTTP driver
+(`src/lib/db/index.ts`). The response cache and the profile cache already use
+it (`src/lib/cache/data-cache.ts`, `src/lib/cache/profile-cache.ts`).
+
+The extension research (plan section 7) found no browser extension that can
+replace a shared server store or a paid provider. Browser storage is per
+browser, so visitors cannot share a cache through it. The Facebook, TikTok
+and Instagram extensions examined either needed a session cookie, sent data
+to a vendor's server, or collected non-public data, and no candidate with
+published source code could be verified as working logged out. The research
+did not install or run any extension. This is the research's finding; it was
+not re-run in this repo.
