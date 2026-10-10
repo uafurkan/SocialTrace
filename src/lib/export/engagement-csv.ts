@@ -1,5 +1,6 @@
 import { sanitizeFilename } from "@/app/api/v1/media/download/utils";
 import type { Platform } from "@/lib/domain/types";
+import { CSV_BOM } from "@/lib/export/serialize";
 
 export type EngagementListKind = "likers" | "comments";
 
@@ -29,12 +30,13 @@ export function engagementCsvFilename(platform: Platform, permalink: string, kin
 }
 
 /**
- * Saves CSV text as a file through a Blob object URL. The URL is revoked
- * after the click; the revoke is deferred because some browsers cancel the
- * download when the URL is released in the same tick.
+ * Saves CSV text as a file through a Blob object URL. The file starts with a
+ * UTF-8 byte-order mark so Excel reads non-ASCII text correctly. The URL is
+ * revoked after the click; the revoke is deferred because some browsers cancel
+ * the download when the URL is released in the same tick.
  */
 export function downloadCsv(filename: string, csv: string): void {
-  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  const url = URL.createObjectURL(new Blob([`${CSV_BOM}${csv}`], { type: "text/csv;charset=utf-8" }));
   const link = document.createElement("a");
   link.href = url;
   link.download = filename;

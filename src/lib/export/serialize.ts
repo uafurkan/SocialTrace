@@ -83,6 +83,14 @@ export function toExportJson(bundle: ExportBundle): string {
   );
 }
 
+/**
+ * Byte-order mark that opens a UTF-8 CSV file. Excel reads a CSV without it as
+ * the system code page, which garbles non-ASCII text. It is added where the
+ * file is produced (download or response), so the row serializers below keep
+ * their exact output and the formula guard still sees each cell unchanged.
+ */
+export const CSV_BOM = "\uFEFF";
+
 /** Quotes a cell that holds a delimiter, a quote, or a line break. Numbers and booleans never match, so they are written as-is. */
 function csvCell(value: string | number | boolean): string {
   const s = String(value);

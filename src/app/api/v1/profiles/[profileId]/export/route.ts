@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { buildExportBundle } from "@/lib/export/build";
-import { toExportJson, toExportXml, toMemberCsv, toPostCsv } from "@/lib/export/serialize";
+import { CSV_BOM, toExportJson, toExportXml, toMemberCsv, toPostCsv } from "@/lib/export/serialize";
 import { ProfileNotFoundError } from "@/lib/providers";
 import { clientIdentifierFor, rateLimit } from "@/lib/rate-limit";
 
@@ -76,6 +76,7 @@ export async function GET(request: NextRequest) {
     else if (resource === "following") body = toMemberCsv(bundle.following);
     else if (resource === "posts") body = toPostCsv(bundle.posts);
     else body = toPostCsv(bundle.reels); // "reels": resource was validated above
+    body = `${CSV_BOM}${body}`;
     filenamePart = resource;
   } else if (format === "xml") {
     body = toExportXml(bundle);
