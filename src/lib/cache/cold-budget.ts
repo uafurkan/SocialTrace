@@ -34,8 +34,15 @@ export const MEMBER_ROUTE_MAX_DURATION_S = 60;
  * Time kept back from the route limit for work the chain does not cover: the
  * cache read before a cold start, the cache write after it, the rate-limit
  * check and the response.
+ *
+ * The 10 s figure is an estimate, not a measurement. It assumes those steps
+ * together finish well inside 10 s: each cache access is a single-row query on
+ * provider_cache, and the rate-limit check is one Upstash Redis call (or an
+ * in-process counter). The repo records no timings for them. The headroom was
+ * cut from 15 s on the judgment that cache reads and writes are quick compared
+ * with 15 s. Revisit it if the cache or the limiter moves to a slower store.
  */
-export const ROUTE_HEADROOM_MS = 15_000;
+export const ROUTE_HEADROOM_MS = 10_000;
 
 /**
  * Time limit for one provider chain, counted from the chain's start, and the
@@ -44,8 +51,10 @@ export const ROUTE_HEADROOM_MS = 15_000;
  * MIN_RUN_WAIT_MS left (plan B2). A run that is still going when the wait
  * stops is not cancelled; it keeps running and is billed.
  *
- * Derived so that the budget plus the headroom is exactly the route limit.
- * Also used as the time limit for the competitor and engagement comparisons.
+ * Derived so that the budget plus the headroom is exactly the route limit,
+ * which is 50 s with the current headroom. Also used as the time limit for the
+ * competitor and engagement comparisons. The posts engagement route has
+ * maxDuration 60, so its headroom drops from 15 s to 10 s with this change.
  */
 export const CHAIN_DEADLINE_MS = MEMBER_ROUTE_MAX_DURATION_S * 1000 - ROUTE_HEADROOM_MS;
 
@@ -53,6 +62,10 @@ export const CHAIN_DEADLINE_MS = MEMBER_ROUTE_MAX_DURATION_S * 1000 - ROUTE_HEAD
  * Shortest wait worth starting an actor run for. Actor runs take about 10 to
  * 60 s, so a run given less than this would almost surely be cut off, and its
  * cost would buy nothing.
+ *
+ * Kept at 15 s when the budget went from 45 s to 50 s. The argument rests on
+ * how long actor runs take, not on the budget. 15 s is still above the shortest
+ * runs (about 10 s), and it is 30% of the budget, where it was 33%.
  */
 export const MIN_RUN_WAIT_MS = 15_000;
 

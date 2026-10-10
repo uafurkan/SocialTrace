@@ -41,7 +41,9 @@ interface ApifyProfileWithPosts {
  * result is cached identically and neither is re-fetched on the next request.
  */
 export async function fetchApifyPosts(username: string, profileId: string): Promise<Post[]> {
-  return withDataCache(`posts:${profileId}`, async () => {
+  // `posts:v2:` namespace, same as postsCacheKey in data-cache.ts: the old
+  // `posts:` rows hold made-up dates and must not be served.
+  return withDataCache(`posts:v2:${profileId}`, async () => {
     const publicUser = await fetchWebProfileInfo(username);
     if (publicUser) {
       return toPosts(publicUser, profileId);

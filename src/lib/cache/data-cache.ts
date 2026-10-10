@@ -55,7 +55,8 @@ export const RESOURCE_CACHE_TTL_MS = {
  * Picks the TTL for a `resource:...` cache key, falling back to the global
  * default. Only the text before the first colon is the resource, and it is
  * looked up as an own property: a plain index would let a key such as
- * `constructor:x` pick up Object.prototype members as a TTL.
+ * `constructor:x` pick up Object.prototype members as a TTL. Anything after
+ * that colon, such as the `v2:` namespace on posts keys, does not change the TTL.
  */
 export function ttlForCacheKey(cacheKey: string): number {
   const resource = cacheKey.split(":")[0];
@@ -82,9 +83,21 @@ export function postsSizeBucket(limit: number): number {
   return POST_SIZE_BUCKETS[POST_SIZE_BUCKETS.length - 1];
 }
 
-/** `posts:<profileId>:b<bucket>`, e.g. `posts:profile_nike:b24`. */
+/**
+ * `posts:v2:<profileId>:b<bucket>`, e.g. `posts:v2:profile_nike:b24`.
+ *
+ * The namespace is `posts:v2:`, not `posts:`, on purpose. Before the date fix,
+ * some posts were cached with made-up dates, and those rows stay fresh for the
+ * whole posts TTL (6 h by default). Moving every posts key to a new namespace
+ * makes those rows unreachable, so the next request fetches the list again.
+ * The old rows are never read and are not deleted here. Bump the version again
+ * if a fix ever leaves bad data cached under the current prefix.
+ *
+ * The Instagram provider builds its key in apify/posts.ts with the same prefix.
+ * Keep the two in step.
+ */
 export function postsCacheKey(profileId: string, limit: number): string {
-  return `posts:${profileId}:b${postsSizeBucket(limit)}`;
+  return `posts:v2:${profileId}:b${postsSizeBucket(limit)}`;
 }
 
 async function readCache(cacheKey: string) {
