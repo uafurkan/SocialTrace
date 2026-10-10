@@ -6,7 +6,7 @@ import { JsonLd, breadcrumbJsonLd, faqJsonLd } from "@/lib/seo/json-ld";
 import { pageMetadata } from "@/lib/seo/metadata";
 
 const TITLE = "Engagement rate calculator";
-const DESCRIPTION = "Paste a public Instagram, TikTok, or Facebook profile and get its engagement rate — average likes and comments per post, divided by follower count.";
+const DESCRIPTION = "Paste a public Instagram, TikTok, or Facebook profile and get its engagement rate — the median of likes and comments per post, divided by follower count.";
 const PATH = "/tools/instagram-engagement-calculator";
 
 export const metadata: Metadata = pageMetadata({ title: TITLE, description: DESCRIPTION, path: PATH });
@@ -15,7 +15,7 @@ const FAQ = [
   {
     question: "How is engagement rate calculated?",
     answer:
-      "We fetch the most recent 12 public posts, average their likes and comments, add those two averages together, and divide by the profile's follower count. The result is shown as a percentage, along with the exact sample size used.",
+      "We fetch the most recent 12 public posts. For each post we add its likes and comments and divide by the profile's follower count, then take the median of those per-post rates, so one viral post does not dominate. The median is shown as a percentage, with the mean for reference and the exact sample size used.",
   },
   {
     question: "Does this work on private accounts?",
@@ -44,7 +44,7 @@ export default function EngagementCalculatorPage() {
         howItWorks={[
           "Pick a platform and paste a public username or profile link.",
           "We fetch the most recent 12 public posts and sum their likes and comments.",
-          "Engagement rate is that average, divided by the profile's follower count.",
+          "Engagement rate is the median of those per-post rates, each one divided by the profile's follower count.",
         ]}
         features={[
           { title: "Real recent posts", body: "Calculated from the profile's actual most recent public posts, not a guess." },
