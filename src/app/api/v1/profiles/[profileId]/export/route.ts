@@ -5,12 +5,19 @@ import { toExportJson, toExportXml, toMemberCsv, toPostCsv } from "@/lib/export/
 import { ProfileNotFoundError } from "@/lib/providers";
 import { clientIdentifierFor, rateLimit } from "@/lib/rate-limit";
 
+import { sanitizeFilename } from "../../../media/download/utils";
+
+/** Four paginated provider calls run before the response; 60 s matches the followers and following routes. */
+export const maxDuration = 60;
+
 /** Each export re-paginates the full provider list, so it's the same per-request cost as a snapshot capture — cap it the same way. */
 const EXPORT_RATE_LIMIT = 10;
 const EXPORT_RATE_WINDOW_MS = 10 * 60 * 1000;
 
 const FORMATS = ["json", "xml", "csv"] as const;
 type Format = (typeof FORMATS)[number];
+
+const CSV_RESOURCES = ["followers", "following", "posts", "reels"];
 
 const CONTENT_TYPE: Record<Format, string> = {
   json: "application/json; charset=utf-8",
@@ -37,6 +44,12 @@ export async function GET(request: NextRequest) {
   if (!FORMATS.includes(format as Format)) {
     return NextResponse.json({ error: "format must be json, xml, or csv" }, { status: 400 });
   }
+  if (format === "csv" && !CSV_RESOURCES.includes(resource)) {
+    return NextResponse.json(
+      { error: "CSV export requires resource=followers|following|posts|reels" },
+      { status: 400 },
+    );
+  }
 
   const rate = await rateLimit(`export:${clientIdentifierFor(request)}`, EXPORT_RATE_LIMIT, EXPORT_RATE_WINDOW_MS);
   if (!rate.allowed) {
@@ -62,13 +75,7 @@ export async function GET(request: NextRequest) {
     if (resource === "followers") body = toMemberCsv(bundle.followers);
     else if (resource === "following") body = toMemberCsv(bundle.following);
     else if (resource === "posts") body = toPostCsv(bundle.posts);
-    else if (resource === "reels") body = toPostCsv(bundle.reels);
-    else {
-      return NextResponse.json(
-        { error: "CSV export requires resource=followers|following|posts|reels" },
-        { status: 400 },
-      );
-    }
+    else body = toPostCsv(bundle.reels); // "reels": resource was validated above
     filenamePart = resource;
   } else if (format === "xml") {
     body = toExportXml(bundle);
@@ -76,7 +83,7 @@ export async function GET(request: NextRequest) {
     body = toExportJson(bundle);
   }
 
-  const filename = `socialtrace-${bundle.profile.username}-${filenamePart}.${format}`;
+  const filename = sanitizeFilename(`socialtrace-${bundle.profile.username}-${filenamePart}.${format}`);
   return new NextResponse(body, {
     headers: {
       "Content-Type": CONTENT_TYPE[format as Format],

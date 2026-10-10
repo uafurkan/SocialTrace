@@ -83,16 +83,31 @@ export function toExportJson(bundle: ExportBundle): string {
   );
 }
 
+/** Quotes a cell that holds a delimiter, a quote, or a line break. Numbers and booleans never match, so they are written as-is. */
 function csvCell(value: string | number | boolean): string {
   const s = String(value);
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+/** Leading characters that Excel and Sheets read as a formula, or that they drop from the row (tab, CR). */
+const FORMULA_LEAD = /^[=+\-@\t\r]/;
+
+/** Free-text cell (CSV injection guard): a leading formula character gets a single quote before the usual quoting. */
+function textCell(value: string): string {
+  return csvCell(FORMULA_LEAD.test(value) ? `'${value}` : value);
 }
 
 /** Spec §158 — follower/following CSV columns, minus first_seen_at/last_seen_at (no snapshot history exists yet to populate them). */
 export function toMemberCsv(users: SocialUser[]): string {
   const header = "platform_user_id,username,display_name,profile_url,is_verified";
   const rows = users.map((u) =>
-    [u.id, u.username, u.displayName, `https://instagram.com/${u.username}`, u.isVerified].map(csvCell).join(","),
+    [
+      textCell(u.id),
+      textCell(u.username),
+      textCell(u.displayName),
+      textCell(`https://instagram.com/${u.username}`),
+      csvCell(u.isVerified),
+    ].join(","),
   );
   return [header, ...rows].join("\n");
 }
@@ -100,7 +115,15 @@ export function toMemberCsv(users: SocialUser[]): string {
 export function toPostCsv(posts: Post[]): string {
   const header = "id,media_type,caption,like_count,comment_count,view_count,posted_at";
   const rows = posts.map((p) =>
-    [p.id, p.mediaType, p.caption, p.likeCount, p.commentCount, p.viewCount ?? "", p.postedAt].map(csvCell).join(","),
+    [
+      textCell(p.id),
+      csvCell(p.mediaType),
+      textCell(p.caption),
+      csvCell(p.likeCount),
+      csvCell(p.commentCount),
+      csvCell(p.viewCount ?? ""),
+      csvCell(p.postedAt ?? ""),
+    ].join(","),
   );
   return [header, ...rows].join("\n");
 }
