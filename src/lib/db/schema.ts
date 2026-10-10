@@ -1,8 +1,10 @@
 /**
  * Postgres schema (Drizzle ORM) for the canonical domain model in spec §31.
  * Mirrors the field-by-field mapping already documented in
- * docs/DATA_MODEL.md. Nothing in src/app or src/lib/providers imports this
- * yet — the mock provider keeps serving the UI (see docs/DECISIONS.md).
+ * docs/DATA_MODEL.md. Application code reaches it through `@/lib/db`, which
+ * re-exports it as `schema` (src/lib/db/index.ts); src/lib/providers does not
+ * import the database. The provider is picked by SOCIAL_PROVIDER, and the
+ * mock adapter is the default (src/lib/providers/index.ts).
  */
 import {
   bigint,
