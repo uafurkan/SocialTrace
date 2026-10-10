@@ -24,6 +24,8 @@ import { PostArchiveButton } from "@/components/profile/post-archive-button";
 import { PostEngagementModal } from "@/components/profile/post-engagement-modal";
 import { PostInsightsPanel } from "@/components/profile/post-insights";
 import { HashtagPanel } from "@/components/profile/hashtag-panel";
+import { PostTrendChart } from "@/components/profile/post-trend-chart";
+import { PostingTimePanel } from "@/components/profile/posting-time-panel";
 
 type HeaderSortKey = "likes" | "comments" | "date";
 
@@ -87,6 +89,8 @@ export function PostGrid({ posts, platform = "instagram" }: { posts: Post[]; pla
     <div>
       <PostInsightsPanel insights={insights} />
       <HashtagPanel posts={posts} />
+      <PostTrendChart posts={posts} />
+      <PostingTimePanel posts={posts} />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="relative min-w-48 max-w-sm flex-1">
