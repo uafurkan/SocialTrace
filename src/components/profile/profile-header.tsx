@@ -3,12 +3,12 @@ import Link from "next/link";
 
 import type { Profile } from "@/lib/domain/types";
 import { FEATURES } from "@/lib/features";
-import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { CoverageBadge } from "@/components/profile/coverage-badge";
 import { ExportMenu } from "@/components/profile/export-menu";
 import { ProfileStatRow } from "@/components/profile/profile-stat-row";
 import { TrackButton } from "@/components/profile/track-button";
+import { ZoomableAvatar } from "@/components/profile/zoomable-avatar";
 import { copy } from "@/lib/copy";
 
 interface ProfileHeaderProps {
@@ -21,19 +21,11 @@ export function ProfileHeader({ profile, initialTracked, dbAvailable }: ProfileH
   return (
     <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-        <Avatar
-          username={profile.username}
-          displayName={profile.displayName}
-          avatarUrl={profile.avatarUrl}
-          size="xl"
-          className="border border-border"
-        />
+        <ZoomableAvatar username={profile.username} displayName={profile.displayName} avatarUrl={profile.avatarUrl} />
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-semibold text-primary">@{profile.username}</h1>
-            {profile.isVerified ? (
-              <BadgeCheck className="size-5 text-info" aria-label="Verified" />
-            ) : null}
+            {profile.isVerified ? <BadgeCheck className="size-5 text-info" aria-label="Verified" /> : null}
           </div>
           <p className="text-sm font-medium text-secondary">{profile.displayName}</p>
           <p className="mt-2 max-w-md text-sm text-secondary">{profile.bio}</p>
@@ -54,12 +46,7 @@ export function ProfileHeader({ profile, initialTracked, dbAvailable }: ProfileH
 
       <div className="grid grid-cols-1 gap-2 sm:w-44 sm:shrink-0">
         {FEATURES.tracking ? (
-          <TrackButton
-            profileId={profile.id}
-            username={profile.username}
-            initialTracked={initialTracked}
-            available={dbAvailable}
-          />
+          <TrackButton profileId={profile.id} username={profile.username} initialTracked={initialTracked} available={dbAvailable} />
         ) : null}
         {FEATURES.snapshots ? (
           dbAvailable ? (
