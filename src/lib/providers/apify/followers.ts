@@ -221,7 +221,7 @@ export async function runMemberChain(
   }
 
   // Cut short before every actor answered, so an empty result would be a guess
-  // that withDataCache caches for 48 hours. Throw instead: nothing is written.
+  // that withDataCache caches for 1 hour. Throw instead: nothing is written.
   if (cutShort) {
     throw new Error(
       `Member lookup for ${username} (${kind}) reached the ${budgetMs / 1000}s limit before any actor returned data.`,
