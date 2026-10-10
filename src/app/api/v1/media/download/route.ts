@@ -1,16 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { clientIdentifierFor, rateLimit } from "@/lib/rate-limit";
-import {
-  MAX_MEDIA_BYTES,
-  checkHostResolution,
-  createCappedStream,
-  declaredLengthExceeds,
-  isRedirectStatus,
-  redirectLimitReached,
-  resolveRedirectLocation,
-  type HostResolution,
-} from "@/lib/media/guard";
+import { MAX_MEDIA_BYTES, declaredLengthExceeds } from "@/lib/media/guard";
+import { MEDIA_USER_AGENT, safeFetchMedia } from "@/lib/media/safe-fetch";
 import { extensionFor, isAllowedMediaHost, sanitizeFilename } from "./utils";
 
 /**
@@ -22,11 +14,11 @@ import { extensionFor, isAllowedMediaHost, sanitizeFilename } from "./utils";
  * with no auth, so an open proxy to arbitrary URLs would be an SSRF hole.
  *
  * Redirects are followed by hand (at most MAX_REDIRECTS), and every hop must
- * pass the same host allowlist as the first URL. Each host is also resolved,
- * and refused when any address is private or reserved (see
- * `checkHostResolution` for the DNS rebinding window that remains). The body
- * is capped at MAX_MEDIA_BYTES, both by Content-Length and by counting bytes
- * as they stream, and the stream is abandoned after BODY_TIMEOUT_MS.
+ * pass the same host allowlist as the first URL. `safeFetchMedia` also resolves
+ * each host and refuses it when any address is private or reserved, and it
+ * connects to the address that was checked, which closes the DNS rebinding
+ * window. The body is capped at MAX_MEDIA_BYTES, both by Content-Length and by
+ * counting bytes as they stream, and the stream is abandoned after BODY_TIMEOUT_MS.
  */
 const DOWNLOAD_RATE_LIMIT = 30;
 const DOWNLOAD_RATE_WINDOW_MS = 10 * 60 * 1000;
@@ -37,19 +29,16 @@ function isAllowedMediaUrl(url: URL): boolean {
   return url.protocol === "https:" && isAllowedMediaHost(url.hostname);
 }
 
-type RefusedResolution = Exclude<HostResolution, { kind: "public" }>;
-
 /**
- * Refusal for a host the resolver check did not clear. A private address gets
- * `privateStatus`, matching the allowlist refusal in the same position (400 for
- * the first URL, 403 for a redirect target). A name that does not resolve is a
- * 400 in either position.
+ * Refusal for a refused hop. A name that does not resolve is a 400 in either
+ * position. Any other refusal is a 400 for the first URL and a 403 for a
+ * redirect target, the status the allowlist miss uses in the same position.
  */
-function refusalFor(resolution: RefusedResolution, privateStatus: 400 | 403): NextResponse {
-  if (resolution.kind === "unresolved") {
+function refusalResponse(reason: string, redirect: boolean): NextResponse {
+  if (reason === "unresolvable") {
     return NextResponse.json({ error: "url host could not be resolved" }, { status: 400 });
   }
-  return NextResponse.json({ error: "url host is not allowed" }, { status: privateStatus });
+  return NextResponse.json({ error: "url host is not allowed" }, { status: redirect ? 403 : 400 });
 }
 
 export async function GET(request: NextRequest) {
@@ -80,42 +69,21 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const initialResolution = await checkHostResolution(parsed.hostname);
-  if (initialResolution.kind !== "public") return refusalFor(initialResolution, 400);
-
-  // The header timeout covers the whole redirect chain. It is cleared once
-  // the final response's headers have arrived.
-  const controller = new AbortController();
-  const headerTimeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  let current = parsed;
-  let redirectsFollowed = 0;
-  let upstream: Response;
-  try {
-    for (;;) {
-      upstream = await fetch(current.toString(), { redirect: "manual", signal: controller.signal });
-      if (!isRedirectStatus(upstream.status)) break;
-      const next = resolveRedirectLocation(upstream.headers.get("location"), current);
-      if (!next) break; // Returned as-is below: a 3xx is not ok, so the response is 502.
-      await upstream.body?.cancel().catch(() => undefined);
-
-      if (redirectLimitReached(redirectsFollowed)) {
-        return NextResponse.json({ error: "Too many redirects" }, { status: 502 });
-      }
-      redirectsFollowed += 1;
-      if (!isAllowedMediaUrl(next)) {
-        return NextResponse.json({ error: "url host is not allowed" }, { status: 403 });
-      }
-      const hopResolution = await checkHostResolution(next.hostname);
-      if (hopResolution.kind !== "public") return refusalFor(hopResolution, 403);
-      current = next;
-    }
-  } catch {
-    return NextResponse.json({ error: "Failed to fetch media" }, { status: 502 });
-  } finally {
-    clearTimeout(headerTimeout);
-  }
+  // The header timeout covers the whole redirect chain. It is cleared once the
+  // final response's headers have arrived, and the body timeout starts then.
+  const result = await safeFetchMedia(parsed, {
+    checkUrl: (url) => (isAllowedMediaUrl(url) ? { ok: true } : { ok: false, reason: "host-not-allowlisted" }),
+    headers: () => ({ "User-Agent": MEDIA_USER_AGENT }),
+    headersTimeoutMs: FETCH_TIMEOUT_MS,
+    bodyTimeoutMs: BODY_TIMEOUT_MS,
+  });
+  if (result.kind === "refused") return refusalResponse(result.reason, result.redirect);
+  if (result.kind === "too-many-redirects") return NextResponse.json({ error: "Too many redirects" }, { status: 502 });
+  if (result.kind === "failed") return NextResponse.json({ error: "Failed to fetch media" }, { status: 502 });
+  const upstream = result.response;
 
   if (!upstream.ok || !upstream.body) {
+    await upstream.body?.cancel().catch(() => undefined);
     return NextResponse.json({ error: "Media not available" }, { status: 502 });
   }
 
@@ -127,12 +95,7 @@ export async function GET(request: NextRequest) {
   const contentType = upstream.headers.get("content-type") ?? "application/octet-stream";
   const filename = `${sanitizeFilename(filenameParam)}.${extensionFor(contentType)}`;
 
-  // The body deadline starts when headers arrive. Aborting the controller
-  // errors the pending body read, which ends the stream.
-  const bodyTimeout = setTimeout(() => controller.abort(), BODY_TIMEOUT_MS);
-  const body = createCappedStream(upstream.body, MAX_MEDIA_BYTES, () => clearTimeout(bodyTimeout));
-
-  return new NextResponse(body, {
+  return new NextResponse(upstream.body, {
     headers: {
       "Content-Type": contentType,
       "Content-Disposition": `attachment; filename="${filename}"`,
