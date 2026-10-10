@@ -27,6 +27,11 @@ const ERROR_COPY = new Map<string, string>([
 const GENERIC_SIDE_ERROR = "Could not analyze this profile. Try again in a moment.";
 const GENERIC_COMPARE_ERROR = "Something went wrong comparing these profiles. Try again in a moment.";
 
+/** Same threshold as the engagement calculator's weak-sample note (engagement-calculator-widget.tsx). */
+const WEAK_SAMPLE_THRESHOLD = 5;
+/** Below this follower count a per-post rate swings widely, so each box says so. */
+const SMALL_ACCOUNT_FOLLOWERS = 1000;
+
 interface Side {
   platform: Platform;
   username: string;
@@ -100,6 +105,16 @@ function ResultColumn({ label, side }: { label: string; side: SideResult | null 
       <p className="mt-3 text-sm text-secondary">
         Median of the {result.medianSampleSize} most recent {result.medianSampleSize === 1 ? "post" : "posts"} we could load.
       </p>
+      {result.medianSampleSize < WEAK_SAMPLE_THRESHOLD ? (
+        <p className="mt-3 rounded-button bg-warning-soft px-3 py-2 text-sm text-primary">
+          Only {result.medianSampleSize} {result.medianSampleSize === 1 ? "post" : "posts"} could be loaded, so this estimate is weak.
+        </p>
+      ) : null}
+      {result.followerCount < SMALL_ACCOUNT_FOLLOWERS ? (
+        <p className="mt-3 text-sm text-secondary">
+          Rates for accounts under 1,000 followers swing widely, so treat this figure as a rough guide.
+        </p>
+      ) : null}
       <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
         <div>
           <div className="text-muted">Followers</div>

@@ -15,6 +15,24 @@ interface EngagementResponse {
   comments: Comment[];
 }
 
+/**
+ * Why the lookup did not load. Picked from the response status only: the
+ * server's body is never read or shown, so its wording cannot reach the UI.
+ */
+type LoadFailure = "unavailable" | "rate_limited" | "failed";
+
+const FAILURE_COPY: Record<Exclude<LoadFailure, "unavailable">, string> = {
+  rate_limited: "Too many requests right now. Try again in a minute.",
+  failed: "Couldn't load engagement data right now. Try again shortly.",
+};
+
+function failureForStatus(status: number): LoadFailure {
+  // 404 is the server's answer when the platform's provider has no engagement lookup.
+  if (status === 404) return "unavailable";
+  if (status === 429) return "rate_limited";
+  return "failed";
+}
+
 export function PostEngagementModal({
   permalink,
   postId,
@@ -32,23 +50,24 @@ export function PostEngagementModal({
   const hasLikers = platform === "instagram";
   const [tab, setTab] = useState<"likers" | "comments">(hasLikers ? "likers" : "comments");
   const [data, setData] = useState<EngagementResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<LoadFailure | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    // No explicit setData(null)/setError(null) reset here: post-grid.tsx
+    // No explicit setData(null)/setFailure(null) reset here: post-grid.tsx
     // renders this component with key={permalink}, so a permalink change
     // remounts it fresh (initial state) rather than reusing this instance.
     fetch(`/api/v1/posts/engagement?permalink=${encodeURIComponent(permalink)}&platform=${platform}`)
       .then(async (res) => {
-        if (!res.ok) throw new Error((await res.json().catch(() => null))?.error ?? "Failed to load");
-        return res.json() as Promise<EngagementResponse>;
-      })
-      .then((json) => {
+        if (!res.ok) {
+          if (!cancelled) setFailure(failureForStatus(res.status));
+          return;
+        }
+        const json = (await res.json()) as EngagementResponse;
         if (!cancelled) setData(json);
       })
-      .catch((err: Error) => {
-        if (!cancelled) setError(err.message);
+      .catch(() => {
+        if (!cancelled) setFailure("failed");
       });
     return () => {
       cancelled = true;
@@ -96,12 +115,14 @@ export function PostEngagementModal({
         </div>
 
         <div className="flex-1 overflow-y-auto p-3">
-          {tab === "likers" && !hasLikers ? (
-            <p className="py-8 text-center text-sm text-muted">Likers are not available for this platform.</p>
+          {(tab === "likers" && !hasLikers) || failure === "unavailable" ? (
+            <p className="py-8 text-center text-sm text-muted">
+              {tab === "likers" ? "Likers are not available for this platform." : "Comments are not available for this platform."}
+            </p>
           ) : (
             <>
-              {error ? <p className="py-8 text-center text-sm text-muted">{error}</p> : null}
-              {!data && !error ? (
+              {failure ? <p className="py-8 text-center text-sm text-muted">{FAILURE_COPY[failure]}</p> : null}
+              {!data && !failure ? (
                 <div className="flex justify-center py-8">
                   <Loader2 className="size-5 animate-spin text-muted" />
                 </div>
