@@ -242,7 +242,7 @@ export function PostGrid({ posts, platform = "instagram" }: { posts: Post[]; pla
           ))}
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="relative overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="text-xs uppercase tracking-wide text-muted">
               <tr className="border-b border-border">
