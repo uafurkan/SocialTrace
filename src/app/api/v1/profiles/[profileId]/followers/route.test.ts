@@ -68,6 +68,17 @@ describe("GET /api/v1/profiles/[profileId]/followers", () => {
     expect(getFollowers).toHaveBeenCalledTimes(7);
   });
 
+  it("answers 502, not 429, when a cold chain is cut off before any actor returned data", async () => {
+    getFollowers.mockRejectedValueOnce(
+      new Error("Member lookup for someuser (followers) reached the 45s limit before any actor returned data."),
+    );
+
+    const res = await call("someuser", "198.51.100.7");
+
+    expect(res.status).toBe(502);
+    expect(res.headers.get("Retry-After")).toBeNull();
+  });
+
   it("keeps the cold budget per address", async () => {
     coldProvider();
     for (let i = 0; i < 6; i++) {

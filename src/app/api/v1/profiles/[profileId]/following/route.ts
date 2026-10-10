@@ -4,6 +4,8 @@ import { ColdBudgetExceededError, createIpColdBudget, runWithColdBudget } from "
 import { provider } from "@/lib/providers";
 import { clientIdentifierFor } from "@/lib/rate-limit";
 
+// 60 s, equal to MEMBER_ROUTE_MAX_DURATION_S (cold-budget.ts; its test checks the match).
+// The chain's CHAIN_DEADLINE_MS leaves ROUTE_HEADROOM_MS of this for cache reads and writes.
 export const maxDuration = 60;
 
 function isValidProfileId(profileId: string): boolean {

@@ -24,11 +24,37 @@ export const COLD_MEMBERS_LIMIT = 6;
 export const COLD_MEMBERS_WINDOW_MS = 10 * 60 * 1000;
 
 /**
- * Time limit for one provider chain or one side of a comparison. Past it, a
- * chain starts no further actor runs (plan B2), and a route stops waiting
- * (plan B12). A run already in flight is not cancelled.
+ * maxDuration of the member-list routes, in seconds. Each of those routes
+ * exports the same value as a literal; cold-budget.test.ts reads the route
+ * files and fails if they drift from this constant.
  */
-export const CHAIN_DEADLINE_MS = 45_000;
+export const MEMBER_ROUTE_MAX_DURATION_S = 60;
+
+/**
+ * Time kept back from the route limit for work the chain does not cover: the
+ * cache read before a cold start, the cache write after it, the rate-limit
+ * check and the response.
+ */
+export const ROUTE_HEADROOM_MS = 15_000;
+
+/**
+ * Time limit for one provider chain, counted from the chain's start, and the
+ * route budget the chain spends. No actor run is waited on past it: each wait
+ * is clamped to the time left (plan B12), and no run starts with less than
+ * MIN_RUN_WAIT_MS left (plan B2). A run that is still going when the wait
+ * stops is not cancelled; it keeps running and is billed.
+ *
+ * Derived so that the budget plus the headroom is exactly the route limit.
+ * Also used as the time limit for the competitor and engagement comparisons.
+ */
+export const CHAIN_DEADLINE_MS = MEMBER_ROUTE_MAX_DURATION_S * 1000 - ROUTE_HEADROOM_MS;
+
+/**
+ * Shortest wait worth starting an actor run for. Actor runs take about 10 to
+ * 60 s, so a run given less than this would almost surely be cut off, and its
+ * cost would buy nothing.
+ */
+export const MIN_RUN_WAIT_MS = 15_000;
 
 export interface ColdBudget {
   /** Charges one cold chain start. Resolves false when the budget is spent. */
