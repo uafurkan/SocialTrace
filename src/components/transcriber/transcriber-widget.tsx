@@ -259,7 +259,7 @@ export function TranscriberWidget({
   const [translateTarget, setTranslateTarget] = useState(TRANSLATION_TARGET_LANGUAGES[0].code);
   const [translation, setTranslation] = useState<TranslationState>({ status: "idle" });
   const [activeTab, setActiveTab] = useState<"original" | "translated">("original");
-  const { history: urlHistory, addToHistory: addUrlToHistory } = useInputHistory(
+  const { history: urlHistory, addToHistory: addUrlToHistory, clearHistory: clearUrlHistory } = useInputHistory(
     `transcriber-url${platformHint ? `-${platformHint.toLowerCase()}` : ""}`,
   );
   const { containerRef: urlHistoryContainerRef, isOpen: isUrlHistoryOpen, setIsOpen: setIsUrlHistoryOpen, matches: urlHistoryMatches } =
@@ -379,6 +379,7 @@ export function TranscriberWidget({
             {isUrlHistoryOpen ? (
               <HistorySuggestionsList
                 items={urlHistoryMatches}
+                onClear={clearUrlHistory}
                 onSelect={(value) => {
                   setUrl(value);
                   setIsUrlHistoryOpen(false);

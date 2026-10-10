@@ -95,14 +95,14 @@ export function HeroSearchWidget() {
   const modeIndex = MODES.findIndex((m) => m.id === mode);
   const modeEdgeStyle = useLiquidGlassEdgeStyle(modeIndex, MODES.length);
   const platformEdgeStyle = useLiquidGlassEdgeStyle(activePlatformIndex, SOCIAL_PLATFORMS.length);
-  const { history: usernameHistory, addToHistory: addUsernameToHistory } = useInputHistory(`hero-username-${platform}`);
+  const { history: usernameHistory, addToHistory: addUsernameToHistory, clearHistory: clearUsernameHistory } = useInputHistory(`hero-username-${platform}`);
   const {
     containerRef: usernameHistoryContainerRef,
     isOpen: isUsernameHistoryOpen,
     setIsOpen: setIsUsernameHistoryOpen,
     matches: usernameHistoryMatches,
   } = useHistorySuggestions(usernameHistory, inputValue);
-  const { history: videoHistory, addToHistory: addVideoToHistory } = useInputHistory("hero-video-url");
+  const { history: videoHistory, addToHistory: addVideoToHistory, clearHistory: clearVideoHistory } = useInputHistory("hero-video-url");
   const {
     containerRef: videoHistoryContainerRef,
     isOpen: isVideoHistoryOpen,
@@ -214,6 +214,7 @@ export function HeroSearchWidget() {
                 {isUsernameHistoryOpen ? (
                   <HistorySuggestionsList
                     items={usernameHistoryMatches}
+                    onClear={clearUsernameHistory}
                     onSelect={(item) => {
                       setInputValue(item);
                       setIsUsernameHistoryOpen(false);
@@ -263,6 +264,7 @@ export function HeroSearchWidget() {
                 {isVideoHistoryOpen ? (
                   <HistorySuggestionsList
                     items={videoHistoryMatches}
+                    onClear={clearVideoHistory}
                     onSelect={(item) => {
                       setInputValue(item);
                       setIsVideoHistoryOpen(false);

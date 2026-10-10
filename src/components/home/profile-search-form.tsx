@@ -19,7 +19,7 @@ export function ProfileSearchForm({ size = "default" }: { size?: "default" | "co
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   const { pending, navigate, continueNavigation } = useAdGate();
-  const { history, addToHistory } = useInputHistory("profile-search-instagram");
+  const { history, addToHistory, clearHistory } = useInputHistory("profile-search-instagram");
   const { containerRef, isOpen, setIsOpen, matches } = useHistorySuggestions(history, value);
 
   function handleSubmit(event: React.FormEvent) {
@@ -73,6 +73,7 @@ export function ProfileSearchForm({ size = "default" }: { size?: "default" | "co
           {isOpen ? (
             <HistorySuggestionsList
               items={matches}
+              onClear={clearHistory}
               onSelect={(item) => {
                 setValue(item);
                 setIsOpen(false);

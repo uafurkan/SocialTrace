@@ -22,7 +22,7 @@ import { useInputHistory } from "@/lib/use-input-history";
 export function HeaderVideoSearchForm() {
   const [value, setValue] = useState("");
   const router = useRouter();
-  const { history, addToHistory } = useInputHistory("transcriber-url");
+  const { history, addToHistory, clearHistory } = useInputHistory("transcriber-url");
   const { containerRef, isOpen, setIsOpen, matches } = useHistorySuggestions(history, value);
 
   function handleSubmit(event: React.FormEvent) {
@@ -54,6 +54,7 @@ export function HeaderVideoSearchForm() {
         {isOpen ? (
           <HistorySuggestionsList
             items={matches}
+            onClear={clearHistory}
             onSelect={(item) => {
               setValue(item);
               setIsOpen(false);
