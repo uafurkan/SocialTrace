@@ -7,14 +7,11 @@ import type { Highlight } from "@/lib/domain/types";
 import { mediaDownloadUrl } from "@/lib/media-download-url";
 import { proxiedMediaUrl } from "@/lib/media-proxy";
 import { NotAvailable } from "@/components/profile/not-available";
+import { useViewerKeys } from "@/components/profile/use-viewer-keys";
 
 export function HighlightGrid({ highlights }: { highlights: Highlight[] }) {
   const [openHighlight, setOpenHighlight] = useState<number | null>(null);
   const [itemIndex, setItemIndex] = useState(0);
-
-  if (highlights.length === 0) {
-    return <NotAvailable detail="No saved highlights on this profile right now." />;
-  }
 
   const active = openHighlight !== null ? highlights[openHighlight] : null;
   const activeItem = active ? active.items[itemIndex] : null;
@@ -34,6 +31,17 @@ export function HighlightGrid({ highlights }: { highlights: Highlight[] }) {
     const next = itemIndex + delta;
     if (next < 0 || next >= active.items.length) return;
     setItemIndex(next);
+  }
+
+  useViewerKeys({
+    open: Boolean(activeItem),
+    onClose: close,
+    onPrevious: () => step(-1),
+    onNext: () => step(1),
+  });
+
+  if (highlights.length === 0) {
+    return <NotAvailable detail="No saved highlights on this profile right now." />;
   }
 
   return (
@@ -63,6 +71,7 @@ export function HighlightGrid({ highlights }: { highlights: Highlight[] }) {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
           role="dialog"
           aria-modal="true"
+          aria-label={`Highlight: ${active.title}`}
           onClick={close}
         >
           <div className="relative max-h-full max-w-sm" onClick={(e) => e.stopPropagation()}>
