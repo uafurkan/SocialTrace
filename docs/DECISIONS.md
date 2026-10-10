@@ -1563,3 +1563,85 @@ to a vendor's server, or collected non-public data, and no candidate with
 published source code could be verified as working logged out. The research
 did not install or run any extension. This is the research's finding; it was
 not re-run in this repo.
+
+## 2026-10-10 — WS-O: official APIs and licensed providers checked; Apify and Bright Data stay
+
+Question: can the paid Apify and Bright Data dependency for social profile
+data be reduced by an official API or a licensed provider, under the
+project rules? The research was web-only, from the WS-O decision note of the
+same date (kept outside the repo; this is its English summary). No code was
+written, no package installed, and no target site was called.
+
+Rules every option was checked against (plan section 1, as cited in the note):
+- no login, cookie or session data;
+- no private or undocumented endpoints;
+- no tracking of a third party's follower or following list;
+- no collection without the account's consent, where the option raises that question;
+- no server token sent to a client or a third party.
+
+Figures from vendor or review sites are marked **third-party, unverified**.
+Official-page figures are as recorded in the note and were not re-checked here.
+
+Options and verdicts:
+- **Instagram Graph API `business_discovery`: candidate, not adopted.**
+  Returns profile and media metrics for Business and Creator accounts only.
+  Per the note, it does not return follower or following lists, likers,
+  comment text, stories or highlights. It uses the site's own app token, not
+  a visitor's session. Open: it returns public business data without the
+  account's consent, the same class as the existing `web_profile_info` call.
+  Needs a Meta app, business verification and app review. The rate-limit
+  sources conflict (third-party, unverified). The next step is a proof of
+  concept (WS-O2), not product code.
+- **Instagram Basic Display API: closed.** Per the note, requests fail since
+  4 December 2024 (Meta changelog, not re-checked).
+- **Facebook Page Public Content Access: partial, deferred.** Page content
+  only, for analysing and displaying Page posts and engagement. Personal
+  profiles are out of scope. Needs App Review, business verification, and
+  possibly extra contracts (terms not priced).
+- **TikTok Research API: rejected.** Eligibility is academic or non-profit,
+  non-commercial research. This site earns from ads (`docs/ADS.md`). It also
+  exposes follower and following lists, which the rules exclude. The
+  1,000-per-day rate limit is third-party, unverified.
+- **Meta Content Library: rejected.** Academic or non-profit research only.
+  The Product Terms were not read.
+- **YouTube Data API v3: not adopted.** Official and free: default quota is
+  10,000 units per day (official page, as recorded in the note). The note's
+  "eligible" verdict depends on a YouTube statistics feature, and the site has
+  none. A search of `src` finds no Data API call. YouTube is used only for
+  transcription (the captions fast-path in `src/lib/transcription/youtube-captions.ts`)
+  and for the username availability check, which fetches the public channel
+  page (`src/lib/username-availability/check.ts`). Revisit if a statistics
+  feature is planned.
+- **Brandwatch, Meltwater, Sprinklr: rejected, out of budget.** Third-party,
+  unverified prices: Brandwatch median about $50k a year; Meltwater median
+  about $25.8k a year (range $5.4k to $57k); Sprinklr $60k to $200k-plus a year.
+- **Phyllo, Modash, HypeAuditor: rejected for now.** Phyllo works through
+  creator OAuth: the creator connects their own account, so it cannot serve a
+  public profile a visitor chooses. Modash and HypeAuditor publish no API
+  pricing. Third-party, unverified prices (Modash $120 to $250 a month,
+  HypeAuditor from $299 a month, Phyllo from about $199 a month) conflict
+  between sources. Their data sources and legal basis are not confirmed in writing.
+
+What stays on Apify and Bright Data:
+- Apify: Instagram follower and following lists, stories, highlights, tagged
+  posts, likers, comments and reels; TikTok posts, followers and comments;
+  Facebook pages and posts; the video downloader used by the transcriber.
+- Bright Data: background warming of Instagram and Facebook profiles, and the
+  only source for LinkedIn profiles.
+- The free `web_profile_info` source is still tried first, as before.
+
+Open items (owner decisions and checks, none decided here):
+1. A Meta app, business verification, and a Business account owned by the
+   site, needed for WS-O2. The owner does these in their own name.
+2. The consent rule for `business_discovery` (see above).
+3. Whether a YouTube statistics feature is planned.
+4. A legal opinion on continuing Apify and Bright Data use. The note cites
+   Meta v. Bright Data (N.D. Cal., January 2024) and says its appeal status
+   is unverified. The note is not legal advice.
+5. Not verified: the `business_discovery` field list and rate limit; whether a
+   development-mode app returns data for a test account; Page Public Content
+   Access contract terms; current Meta and TikTok terms; YouTube
+   `search.list` cost (official pages conflict); the Phyllo, Modash and
+   HypeAuditor prices and sources; LinkedIn's official API status (not checked).
+6. WS-O2 (Instagram proof of concept) and WS-O3 (YouTube, only if the
+   feature is confirmed) are not started.
