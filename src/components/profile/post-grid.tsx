@@ -31,7 +31,7 @@ type HeaderSortKey = "likes" | "comments" | "date";
 
 export function PostGrid({ posts, platform = "instagram" }: { posts: Post[]; platform?: Platform }) {
   const [view, setView] = useState<"grid" | "list">("grid");
-  const [openPermalink, setOpenPermalink] = useState<string | null>(null);
+  const [openPost, setOpenPost] = useState<Post | null>(null);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<PostSort>(DEFAULT_POST_SORT);
   const [dateFrom, setDateFrom] = useState("");
@@ -221,7 +221,7 @@ export function PostGrid({ posts, platform = "instagram" }: { posts: Post[]; pla
               ) : null}
               <button
                 type="button"
-                onClick={() => setOpenPermalink(post.permalink)}
+                onClick={() => setOpenPost(post)}
                 disabled={!post.permalink}
                 className="absolute inset-x-0 bottom-0 flex items-center gap-3 bg-gradient-to-t from-black/60 to-transparent p-2 text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100"
                 title="View likers & comments"
@@ -273,7 +273,7 @@ export function PostGrid({ posts, platform = "instagram" }: { posts: Post[]; pla
                     {post.permalink ? (
                       <button
                         type="button"
-                        onClick={() => setOpenPermalink(post.permalink)}
+                        onClick={() => setOpenPost(post)}
                         className="text-primary hover:underline"
                         title="View likers"
                       >
@@ -287,7 +287,7 @@ export function PostGrid({ posts, platform = "instagram" }: { posts: Post[]; pla
                     {post.permalink ? (
                       <button
                         type="button"
-                        onClick={() => setOpenPermalink(post.permalink)}
+                        onClick={() => setOpenPost(post)}
                         className="text-primary hover:underline"
                         title="View comments"
                       >
@@ -316,8 +316,14 @@ export function PostGrid({ posts, platform = "instagram" }: { posts: Post[]; pla
         </div>
       )}
 
-      {openPermalink ? (
-        <PostEngagementModal key={openPermalink} permalink={openPermalink} platform={platform} onClose={() => setOpenPermalink(null)} />
+      {openPost ? (
+        <PostEngagementModal
+          key={openPost.permalink}
+          permalink={openPost.permalink}
+          postId={openPost.id}
+          platform={platform}
+          onClose={() => setOpenPost(null)}
+        />
       ) : null}
     </div>
   );

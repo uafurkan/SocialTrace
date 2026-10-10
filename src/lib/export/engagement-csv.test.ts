@@ -50,4 +50,31 @@ describe("engagementCsvFilename", () => {
       "socialtrace-instagram-a_20b-likers.csv",
     );
   });
+
+  it("uses the post id for the name when one is given, even if the permalink has no usable segment", () => {
+    expect(
+      engagementCsvFilename("facebook", "https://www.facebook.com/permalink.php?story_fbid=1&id=2", "likers", "123456789"),
+    ).toBe("socialtrace-facebook-123456789-likers.csv");
+  });
+
+  it("prefers the post id over the permalink segment", () => {
+    expect(engagementCsvFilename("instagram", "https://www.instagram.com/p/ABC123/", "comments", "3000001")).toBe(
+      "socialtrace-instagram-3000001-comments.csv",
+    );
+  });
+
+  it("falls back to the permalink when the post id is absent or blank", () => {
+    expect(engagementCsvFilename("instagram", "https://www.instagram.com/p/ABC123/", "likers", undefined)).toBe(
+      "socialtrace-instagram-ABC123-likers.csv",
+    );
+    expect(engagementCsvFilename("instagram", "https://www.instagram.com/p/ABC123/", "likers", "   ")).toBe(
+      "socialtrace-instagram-ABC123-likers.csv",
+    );
+  });
+
+  it("keeps the post fallback for a Facebook permalink.php link with no post id", () => {
+    expect(engagementCsvFilename("facebook", "https://www.facebook.com/permalink.php?story_fbid=1&id=2", "comments")).toBe(
+      "socialtrace-facebook-post-comments.csv",
+    );
+  });
 });

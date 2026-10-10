@@ -18,9 +18,14 @@ export function postKeyFromPermalink(permalink: string): string {
   }
 }
 
-/** Download name for one engagement list, e.g. socialtrace-instagram-ABC123-likers.csv. */
-export function engagementCsvFilename(platform: Platform, permalink: string, kind: EngagementListKind): string {
-  return sanitizeFilename(`socialtrace-${platform}-${postKeyFromPermalink(permalink)}-${kind}.csv`);
+/**
+ * Download name for one engagement list, e.g. socialtrace-instagram-ABC123-likers.csv.
+ * The post id is used when one is given; otherwise the key is read from the permalink.
+ */
+export function engagementCsvFilename(platform: Platform, permalink: string, kind: EngagementListKind, postId?: string): string {
+  const trimmedId = postId?.trim();
+  const postKey = trimmedId ? trimmedId : postKeyFromPermalink(permalink);
+  return sanitizeFilename(`socialtrace-${platform}-${postKey}-${kind}.csv`);
 }
 
 /**
