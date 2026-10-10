@@ -1,6 +1,7 @@
 import type { SocialUser } from "@/lib/domain/types";
+import { CHAIN_DEADLINE_MS } from "@/lib/cache/cold-budget";
 import { withDataCache } from "@/lib/cache/data-cache";
-import { runApifyActor } from "../client";
+import { APIFY_TIMEOUT_MS, runApifyActor } from "../client";
 
 const FOLLOWERS_ACTOR_ID = "clockworks~tiktok-followers-scraper";
 
@@ -22,12 +23,18 @@ export async function fetchApifyTikTokMembers(
   cap: number,
 ): Promise<SocialUser[]> {
   const items = await withDataCache(`members:${kind}:${username.toLowerCase()}`, async () => {
-    const result = (await runApifyActor(FOLLOWERS_ACTOR_ID, {
-      profiles: [username],
-      maxFollowersPerProfile: kind === "followers" ? cap : 0,
-      maxFollowingPerProfile: kind === "following" ? cap : 0,
-      shouldDownloadAvatars: false,
-    })) as TikTokConnectionItem[];
+    // One run, started first in the route's budget, so its wait is the chain budget.
+    // Stopping the wait leaves the run going and billed (see runApifyActor).
+    const result = (await runApifyActor(
+      FOLLOWERS_ACTOR_ID,
+      {
+        profiles: [username],
+        maxFollowersPerProfile: kind === "followers" ? cap : 0,
+        maxFollowingPerProfile: kind === "following" ? cap : 0,
+        shouldDownloadAvatars: false,
+      },
+      { timeoutMs: Math.min(APIFY_TIMEOUT_MS, CHAIN_DEADLINE_MS) },
+    )) as TikTokConnectionItem[];
     return Array.isArray(result) ? result : [];
   });
 

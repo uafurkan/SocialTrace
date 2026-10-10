@@ -3,7 +3,17 @@
  * provider needs (run an actor synchronously, get its dataset items back
  * in the response body), so no SDK dependency — see docs/PROVIDER_CONTRACT.md.
  */
-const APIFY_TIMEOUT_MS = 60_000;
+/** How long one actor call may wait when the caller does not say otherwise. */
+export const APIFY_TIMEOUT_MS = 60_000;
+
+export interface ActorRunOptions {
+  /**
+   * Longest this call may wait, counted from its start. The wait covers the
+   * run-slot queue, any concurrency retries and the HTTP request together.
+   * Defaults to APIFY_TIMEOUT_MS.
+   */
+  timeoutMs?: number;
+}
 
 export class ApifyActorError extends Error {
   constructor(
@@ -88,13 +98,28 @@ const MAX_CONCURRENT_ACTOR_RUNS = 4;
 let inFlightActorRuns = 0;
 const actorRunQueue: Array<() => void> = [];
 
-async function acquireActorRunSlot(): Promise<void> {
+/**
+ * Takes a run slot, waiting at most `timeoutMs`. A waiter that gives up leaves
+ * the queue, so it never takes a slot it will not use.
+ */
+function acquireActorRunSlot(actorId: string, timeoutMs: number): Promise<void> {
   if (inFlightActorRuns < MAX_CONCURRENT_ACTOR_RUNS) {
     inFlightActorRuns++;
-    return;
+    return Promise.resolve();
   }
-  await new Promise<void>((resolve) => actorRunQueue.push(resolve));
-  inFlightActorRuns++;
+  return new Promise<void>((resolve, reject) => {
+    const grant = () => {
+      clearTimeout(timer);
+      inFlightActorRuns++;
+      resolve();
+    };
+    const timer = setTimeout(() => {
+      const index = actorRunQueue.indexOf(grant);
+      if (index !== -1) actorRunQueue.splice(index, 1);
+      reject(new ApifyActorError(actorId, "timed out waiting for a free run slot"));
+    }, Math.max(0, timeoutMs));
+    actorRunQueue.push(grant);
+  });
 }
 
 function releaseActorRunSlot(): void {
@@ -105,17 +130,22 @@ function releaseActorRunSlot(): void {
 
 type ActorRunStatus = "ok" | "error" | "timeout";
 
-/** Our own APIFY_TIMEOUT_MS abort rejects the fetch with an AbortError. */
+/** Our own timeout abort rejects the fetch with an AbortError. */
 function isAbortError(error: unknown): boolean {
   return typeof error === "object" && error !== null && (error as { name?: unknown }).name === "AbortError";
 }
 
-async function runApifyActorOnce(actorId: string, input: Record<string, unknown>, token: string): Promise<unknown> {
+async function runApifyActorOnce(
+  actorId: string,
+  input: Record<string, unknown>,
+  token: string,
+  timeoutMs: number,
+): Promise<unknown> {
   // Token goes in the Authorization header, not the query string: URLs turn up
   // in logs and error reports, headers don't.
   const url = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items`;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), APIFY_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const res = await fetch(url, {
@@ -136,8 +166,22 @@ async function runApifyActorOnce(actorId: string, input: Record<string, unknown>
   }
 }
 
-/** Runs an Apify actor synchronously and returns its dataset items (raw, unnormalized). */
-export async function runApifyActor(actorId: string, input: Record<string, unknown>): Promise<unknown> {
+/**
+ * Runs an Apify actor synchronously and returns its dataset items (raw, unnormalized).
+ *
+ * `options.timeoutMs` bounds the whole call from its start: the wait for a run
+ * slot, any concurrency retries and the HTTP request. Past it the call rejects.
+ *
+ * Stopping the wait does not stop the Apify run. The run keeps going on Apify's
+ * side and is billed until it finishes. This wrapper reads only the dataset
+ * items from run-sync-get-dataset-items, so it never learns the run id and has
+ * nothing to abort. We do not try to cancel runs.
+ */
+export async function runApifyActor(
+  actorId: string,
+  input: Record<string, unknown>,
+  options: ActorRunOptions = {},
+): Promise<unknown> {
   const token = process.env.APIFY_API_TOKEN;
   if (!token) {
     throw new Error("APIFY_API_TOKEN is not set — required when SOCIAL_PROVIDER=apify.");
@@ -150,13 +194,21 @@ export async function runApifyActor(actorId: string, input: Record<string, unkno
     throw new ApifyActorError(actorId, "Monthly usage hard limit exceeded (cached — not retried)");
   }
 
-  await acquireActorRunSlot();
+  const timeoutMs = options.timeoutMs ?? APIFY_TIMEOUT_MS;
+  const deadlineAt = Date.now() + timeoutMs;
+  await acquireActorRunSlot(actorId, timeoutMs);
+  // Granted too late to start a run within the wait: give the slot back, and
+  // throw before the try below so no run line is logged for a run never started.
+  if (Date.now() >= deadlineAt) {
+    releaseActorRunSlot();
+    throw new ApifyActorError(actorId, "timed out waiting for a free run slot");
+  }
   const startedAt = Date.now();
   let status: ActorRunStatus = "ok";
   try {
     for (let attempt = 0; ; attempt++) {
       try {
-        const body = await runApifyActorOnce(actorId, input, token);
+        const body = await runApifyActorOnce(actorId, input, token, deadlineAt - Date.now());
         status = "ok";
         return body;
       } catch (error) {
@@ -169,7 +221,12 @@ export async function runApifyActor(actorId: string, input: Record<string, unkno
         if (!canRetry || !(error instanceof ApifyActorError) || !isConcurrencyLimitError(error.message)) {
           throw error;
         }
-        await sleep(CONCURRENCY_LIMIT_RETRY_DELAYS_MS[attempt]);
+        const delayMs = CONCURRENCY_LIMIT_RETRY_DELAYS_MS[attempt];
+        // A retry that cannot finish inside the caller's wait is not started.
+        if (deadlineAt - Date.now() <= delayMs) {
+          throw error;
+        }
+        await sleep(delayMs);
       }
     }
   } finally {

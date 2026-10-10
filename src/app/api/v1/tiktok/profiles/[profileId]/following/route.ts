@@ -4,6 +4,8 @@ import { ColdBudgetExceededError, createIpColdBudget, runWithColdBudget } from "
 import { getProvider } from "@/lib/providers";
 import { clientIdentifierFor } from "@/lib/rate-limit";
 
+// 60 s, equal to MEMBER_ROUTE_MAX_DURATION_S (cold-budget.ts; its test checks the match).
+// The single TikTok run is capped at CHAIN_DEADLINE_MS, leaving ROUTE_HEADROOM_MS for cache reads and writes.
 export const maxDuration = 60;
 
 function isValidProfileId(profileId: string): boolean {

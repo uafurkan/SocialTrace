@@ -1,9 +1,25 @@
 import type { SocialUser } from "@/lib/domain/types";
-import { CHAIN_DEADLINE_MS } from "@/lib/cache/cold-budget";
+import { CHAIN_DEADLINE_MS, MIN_RUN_WAIT_MS } from "@/lib/cache/cold-budget";
 import { withDataCache } from "@/lib/cache/data-cache";
-import { runApifyActor } from "./client";
+import { APIFY_TIMEOUT_MS, runApifyActor } from "./client";
 
 export type MemberKind = "followers" | "following";
+
+/** Runs one actor and resolves with its raw items. The run stops being waited on after `options.timeoutMs`. */
+export type ActorRun = (
+  actorId: string,
+  input: Record<string, unknown>,
+  options: { timeoutMs: number },
+) => Promise<unknown>;
+
+export interface MemberChainOptions {
+  /** Clock in ms. Defaults to Date.now; tests inject a fake. */
+  now?: () => number;
+  /** Runs one actor. Defaults to runApifyActor; tests inject a fake. */
+  run?: ActorRun;
+  /** Time limit for the whole chain. Defaults to CHAIN_DEADLINE_MS. */
+  budgetMs?: number;
+}
 
 interface ActorAttempt {
   actorId: string;
@@ -139,59 +155,88 @@ const ACTOR_CHAIN: ActorAttempt[] = [
   },
 ];
 
+/**
+ * Runs the actor chain for one list and returns the first usable answer.
+ *
+ * The chain has `budgetMs` from its start. Each run is given
+ * min(APIFY_TIMEOUT_MS, time left), so no wait runs past the budget, and no run
+ * starts with less than MIN_RUN_WAIT_MS left. The worst case is therefore the
+ * budget itself. A run that is cut off keeps running on Apify and is billed.
+ *
+ * Throws when the chain could not finish: an actor was skipped, or cut off by
+ * the budget, and none returned usable data. Nothing is cached then, and a
+ * stale row (if any) is still served. When every actor answered with nothing
+ * usable, or errored before the budget ran out, the answer is a real "no
+ * accessible members" result, and this returns [].
+ */
+export async function runMemberChain(
+  username: string,
+  kind: MemberKind,
+  limit: number,
+  options: MemberChainOptions = {},
+): Promise<SocialUser[]> {
+  const now = options.now ?? Date.now;
+  const run = options.run ?? runApifyActor;
+  const budgetMs = options.budgetMs ?? CHAIN_DEADLINE_MS;
+  const deadlineAt = now() + budgetMs;
+  const candidates = ACTOR_CHAIN.filter((actor) => !(actor.followersOnly && kind !== "followers"));
+  // Every actor reachable at all (even one returning a clean empty/error
+  // result, e.g. `{ error: "private_account" }` for a private profile) is
+  // a genuine "no accessible members" answer, not an infrastructure
+  // failure — only throw if every single actor call itself errored out.
+  let anyActorReachable = false;
+  // Set when an actor was skipped, or errored after the budget ran out. Its answer is unknown, not empty.
+  let cutShort = false;
+
+  for (const actor of candidates) {
+    const leftMs = deadlineAt - now();
+    if (leftMs < MIN_RUN_WAIT_MS) {
+      cutShort = true;
+      break;
+    }
+    try {
+      const raw = await run(actor.actorId, actor.buildInput(username, limit, kind), {
+        timeoutMs: Math.min(APIFY_TIMEOUT_MS, leftMs),
+      });
+      anyActorReachable = true;
+      // Observed live: at least one actor in this chain (coderx), when it
+      // can't actually access a private account's list, falls back to
+      // returning the queried account's own username as if it were a
+      // member of its own list, instead of a clean empty/error result.
+      // A real account is never its own follower/following — exclude it
+      // defensively regardless of which actor produces this.
+      const normalized = actor
+        .normalize(raw)
+        ?.filter((u) => u.username && u.username.toLowerCase() !== username.toLowerCase());
+      if (normalized && normalized.length > 0) {
+        return normalized;
+      }
+      console.warn(`[apify-provider] actor "${actor.actorId}" returned no usable ${kind} data for ${username}`);
+    } catch (err) {
+      if (deadlineAt - now() <= 0) {
+        cutShort = true;
+      }
+      console.warn(`[apify-provider] actor "${actor.actorId}" failed for ${username}:`, err);
+    }
+  }
+
+  // Cut short before every actor answered, so an empty result would be a guess
+  // that withDataCache caches for 48 hours. Throw instead: nothing is written.
+  if (cutShort) {
+    throw new Error(
+      `Member lookup for ${username} (${kind}) reached the ${budgetMs / 1000}s limit before any actor returned data.`,
+    );
+  }
+  if (anyActorReachable) {
+    return [];
+  }
+  throw new Error(`All follower/following actors failed for ${username} (${kind}).`);
+}
+
 export async function fetchMembers(username: string, kind: MemberKind, limit: number): Promise<SocialUser[]> {
   // The DB cache (see data-cache.ts) is what makes paginating/revisiting an
   // already-fetched list not re-run (and re-bill/re-wait-on) this whole
   // fallback chain — each candidate actor is its own ~10-60s call, so
   // trying several in sequence on a cache miss can genuinely take minutes.
-  return withDataCache(`members:${kind}:${username.toLowerCase()}`, async () => {
-    const candidates = ACTOR_CHAIN.filter((actor) => !(actor.followersOnly && kind !== "followers"));
-    // Every actor reachable at all (even one returning a clean empty/error
-    // result, e.g. `{ error: "private_account" }` for a private profile) is
-    // a genuine "no accessible members" answer, not an infrastructure
-    // failure — only throw if every single actor call itself errored out.
-    let anyActorReachable = false;
-    // Chain time limit: past it, no further actor is started. A run already in flight finishes.
-    const deadline = Date.now() + CHAIN_DEADLINE_MS;
-    let stoppedEarly = false;
-
-    for (const actor of candidates) {
-      if (Date.now() >= deadline) {
-        stoppedEarly = true;
-        break;
-      }
-      try {
-        const raw = await runApifyActor(actor.actorId, actor.buildInput(username, limit, kind));
-        anyActorReachable = true;
-        // Observed live: at least one actor in this chain (coderx), when it
-        // can't actually access a private account's list, falls back to
-        // returning the queried account's own username as if it were a
-        // member of its own list, instead of a clean empty/error result.
-        // A real account is never its own follower/following — exclude it
-        // defensively regardless of which actor produces this.
-        const normalized = actor
-          .normalize(raw)
-          ?.filter((u) => u.username && u.username.toLowerCase() !== username.toLowerCase());
-        if (normalized && normalized.length > 0) {
-          return normalized;
-        }
-        console.warn(`[apify-provider] actor "${actor.actorId}" returned no usable ${kind} data for ${username}`);
-      } catch (err) {
-        console.warn(`[apify-provider] actor "${actor.actorId}" failed for ${username}:`, err);
-      }
-    }
-
-    // Stopped before every actor ran, so an empty result would be a guess that
-    // withDataCache caches for 48 hours. Throw instead: nothing is written, and a
-    // stale row (if any) is still served.
-    if (stoppedEarly) {
-      throw new Error(
-        `Member lookup for ${username} (${kind}) reached the ${CHAIN_DEADLINE_MS / 1000}s limit before any actor returned data.`,
-      );
-    }
-    if (anyActorReachable) {
-      return [];
-    }
-    throw new Error(`All follower/following actors failed for ${username} (${kind}).`);
-  });
+  return withDataCache(`members:${kind}:${username.toLowerCase()}`, () => runMemberChain(username, kind, limit));
 }

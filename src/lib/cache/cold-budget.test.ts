@@ -1,14 +1,46 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  CHAIN_DEADLINE_MS,
   ColdBudgetExceededError,
   chargeColdStart,
   createIpColdBudget,
   DeadlineExceededError,
+  MEMBER_ROUTE_MAX_DURATION_S,
+  MIN_RUN_WAIT_MS,
+  ROUTE_HEADROOM_MS,
   runWithColdBudget,
   withDeadline,
 } from "./cold-budget";
 import { withDataCache } from "./data-cache";
+
+const MEMBER_ROUTES = [
+  "src/app/api/v1/profiles/[profileId]/followers/route.ts",
+  "src/app/api/v1/profiles/[profileId]/following/route.ts",
+  "src/app/api/v1/tiktok/profiles/[profileId]/followers/route.ts",
+  "src/app/api/v1/tiktok/profiles/[profileId]/following/route.ts",
+];
+
+describe("member route budget", () => {
+  it("keeps the chain budget plus the headroom at the route limit, which is at most 60 s", () => {
+    expect(MEMBER_ROUTE_MAX_DURATION_S).toBeLessThanOrEqual(60);
+    expect(CHAIN_DEADLINE_MS + ROUTE_HEADROOM_MS).toBe(MEMBER_ROUTE_MAX_DURATION_S * 1000);
+    expect(MIN_RUN_WAIT_MS).toBeLessThan(CHAIN_DEADLINE_MS);
+  });
+
+  it.each(MEMBER_ROUTES)("%s exports the same maxDuration as the budget", (file) => {
+    const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+    const source = readFileSync(path.join(repoRoot, file), "utf8");
+    const match = /^export const maxDuration = (\d+);/m.exec(source);
+
+    expect(match).not.toBeNull();
+    expect(Number(match![1])).toBe(MEMBER_ROUTE_MAX_DURATION_S);
+  });
+});
 
 // In-memory stand-in for the provider_cache table, so withDataCache runs its real
 // hit, miss and stale paths without a database.
