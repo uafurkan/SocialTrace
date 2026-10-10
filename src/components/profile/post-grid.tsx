@@ -23,6 +23,7 @@ import {
 import { PostArchiveButton } from "@/components/profile/post-archive-button";
 import { PostEngagementModal } from "@/components/profile/post-engagement-modal";
 import { PostInsightsPanel } from "@/components/profile/post-insights";
+import { HashtagPanel } from "@/components/profile/hashtag-panel";
 
 type HeaderSortKey = "likes" | "comments" | "date";
 
@@ -85,6 +86,7 @@ export function PostGrid({ posts, platform = "instagram" }: { posts: Post[]; pla
   return (
     <div>
       <PostInsightsPanel insights={insights} />
+      <HashtagPanel posts={posts} />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="relative min-w-48 max-w-sm flex-1">
