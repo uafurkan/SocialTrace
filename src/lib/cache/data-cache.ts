@@ -30,20 +30,60 @@ const HOUR_MS = 60 * 60 * 1000;
  * - linkedin-profile has no free/Apify fallback at all (Bright Data only,
  *   ~15-50s per lookup) and LinkedIn profiles change slowly, so it gets a
  *   long window to avoid re-spending Bright Data quota on repeat lookups.
+ * - members:<kind>:<username> (follower and following lists, both platforms)
+ *   is the key family the follower routes actually write. It used to fall
+ *   through to the 6h default because the TTL table only had the bare
+ *   `followers` / `following` names, which no key starts with. The key
+ *   format is unchanged on purpose: renaming it would miss every row cached
+ *   today.
+ * - engagement:* (likers and comments of one post) change slowly and each
+ *   miss is a full Apify actor run, so they get a fixed 6h window.
  */
 export const RESOURCE_CACHE_TTL_MS = {
   posts: DATA_CACHE_TTL_MS,
   reels: DATA_CACHE_TTL_MS,
   followers: 48 * HOUR_MS,
   following: 48 * HOUR_MS,
+  members: 48 * HOUR_MS,
   stories: 1 * HOUR_MS,
   "linkedin-profile": 24 * HOUR_MS,
+  engagement: 6 * HOUR_MS,
 } as const;
 
-/** Picks the TTL for a `resource:profileId` cache key, falling back to the global default. */
+/**
+ * Picks the TTL for a `resource:...` cache key, falling back to the global
+ * default. Only the text before the first colon is the resource, and it is
+ * looked up as an own property: a plain index would let a key such as
+ * `constructor:x` pick up Object.prototype members as a TTL.
+ */
 export function ttlForCacheKey(cacheKey: string): number {
-  const resource = cacheKey.split(":")[0] as keyof typeof RESOURCE_CACHE_TTL_MS;
-  return RESOURCE_CACHE_TTL_MS[resource] ?? DATA_CACHE_TTL_MS;
+  const resource = cacheKey.split(":")[0];
+  if (!Object.prototype.hasOwnProperty.call(RESOURCE_CACHE_TTL_MS, resource)) {
+    return DATA_CACHE_TTL_MS;
+  }
+  return RESOURCE_CACHE_TTL_MS[resource as keyof typeof RESOURCE_CACHE_TTL_MS];
+}
+
+/**
+ * Actor-run sizes for post lists. A cached list only answers requests it is
+ * large enough to cover, so the cache key carries the smallest bucket that
+ * covers the requested limit. Each bucket is exactly one actor run, so the
+ * same profile asked for 24 and then for 100 costs two runs, not a silently
+ * short answer from the first one.
+ */
+export const POST_SIZE_BUCKETS = [24, 50, 100] as const;
+
+/** Smallest bucket that covers `limit`; anything above the largest bucket maps to the largest. */
+export function postsSizeBucket(limit: number): number {
+  for (const bucket of POST_SIZE_BUCKETS) {
+    if (limit <= bucket) return bucket;
+  }
+  return POST_SIZE_BUCKETS[POST_SIZE_BUCKETS.length - 1];
+}
+
+/** `posts:<profileId>:b<bucket>`, e.g. `posts:profile_nike:b24`. */
+export function postsCacheKey(profileId: string, limit: number): string {
+  return `posts:${profileId}:b${postsSizeBucket(limit)}`;
 }
 
 async function readCache(cacheKey: string) {

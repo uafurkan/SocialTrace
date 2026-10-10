@@ -21,6 +21,26 @@ import { ProfileNotFoundError } from "@/lib/providers/types";
 
 export const PROFILE_CACHE_TTL_MS = (Number(process.env.PROFILE_CACHE_TTL_HOURS) || 6) * 60 * 60 * 1000;
 
+/**
+ * How long a "this profile does not exist" answer is reused. Short on purpose:
+ * accounts get created, and a provider can report a missing profile during a
+ * block. An hour stops a dead handle from billing on every lookup without
+ * hiding a newly created account for long.
+ */
+export const NOT_FOUND_TTL_MS = 60 * 60 * 1000;
+
+/**
+ * Stored in the same `profile_cache` row as a profile, in place of one, after
+ * a confirmed ProfileNotFoundError. It has no `notFound` field a real Profile
+ * could carry, so it cannot be mistaken for profile data.
+ */
+const NOT_FOUND_MARKER = { notFound: true } as const;
+type NotFoundMarker = typeof NOT_FOUND_MARKER;
+
+function isNotFoundMarker(data: unknown): boolean {
+  return typeof data === "object" && data !== null && (data as { notFound?: unknown }).notFound === true;
+}
+
 export function isFresh(fetchedAt: Date, now: Date, ttlMs: number): boolean {
   return now.getTime() - fetchedAt.getTime() < ttlMs;
 }
@@ -59,26 +79,44 @@ export async function writeCachedProfile(platform: Platform, username: string, p
   await writeCache(platform, normalizeUsername(username), profile);
 }
 
-async function writeCache(platform: Platform, normalizedUsername: string, profile: Profile) {
+async function writeCache(platform: Platform, normalizedUsername: string, data: Profile | NotFoundMarker) {
   const db = getDb();
   await db
     .insert(schema.profileCache)
     .values({
       platform,
       normalizedUsername,
-      data: profile,
+      data,
       fetchedAt: new Date(),
     })
     .onConflictDoUpdate({
       target: [schema.profileCache.platform, schema.profileCache.normalizedUsername],
-      set: { data: profile, fetchedAt: new Date() },
+      set: { data, fetchedAt: new Date() },
     });
+}
+
+/**
+ * Best-effort: a failed marker write must not hide the ProfileNotFoundError
+ * the caller is about to receive, and the cost of losing it is one extra
+ * provider call on the next lookup.
+ */
+async function writeNotFoundMarker(platform: Platform, normalizedUsername: string) {
+  try {
+    await writeCache(platform, normalizedUsername, NOT_FOUND_MARKER);
+  } catch (error) {
+    console.error(`[profile-cache] failed to write not-found marker for ${platform}/${normalizedUsername}`, error);
+  }
 }
 
 /**
  * Same return shape/errors as `provider.getProfile` — callers that only
  * cared about `{ profile }` don't need to change. `platform` defaults to
  * "instagram" so every pre-existing call site keeps working unchanged.
+ *
+ * A ProfileNotFoundError from the provider is stored as a 1-hour marker under
+ * the same key, and a fresh marker is re-thrown without calling the provider.
+ * Transient errors store nothing. This only applies when a database is
+ * configured; without one the provider is called directly every time.
  */
 export async function getCachedProfile(username: string, platform: Platform = "instagram"): Promise<{ profile: Profile }> {
   const provider = getProvider(platform);
@@ -88,7 +126,14 @@ export async function getCachedProfile(username: string, platform: Platform = "i
 
   const normalizedUsername = normalizeUsername(username);
   const cached = await readCache(platform, normalizedUsername);
-  if (cached && isFresh(cached.fetchedAt, new Date(), PROFILE_CACHE_TTL_MS)) {
+  const now = new Date();
+  if (cached && isNotFoundMarker(cached.data)) {
+    // An expired marker falls through to a real lookup. It is never returned
+    // as a profile, and never served as stale data below.
+    if (isFresh(cached.fetchedAt, now, NOT_FOUND_TTL_MS)) {
+      throw new ProfileNotFoundError(username);
+    }
+  } else if (cached && isFresh(cached.fetchedAt, now, PROFILE_CACHE_TTL_MS)) {
     return { profile: cached.data as Profile };
   }
 
@@ -97,6 +142,10 @@ export async function getCachedProfile(username: string, platform: Platform = "i
     await writeCache(platform, normalizedUsername, result.profile);
     return result;
   } catch (error) {
+    if (error instanceof ProfileNotFoundError) {
+      await writeNotFoundMarker(platform, normalizedUsername);
+      throw error;
+    }
     // Last known good. An expired row used to be discarded outright, which
     // meant that when the provider was unreachable — an exhausted Apify quota,
     // an actor outage — a profile we had successfully fetched a hundred times
@@ -105,10 +154,11 @@ export async function getCachedProfile(username: string, platform: Platform = "i
     // carries the original fetch time and `CoverageBadge` already renders it,
     // so the page says exactly how old this is without any UI change.
     //
-    // ProfileNotFoundError is deliberately *not* caught here — "this profile
+    // ProfileNotFoundError is deliberately *not* served stale — "this profile
     // does not exist" is a real answer about the profile, not a source
-    // failure, and must not be papered over with a stale row.
-    if (cached && !(error instanceof ProfileNotFoundError)) {
+    // failure, and must not be papered over with a stale row. An expired
+    // not-found marker is not a profile either, so it is never returned here.
+    if (cached && !isNotFoundMarker(cached.data)) {
       console.warn(
         `[profile-cache] serving stale ${platform}/${normalizedUsername} (fetched ${cached.fetchedAt.toISOString()}) — provider unavailable:`,
         error instanceof Error ? error.message : error,

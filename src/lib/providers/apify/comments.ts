@@ -1,4 +1,5 @@
 import type { Comment } from "@/lib/domain/types";
+import { withDataCache } from "@/lib/cache/data-cache";
 import { runApifyActor } from "./client";
 import { toPostedAt } from "../post-date";
 
@@ -21,17 +22,20 @@ interface ApifyCommentItem {
   owner?: { is_verified?: boolean };
 }
 
+/** Cached per (platform, permalink, limit) for the engagement TTL; see likers.ts for why. */
 export async function fetchApifyComments(permalink: string, limit = DEFAULT_LIMIT): Promise<Comment[]> {
-  const raw = await runApifyActor(COMMENTS_ACTOR_ID, { directUrls: [permalink], resultsLimit: limit });
-  if (!Array.isArray(raw)) return [];
+  return withDataCache(`engagement:comments:instagram:${permalink}:${limit}`, async () => {
+    const raw = await runApifyActor(COMMENTS_ACTOR_ID, { directUrls: [permalink], resultsLimit: limit });
+    if (!Array.isArray(raw)) return [];
 
-  return (raw as ApifyCommentItem[]).slice(0, limit).map((item, index) => ({
-    id: item.id ?? `${permalink}_comment_${index}`,
-    authorUsername: item.ownerUsername ?? "unknown",
-    authorAvatarUrl: item.ownerProfilePicUrl ?? "",
-    authorIsVerified: item.owner?.is_verified ?? false,
-    text: item.text ?? "",
-    likeCount: item.likesCount ?? 0,
-    postedAt: toPostedAt(item.timestamp),
-  }));
+    return (raw as ApifyCommentItem[]).slice(0, limit).map((item, index) => ({
+      id: item.id ?? `${permalink}_comment_${index}`,
+      authorUsername: item.ownerUsername ?? "unknown",
+      authorAvatarUrl: item.ownerProfilePicUrl ?? "",
+      authorIsVerified: item.owner?.is_verified ?? false,
+      text: item.text ?? "",
+      likeCount: item.likesCount ?? 0,
+      postedAt: toPostedAt(item.timestamp),
+    }));
+  });
 }

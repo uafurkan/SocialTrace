@@ -1,5 +1,5 @@
 import type { Post } from "@/lib/domain/types";
-import { withDataCache } from "@/lib/cache/data-cache";
+import { postsCacheKey, postsSizeBucket, withDataCache } from "@/lib/cache/data-cache";
 import { runApifyActor } from "../client";
 import { toPostedAt } from "../../post-date";
 
@@ -22,12 +22,17 @@ interface TikTokVideoItem {
  * way Instagram has photo posts vs. reels, so this feeds both `getPosts`
  * and `getReels` in index.ts (capabilities.reels is set false there
  * instead, since a duplicate tab would just show the same list twice).
+ *
+ * The actor runs at the size bucket covering `limit` (see postsSizeBucket),
+ * and the cache is keyed by that bucket. The whole bucket is returned, not
+ * cut to `limit`, so the caller's paginate() still sees every cached item
+ * when it computes the next cursor.
  */
 export async function fetchApifyTikTokPosts(username: string, profileId: string, limit: number): Promise<Post[]> {
-  const items = await withDataCache(`posts:${profileId}`, async () => {
+  const items = await withDataCache(postsCacheKey(profileId, limit), async () => {
     const result = (await runApifyActor(PROFILE_ACTOR_ID, {
       profiles: [username],
-      resultsPerPage: limit,
+      resultsPerPage: postsSizeBucket(limit),
       shouldDownloadVideos: false,
       shouldDownloadCovers: false,
       shouldDownloadSubtitles: false,

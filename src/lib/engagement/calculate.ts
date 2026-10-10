@@ -46,13 +46,14 @@ function asEngagementError(error: unknown, platform: Platform, username: string)
 export async function calculateEngagement(platform: Platform, username: string): Promise<EngagementResult> {
   const provider = getProvider(platform);
 
-  // Goes through the cache rather than straight to the provider: this used to
-  // re-fetch on every calculation, so two visitors checking the same profile
-  // paid for it twice. The cache also carries the last-known-good fallback, so
+  // Goes through the cache on every platform rather than straight to the
+  // provider: this used to re-fetch on every calculation, so two visitors
+  // checking the same profile paid for it twice (TikTok and Facebook were
+  // skipped entirely). The cache also carries the last-known-good fallback, so
   // a provider outage degrades to slightly stale numbers instead of an error.
   let profileResult;
   try {
-    profileResult = platform === "instagram" ? await getCachedProfile(username, platform) : await provider.getProfile(username);
+    profileResult = await getCachedProfile(username, platform);
   } catch (error) {
     throw asEngagementError(error, platform, username);
   }

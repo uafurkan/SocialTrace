@@ -1,4 +1,5 @@
 import type { Comment } from "@/lib/domain/types";
+import { withDataCache } from "@/lib/cache/data-cache";
 import { runApifyActor } from "../client";
 import { toPostedAt } from "../../post-date";
 
@@ -13,22 +14,25 @@ interface TikTokCommentItem {
   createTimeISO?: string;
 }
 
+/** Cached per (platform, permalink, limit) for the engagement TTL; see apify/likers.ts for why. */
 export async function fetchApifyTikTokComments(permalink: string, limit = 50): Promise<Comment[]> {
-  const items = (await runApifyActor(COMMENTS_ACTOR_ID, {
-    postURLs: [permalink],
-    commentsPerPost: limit,
-    maxRepliesPerComment: 0,
-  })) as TikTokCommentItem[];
+  return withDataCache(`engagement:comments:tiktok:${permalink}:${limit}`, async () => {
+    const items = (await runApifyActor(COMMENTS_ACTOR_ID, {
+      postURLs: [permalink],
+      commentsPerPost: limit,
+      maxRepliesPerComment: 0,
+    })) as TikTokCommentItem[];
 
-  if (!Array.isArray(items)) return [];
+    if (!Array.isArray(items)) return [];
 
-  return items.map((item, i) => ({
-    id: item.cid ?? `comment_${i}`,
-    authorUsername: item.uniqueId ?? "",
-    authorAvatarUrl: item.avatarThumbnail ?? "",
-    authorIsVerified: false,
-    text: item.text ?? "",
-    likeCount: item.diggCount ?? 0,
-    postedAt: toPostedAt(item.createTimeISO),
-  }));
+    return items.map((item, i) => ({
+      id: item.cid ?? `comment_${i}`,
+      authorUsername: item.uniqueId ?? "",
+      authorAvatarUrl: item.avatarThumbnail ?? "",
+      authorIsVerified: false,
+      text: item.text ?? "",
+      likeCount: item.diggCount ?? 0,
+      postedAt: toPostedAt(item.createTimeISO),
+    }));
+  });
 }

@@ -1,5 +1,5 @@
 import type { Post } from "@/lib/domain/types";
-import { withDataCache } from "@/lib/cache/data-cache";
+import { postsCacheKey, postsSizeBucket, withDataCache } from "@/lib/cache/data-cache";
 import { runApifyActor } from "../client";
 import { toPostedAt } from "../../post-date";
 
@@ -23,11 +23,17 @@ interface FacebookPostItem {
  * Instagram/TikTok, so `mediaUrl` here is that permalink, not a raw media
  * file. The profile page's download button is hidden for Facebook posts
  * accordingly (honest gap, not a broken download).
+ *
+ * Same size-bucket rule as the TikTok fetcher: the actor runs at the bucket
+ * covering `limit`, and the whole bucket is returned for paginate().
  */
 export async function fetchApifyFacebookPosts(usernameOrUrl: string, profileId: string, limit: number): Promise<Post[]> {
   const url = usernameOrUrl.startsWith("http") ? usernameOrUrl : `https://www.facebook.com/${usernameOrUrl}`;
-  const items = await withDataCache(`posts:${profileId}`, async () => {
-    const result = (await runApifyActor(POSTS_ACTOR_ID, { startUrls: [{ url }], resultsLimit: limit })) as FacebookPostItem[];
+  const items = await withDataCache(postsCacheKey(profileId, limit), async () => {
+    const result = (await runApifyActor(POSTS_ACTOR_ID, {
+      startUrls: [{ url }],
+      resultsLimit: postsSizeBucket(limit),
+    })) as FacebookPostItem[];
     return Array.isArray(result) ? result : [];
   });
 

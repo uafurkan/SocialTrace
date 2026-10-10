@@ -1,4 +1,5 @@
 import type { Post, Profile, SocialUser } from "@/lib/domain/types";
+import { getCachedProfile } from "@/lib/cache/profile-cache";
 import { provider } from "@/lib/providers";
 import { collectPages } from "@/lib/providers/collect";
 
@@ -23,7 +24,9 @@ export interface ExportBundle {
 }
 
 export async function buildExportBundle(username: string): Promise<ExportBundle> {
-  const { profile } = await provider.getProfile(username);
+  // Same cached profile path as every other profile lookup, so a repeat export
+  // of the same account inside the profile TTL does not bill the profile call.
+  const { profile } = await getCachedProfile(username);
   const [posts, reels, followers, following] = await Promise.all([
     collectPages((cursor) => provider.getPosts(profile.id, cursor, PAGE_SIZE), EXPORT_LIST_LIMIT),
     collectPages((cursor) => provider.getReels(profile.id, cursor, PAGE_SIZE), EXPORT_LIST_LIMIT),
