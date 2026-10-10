@@ -7,6 +7,7 @@ import type { Story } from "@/lib/domain/types";
 import { mediaDownloadUrl } from "@/lib/media-download-url";
 import { proxiedMediaUrl } from "@/lib/media-proxy";
 import { NotAvailable } from "@/components/profile/not-available";
+import { useViewerKeys } from "@/components/profile/use-viewer-keys";
 
 function timeLeft(expiresAt: string): string {
   const ms = new Date(expiresAt).getTime() - Date.now();
@@ -18,6 +19,13 @@ function timeLeft(expiresAt: string): string {
 
 export function StoryStrip({ stories }: { stories: Story[] }) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
+
+  useViewerKeys({
+    open: openIndex !== null,
+    onClose: () => setOpenIndex(null),
+    onPrevious: () => setOpenIndex((i) => (i !== null && i > 0 ? i - 1 : i)),
+    onNext: () => setOpenIndex((i) => (i !== null && i < stories.length - 1 ? i + 1 : i)),
+  });
 
   if (stories.length === 0) {
     return <NotAvailable detail="No active stories right now — stories disappear after 24 hours, so there's honestly nothing to show at this moment." />;
@@ -51,6 +59,7 @@ export function StoryStrip({ stories }: { stories: Story[] }) {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
           role="dialog"
           aria-modal="true"
+          aria-label="Story viewer"
           onClick={() => setOpenIndex(null)}
         >
           <div className="relative max-h-full max-w-sm" onClick={(e) => e.stopPropagation()}>
