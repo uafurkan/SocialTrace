@@ -7,10 +7,11 @@ const KINDS = ["follower", "following"] as const;
 type Kind = (typeof KINDS)[number];
 
 /**
- * Read-only: comparisons are computed on demand from the memberships
- * table's history columns (see src/lib/diff/compare.ts), not stored.
- * `profileId` in the path is unused for lookup, kept for consistency with
- * the other /profiles/[profileId]/* routes.
+ * Read-only, count-only: the response carries each snapshot's counts, the
+ * count change for `kind`, and profile-field changes between the two
+ * snapshots (see src/lib/diff/compare.ts). It never includes member
+ * identities or a who-joined/who-left list. `profileId` in the path is unused
+ * for lookup, kept for consistency with the other /profiles/[profileId]/* routes.
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);

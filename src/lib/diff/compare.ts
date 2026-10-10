@@ -1,114 +1,102 @@
-import { and, eq, gt, isNull, lte, or } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull } from "drizzle-orm";
 
-import type { SocialUser } from "@/lib/domain/types";
 import { getDb, schema } from "@/lib/db";
-import { DIFF_COVERAGE_THRESHOLD, normalizeUsername } from "@/lib/snapshot/capture";
+import { normalizeUsername } from "@/lib/snapshot/capture";
 
 /**
- * Spec §23 Follower Comparison — pick two (not necessarily consecutive)
- * snapshots and see who was gained/lost between them. Unlike the capture-time
- * change events (previous snapshot -> latest, profile fields only), this reads
- * membership state as of an arbitrary past moment from the memberships table's
- * first_seen_at/removed_at columns: a social_user counts as "active as of
- * time T" if first_seen_at <= T and (removed_at is null or removed_at > T).
+ * Spec §23 Follower Comparison, count-only. Pick two snapshots of a profile
+ * (not necessarily consecutive) and see how the profile's own counts moved
+ * between them, plus the profile-field changes captured in that window.
  *
- * Nothing in src writes those columns any more. Snapshot capture stopped
- * storing follower identities (src/lib/snapshot/capture.ts), so this only
- * reads rows that earlier captures left. New snapshots record member coverage
- * as 0, which fails the coverage gate in compareSnapshots, so their comparisons
- * report unavailable rather than inferring membership.
+ * No member identities are read or returned. Snapshot capture stores no
+ * follower or following accounts (src/lib/snapshot/capture.ts), so there is
+ * no who-joined or who-left list to compare, and the memberships table is
+ * never consulted.
  */
-export interface FollowerComparisonSnapshot {
+
+export type ComparisonKind = "follower" | "following";
+
+type SnapshotRow = Pick<
+  typeof schema.profileSnapshots.$inferSelect,
+  "id" | "capturedAt" | "followerCount" | "followingCount" | "postCount"
+>;
+
+export interface ComparisonSnapshot {
   id: string;
   capturedAt: string;
-  coveragePercent: number;
+  followerCount: number;
+  followingCount: number;
+  postCount: number;
+}
+
+export interface ProfileFieldChange {
+  field: string;
+  oldValue: string | null;
+  newValue: string | null;
+  detectedAt: string;
 }
 
 export interface FollowerComparisonResult {
-  available: boolean;
-  reason: string | null;
-  from: FollowerComparisonSnapshot;
-  to: FollowerComparisonSnapshot;
-  newMembers: SocialUser[];
-  removedMembers: SocialUser[];
-  netChange: number;
+  kind: ComparisonKind;
+  /** The older of the two snapshots, regardless of which the caller labeled "from". */
+  from: ComparisonSnapshot;
+  /** The newer of the two snapshots. */
+  to: ComparisonSnapshot;
+  /** Change in the requested dataset's count from `from` to `to`; negative when it fell. */
+  countChange: number;
+  /** Profile-field changes captured after `from`, up to and including `to`, oldest first. */
+  fieldChanges: ProfileFieldChange[];
 }
 
-async function activeMembersAsOf(
-  db: ReturnType<typeof getDb>,
-  profileId: string,
-  kind: "follower" | "following",
-  asOf: Date,
-): Promise<Map<string, SocialUser>> {
-  const rows = await db
-    .select({
-      id: schema.socialUsers.id,
-      username: schema.socialUsers.username,
-      displayName: schema.socialUsers.displayName,
-      avatarUrl: schema.socialUsers.avatarUrl,
-      isVerified: schema.socialUsers.isVerified,
-    })
-    .from(schema.memberships)
-    .innerJoin(schema.socialUsers, eq(schema.memberships.socialUserId, schema.socialUsers.id))
-    .where(
-      and(
-        eq(schema.memberships.profileId, profileId),
-        eq(schema.memberships.kind, kind),
-        lte(schema.memberships.firstSeenAt, asOf),
-        or(isNull(schema.memberships.removedAt), gt(schema.memberships.removedAt, asOf)),
-      ),
-    );
-  return new Map(
-    rows.map((row) => [
-      row.id,
-      { id: row.id, platform: "instagram" as const, username: row.username, displayName: row.displayName, avatarUrl: row.avatarUrl, isVerified: row.isVerified },
-    ]),
-  );
+function countOf(snapshot: Pick<SnapshotRow, "followerCount" | "followingCount">, kind: ComparisonKind): number {
+  return kind === "follower" ? snapshot.followerCount : snapshot.followingCount;
 }
 
-function coverageOf(snapshot: typeof schema.profileSnapshots.$inferSelect, kind: "follower" | "following"): number {
-  return Number(kind === "follower" ? snapshot.followerCoveragePercent : snapshot.followingCoveragePercent);
+/** Copies only the count fields, so nothing else on the stored row reaches a response. */
+function toComparisonSnapshot(row: SnapshotRow): ComparisonSnapshot {
+  return {
+    id: row.id,
+    capturedAt: row.capturedAt.toISOString(),
+    followerCount: row.followerCount,
+    followingCount: row.followingCount,
+    postCount: row.postCount,
+  };
 }
 
-export interface CoverageGateResult {
-  available: boolean;
-  reason: string | null;
+/**
+ * Ids of the snapshots captured after `older` and no later than `newer`. A
+ * profile-field change is written at the capture that observed it, so these
+ * are the captures whose changes fall between the two snapshots.
+ */
+export function snapshotIdsInWindow(
+  snapshots: ReadonlyArray<Pick<SnapshotRow, "id" | "capturedAt">>,
+  older: Date,
+  newer: Date,
+): string[] {
+  return snapshots
+    .filter((row) => row.capturedAt.getTime() > older.getTime() && row.capturedAt.getTime() <= newer.getTime())
+    .map((row) => row.id);
 }
 
-/** Pure spec §20 gate: both sides of a comparison must clear the coverage threshold. */
-export function evaluateCoverageGate(
-  kind: "follower" | "following",
-  fromCoveragePercent: number,
-  toCoveragePercent: number,
-): CoverageGateResult {
-  if (fromCoveragePercent < DIFF_COVERAGE_THRESHOLD || toCoveragePercent < DIFF_COVERAGE_THRESHOLD) {
-    return {
-      available: false,
-      reason: `Comparison unavailable: both snapshots need at least ${DIFF_COVERAGE_THRESHOLD}% ${kind} coverage to reliably tell who was gained or lost (spec §20's rule against inferring removal from a partial capture).`,
-    };
-  }
-  return { available: true, reason: null };
-}
-
-export interface MembershipDiff {
-  newMembers: SocialUser[];
-  removedMembers: SocialUser[];
-  netChange: number;
-}
-
-/** Pure reconciliation: who's in `newer` but not `older`, and vice versa. */
-export function diffActiveMembers(
-  olderActive: Map<string, SocialUser>,
-  newerActive: Map<string, SocialUser>,
-): MembershipDiff {
-  const newMembers = [...newerActive.values()].filter((user) => !olderActive.has(user.id));
-  const removedMembers = [...olderActive.values()].filter((user) => !newerActive.has(user.id));
-  return { newMembers, removedMembers, netChange: newMembers.length - removedMembers.length };
+/** Pure: builds the count-only comparison from two snapshot rows already ordered older -> newer. */
+export function buildFollowerComparison(
+  kind: ComparisonKind,
+  older: SnapshotRow,
+  newer: SnapshotRow,
+  fieldChanges: ProfileFieldChange[],
+): FollowerComparisonResult {
+  return {
+    kind,
+    from: toComparisonSnapshot(older),
+    to: toComparisonSnapshot(newer),
+    countChange: countOf(newer, kind) - countOf(older, kind),
+    fieldChanges,
+  };
 }
 
 export async function compareSnapshots(
   username: string,
-  kind: "follower" | "following",
+  kind: ComparisonKind,
   fromSnapshotId: string,
   toSnapshotId: string,
 ): Promise<FollowerComparisonResult | null> {
@@ -123,7 +111,13 @@ export async function compareSnapshots(
   if (!profileRow) return null;
 
   const snapshotRows = await db
-    .select()
+    .select({
+      id: schema.profileSnapshots.id,
+      capturedAt: schema.profileSnapshots.capturedAt,
+      followerCount: schema.profileSnapshots.followerCount,
+      followingCount: schema.profileSnapshots.followingCount,
+      postCount: schema.profileSnapshots.postCount,
+    })
     .from(schema.profileSnapshots)
     .where(eq(schema.profileSnapshots.profileId, profileRow.id));
   const byId = new Map(snapshotRows.map((row) => [row.id, row]));
@@ -132,28 +126,34 @@ export async function compareSnapshots(
   if (!fromRow || !toRow) return null;
 
   // Always compare older -> newer regardless of which the caller labeled from/to.
-  const [olderRow, newerRow] = fromRow.capturedAt <= toRow.capturedAt ? [fromRow, toRow] : [toRow, fromRow];
+  const [olderRow, newerRow] = fromRow.capturedAt.getTime() <= toRow.capturedAt.getTime() ? [fromRow, toRow] : [toRow, fromRow];
 
-  const from: FollowerComparisonSnapshot = {
-    id: olderRow.id,
-    capturedAt: olderRow.capturedAt.toISOString(),
-    coveragePercent: coverageOf(olderRow, kind),
-  };
-  const to: FollowerComparisonSnapshot = {
-    id: newerRow.id,
-    capturedAt: newerRow.capturedAt.toISOString(),
-    coveragePercent: coverageOf(newerRow, kind),
-  };
+  const windowIds = snapshotIdsInWindow(snapshotRows, olderRow.capturedAt, newerRow.capturedAt);
+  const fieldRows =
+    windowIds.length === 0
+      ? []
+      : await db
+          .select({
+            field: schema.changeEvents.field,
+            oldValue: schema.changeEvents.oldValue,
+            newValue: schema.changeEvents.newValue,
+            detectedAt: schema.changeEvents.detectedAt,
+          })
+          .from(schema.changeEvents)
+          .where(
+            and(
+              eq(schema.changeEvents.profileId, profileRow.id),
+              isNotNull(schema.changeEvents.field),
+              inArray(schema.changeEvents.toSnapshotId, windowIds),
+            ),
+          )
+          .orderBy(asc(schema.changeEvents.detectedAt));
 
-  const gate = evaluateCoverageGate(kind, from.coveragePercent, to.coveragePercent);
-  if (!gate.available) {
-    return { ...gate, from, to, newMembers: [], removedMembers: [], netChange: 0 };
-  }
+  const fieldChanges = fieldRows.flatMap((row): ProfileFieldChange[] =>
+    row.field === null
+      ? []
+      : [{ field: row.field, oldValue: row.oldValue, newValue: row.newValue, detectedAt: row.detectedAt.toISOString() }],
+  );
 
-  const [olderActive, newerActive] = await Promise.all([
-    activeMembersAsOf(db, profileRow.id, kind, olderRow.capturedAt),
-    activeMembersAsOf(db, profileRow.id, kind, newerRow.capturedAt),
-  ]);
-
-  return { available: true, reason: null, from, to, ...diffActiveMembers(olderActive, newerActive) };
+  return buildFollowerComparison(kind, olderRow, newerRow, fieldChanges);
 }
