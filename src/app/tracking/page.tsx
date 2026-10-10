@@ -60,8 +60,9 @@ export default async function TrackingPage() {
             ) : null}
           </div>
           <p className="mt-1 text-sm text-secondary">
-            Searches you&apos;ve saved from a profile&apos;s Followers/Following tab. Shows new/removed matching
-            accounts between that profile&apos;s two most recent snapshots.
+            Searches you&apos;ve saved from a profile&apos;s Followers/Following tab. Each one compares that
+            profile&apos;s two most recent snapshots, but member comparisons are currently unavailable because new
+            snapshots do not record follower or following lists.
           </p>
           <div className="mt-4">
             <SavedSearchList searches={savedSearches} />

@@ -30,11 +30,13 @@ Accounts, billing, tracking and saved searches are not available in this version
     section: "Snapshots",
     title: "How snapshots work",
     description:
-      "A snapshot is one indexed pass of a profile at a moment in time — its counts, its follower/following lists, and how completely those lists were captured.",
+      "A snapshot is one recorded pass of a profile's public counts and profile fields at a moment in time. Snapshots do not record follower or following lists.",
     datePublished: "2026-09-04",
-    body: `A snapshot records the profile's counts and up to 500 follower and 500 following identities at the moment it runs. The 500-per-list cap is a real bound: for larger accounts the snapshot's follower list is genuinely partial, and the coverage badge shows exactly what fraction it captured.
+    body: `A snapshot records the profile's public counts and profile fields at the moment it runs. Each capture updates the stored profile row, writes one snapshot row, and records a change event for every profile field that differs from the stored row.
 
-Capture one from the History tab of any profile. Each snapshot writes its own row, plus membership rows for every identity it saw. Two consecutive snapshots' membership rows are what the diff engine reads.
+Snapshots do not record follower or following lists. Each one stores its indexed member counts and member coverage as 0, so no member list is claimed as captured. Comparisons that depend on member lists therefore report unavailable.
+
+Capture one from the History tab of any profile.
 
 There is no scheduler in this build. A profile you're tracking only gets a new snapshot when someone opens its History tab and captures one manually.`,
   },
@@ -43,9 +45,9 @@ There is no scheduler in this build. A profile you're tracking only gets a new s
     section: "Methodology",
     title: "What coverage means",
     description:
-      "Coverage is the fraction of a profile's real follower or following list that SocialTrace actually captured. Each list holds up to 500 accounts, so larger lists show partial coverage.",
+      "Coverage is the fraction of a profile's real follower or following list that SocialTrace actually captured. Follower and following lists are requested up to 200 accounts each, so larger lists show partial coverage.",
     datePublished: "2026-09-04",
-    body: `Coverage is not a quality score — it's a measurement. If a profile reports 12,400 followers and a snapshot captured 500 of them, the coverage badge reads 4% and shows both numbers: "Indexed 500 of 12,400 — Coverage 4%". Never 12,400 as if 500 were the whole set.
+    body: `Coverage is not a quality score — it's a measurement. If a profile reports 12,400 followers and SocialTrace captured 200 of them, the coverage badge reads 1.6% and shows both numbers: "Indexed 200 of 12,400 — Coverage 1.6%". Never 12,400 as if 200 were the whole set.
 
 Searching a list or exporting it only covers the part that was captured. A name that isn't in the captured part may simply be outside it, so check the coverage figure on the list before treating a missing name as a real absence.`,
   },
@@ -65,24 +67,22 @@ The tracking dashboard shows, per profile, the follower delta since its previous
     section: "Comparisons",
     title: "Comparing two snapshots",
     description:
-      "Pick any two snapshots and see who was gained or lost between them. Same coverage rule as the automatic diff.",
+      "Comparing two snapshots is currently limited. Member comparisons report unavailable, because snapshots no longer record follower or following lists.",
     datePublished: "2026-09-04",
-    body: `Open a profile's Compare snapshots view. It lists every snapshot the profile has, and lets you pick two — not just the most recent two. New members are accounts present in the newer snapshot but not the older one; removed members are the reverse.
+    body: `Open a profile's Compare snapshots view. It lists every snapshot the profile has and lets you pick two. The view is currently limited. The snapshots feature is switched off in this build, and snapshots no longer record follower or following lists: each new snapshot records member coverage as 0, so a comparison of two of them is withheld and reports unavailable rather than listing accounts that were gained or lost.
 
-The comparison is reconstructed from the membership table's own \`first_seen_at\` / \`removed_at\` columns, not from a per-snapshot log. That's why arbitrary snapshot pairs work, not only adjacent ones.
-
-Below 99.5% coverage on either side, the comparison is withheld and the page says so — for the same reason described in "What coverage means".`,
+This article does not promise a list of gained or lost members. Where a comparison is available, the coverage rule still applies: below 99.5% coverage on either side, the comparison is withheld and the page says so, for the same reason described in "What coverage means".`,
   },
   {
     slug: "saved-searches",
     section: "Comparisons",
     title: "Saved searches",
     description:
-      "Save a query over a profile's followers or following, and on future snapshots see how many matching accounts were gained or lost.",
+      "Save a query over a profile's followers or following. While snapshots record no member lists, the dashboard reports the comparison as unavailable instead of showing gained or lost matches.",
     datePublished: "2026-09-04",
     body: `On the Followers or Following page, type a search and click Save search. The query is stored against the current browser (same anonymous cookie as tracking) and appears on the \`/tracking\` dashboard under Saved searches.
 
-Between the profile's two most recent snapshots, the dashboard shows which matching accounts joined the list and which left. This is a filtered view of the same comparison reconstruction described above, not a separate mechanism, so the same coverage rule applies: below 99.5% coverage on either side, the dashboard says the comparison is unavailable rather than showing a number.`,
+The dashboard runs the comparison described in "Comparing two snapshots" between the profile's two most recent snapshots, and filters it by your query. Because snapshots currently record no member lists, that comparison is unavailable, and the dashboard shows the reason instead of which matching accounts joined or left. The coverage rule is unchanged: below 99.5% coverage on either side, the comparison is withheld rather than shown as a number.`,
   },
   {
     slug: "exports",
