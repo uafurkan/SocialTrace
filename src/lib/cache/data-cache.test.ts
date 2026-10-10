@@ -1,13 +1,25 @@
 import { describe, expect, it } from "vitest";
 
-import { DATA_CACHE_TTL_MS, RESOURCE_CACHE_TTL_MS, postsCacheKey, postsSizeBucket, ttlForCacheKey } from "./data-cache";
+import {
+  DATA_CACHE_TTL_MS,
+  MEMBER_LIST_CACHE_TTL_MS,
+  RESOURCE_CACHE_TTL_MS,
+  postsCacheKey,
+  postsSizeBucket,
+  ttlForCacheKey,
+} from "./data-cache";
 
 const HOUR_MS = 60 * 60 * 1000;
 
 describe("ttlForCacheKey", () => {
-  it("gives follower and following member lists the 48 hour window", () => {
-    expect(ttlForCacheKey("members:followers:x")).toBe(48 * HOUR_MS);
-    expect(ttlForCacheKey("members:following:some_user")).toBe(48 * HOUR_MS);
+  it("gives follower and following member lists the one hour window", () => {
+    expect(ttlForCacheKey("members:followers:x")).toBe(1 * HOUR_MS);
+    expect(ttlForCacheKey("members:following:some_user")).toBe(1 * HOUR_MS);
+  });
+
+  it("takes the member window from one constant of one hour", () => {
+    expect(MEMBER_LIST_CACHE_TTL_MS).toBe(3_600_000);
+    expect(RESOURCE_CACHE_TTL_MS.members).toBe(MEMBER_LIST_CACHE_TTL_MS);
   });
 
   it("keeps posts on the default window", () => {

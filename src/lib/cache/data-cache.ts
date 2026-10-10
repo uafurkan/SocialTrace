@@ -18,6 +18,12 @@ export const DATA_CACHE_TTL_MS = (Number(process.env.DATA_CACHE_TTL_HOURS) || 6)
 const HOUR_MS = 60 * 60 * 1000;
 
 /**
+ * How long a follower or following list stays cached, for both platforms. One
+ * constant, so changing the window (to 2 hours, say) is a one-line change.
+ */
+export const MEMBER_LIST_CACHE_TTL_MS = 1 * HOUR_MS;
+
+/**
  * Per-resource TTLs, because "how long is this still true?" genuinely differs
  * by resource and a single global window either wastes money on stable data or
  * serves expired data:
@@ -32,20 +38,19 @@ const HOUR_MS = 60 * 60 * 1000;
  *   ~15-50s per lookup) and LinkedIn profiles change slowly, so it gets a
  *   long window to avoid re-spending Bright Data quota on repeat lookups.
  * - members:<kind>:<username> (follower and following lists, both platforms)
- *   is the key family the follower routes actually write. It used to fall
- *   through to the 6h default because the TTL table only had the bare
- *   `followers` / `following` names, which no key starts with. The key
- *   format is unchanged on purpose: renaming it would miss every row cached
- *   today.
+ *   is the key family the follower routes actually write. It has its own
+ *   one-hour window (MEMBER_LIST_CACHE_TTL_MS), kept short because these are
+ *   third parties' follow lists. The key format is unchanged on purpose:
+ *   renaming it would miss every row cached today.
  * - engagement:* (likers and comments of one post) change slowly and each
  *   miss is a full Apify actor run, so they get a fixed 6h window.
  */
 export const RESOURCE_CACHE_TTL_MS = {
   posts: DATA_CACHE_TTL_MS,
   reels: DATA_CACHE_TTL_MS,
-  followers: 48 * HOUR_MS,
-  following: 48 * HOUR_MS,
-  members: 48 * HOUR_MS,
+  followers: MEMBER_LIST_CACHE_TTL_MS,
+  following: MEMBER_LIST_CACHE_TTL_MS,
+  members: MEMBER_LIST_CACHE_TTL_MS,
   stories: 1 * HOUR_MS,
   "linkedin-profile": 24 * HOUR_MS,
   engagement: 6 * HOUR_MS,
