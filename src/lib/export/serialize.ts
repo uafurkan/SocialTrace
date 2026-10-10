@@ -1,4 +1,4 @@
-import type { Post, SocialUser } from "@/lib/domain/types";
+import type { Comment, Liker, Post, SocialUser } from "@/lib/domain/types";
 import type { ExportBundle } from "./build";
 
 /** Spec §155 — every export must self-declare a schema version, platform, and generation time. */
@@ -124,6 +124,24 @@ export function toPostCsv(posts: Post[]): string {
       csvCell(p.viewCount ?? ""),
       csvCell(p.postedAt ?? ""),
     ].join(","),
+  );
+  return [header, ...rows].join("\n");
+}
+
+/** Post likers CSV. The Liker type carries no profile URL, so none is written. */
+export function toLikerCsv(likers: Liker[]): string {
+  const header = "username,display_name,verified";
+  const rows = likers.map((l) =>
+    [textCell(l.username), textCell(l.displayName), csvCell(l.isVerified ? "yes" : "no")].join(","),
+  );
+  return [header, ...rows].join("\n");
+}
+
+/** Post comments CSV. postedAt is an empty cell when the source gave no valid date. */
+export function toCommentCsv(comments: Comment[]): string {
+  const header = "author_username,text,like_count,posted_at";
+  const rows = comments.map((c) =>
+    [textCell(c.authorUsername), textCell(c.text), csvCell(c.likeCount), csvCell(c.postedAt ?? "")].join(","),
   );
   return [header, ...rows].join("\n");
 }
