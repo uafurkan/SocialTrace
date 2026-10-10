@@ -11,8 +11,8 @@ describe("ttlForCacheKey", () => {
   });
 
   it("keeps posts on the default window", () => {
-    expect(ttlForCacheKey("posts:profile_nike:b24")).toBe(DATA_CACHE_TTL_MS);
-    expect(ttlForCacheKey("posts:profile_nike")).toBe(DATA_CACHE_TTL_MS);
+    expect(ttlForCacheKey("posts:v2:profile_nike:b24")).toBe(DATA_CACHE_TTL_MS);
+    expect(ttlForCacheKey("posts:v2:profile_nike")).toBe(DATA_CACHE_TTL_MS);
   });
 
   it("falls back to the default for an unknown resource", () => {
@@ -65,9 +65,24 @@ describe("postsSizeBucket", () => {
 
 describe("postsCacheKey", () => {
   it("keys a post list by its profile and bucket", () => {
-    expect(postsCacheKey("profile_nike", 12)).toBe("posts:profile_nike:b24");
-    expect(postsCacheKey("profile_nike", 30)).toBe("posts:profile_nike:b50");
-    expect(postsCacheKey("profile_nike", 100)).toBe("posts:profile_nike:b100");
+    expect(postsCacheKey("profile_nike", 12)).toBe("posts:v2:profile_nike:b24");
+    expect(postsCacheKey("profile_nike", 30)).toBe("posts:v2:profile_nike:b50");
+    expect(postsCacheKey("profile_nike", 100)).toBe("posts:v2:profile_nike:b100");
+  });
+
+  // The namespace changed from `posts:` after posts were cached with made-up
+  // dates. Rows under the old prefix must never be read again.
+  it("no longer produces the pre-fix `posts:<profile>` prefix", () => {
+    for (const limit of [1, 24, 50, 100, 500]) {
+      expect(postsCacheKey("profile_nike", limit)).not.toMatch(/^posts:(?!v2:)/);
+    }
+  });
+
+  it("resolves the new posts keys to the posts TTL", () => {
+    for (const limit of [24, 50, 100]) {
+      expect(ttlForCacheKey(postsCacheKey("profile_nike", limit))).toBe(RESOURCE_CACHE_TTL_MS.posts);
+    }
+    expect(RESOURCE_CACHE_TTL_MS.posts).toBe(DATA_CACHE_TTL_MS);
   });
 
   it("gives the export's 100-item request its own key, separate from the 24-item one", () => {

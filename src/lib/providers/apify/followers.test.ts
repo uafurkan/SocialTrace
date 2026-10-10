@@ -96,14 +96,14 @@ describe("fetchMembers (Instagram chain)", () => {
     expect(db.rows.size).toBe(1);
   });
 
-  it("starts no further actor after 45 s and throws, so an empty guess is not cached", async () => {
-    // The first actor answers with nothing usable, but only after 46 s.
+  it("starts no further actor after 50 s and throws, so an empty guess is not cached", async () => {
+    // The first actor answers with nothing usable, but only after 51 s.
     runApifyActor.mockImplementationOnce(async () => {
-      vi.setSystemTime(Date.now() + 46_000);
+      vi.setSystemTime(Date.now() + CHAIN_DEADLINE_MS + 1_000);
       return [];
     });
 
-    await expect(fetchMembers("someone", "followers", 60)).rejects.toThrow(/45s limit/);
+    await expect(fetchMembers("someone", "followers", 60)).rejects.toThrow(/50s limit/);
     expect(runApifyActor).toHaveBeenCalledTimes(1);
     expect(db.rows.size).toBe(0);
   });
@@ -114,10 +114,10 @@ describe("fetchMembers (Instagram chain)", () => {
       throw abortError();
     });
 
-    await expect(fetchMembers("someone", "followers", 60)).rejects.toThrow(/45s limit/);
+    await expect(fetchMembers("someone", "followers", 60)).rejects.toThrow(/50s limit/);
     expect(db.rows.size).toBe(0);
 
-    await expect(fetchMembers("someone", "followers", 60)).rejects.toThrow(/45s limit/);
+    await expect(fetchMembers("someone", "followers", 60)).rejects.toThrow(/50s limit/);
     expect(runApifyActor).toHaveBeenCalledTimes(2);
   });
 });
@@ -131,7 +131,7 @@ describe("runMemberChain (time budget)", () => {
     vi.restoreAllMocks();
   });
 
-  it.each([0, 5_000, 14_999, 15_000, 30_000, 44_999, 45_000, 60_000, 120_000])(
+  it.each([0, 5_000, 14_999, 15_000, 30_000, 49_999, 50_000, 60_000, 120_000])(
     "an actor answering after %i ms: the chain ends inside the budget and no wait exceeds the time left",
     async (answerMs) => {
       const clock = fakeClock();
@@ -176,7 +176,7 @@ describe("runMemberChain (time budget)", () => {
       return [];
     });
 
-    await expect(runMemberChain("someone", "followers", 60, { now: clock.now, run })).rejects.toThrow(/45s limit/);
+    await expect(runMemberChain("someone", "followers", 60, { now: clock.now, run })).rejects.toThrow(/50s limit/);
     expect(run).toHaveBeenCalledTimes(1);
   });
 
@@ -202,18 +202,20 @@ describe("runMemberChain (time budget)", () => {
   it("does not return an empty list when the last actor is cut off by the budget", async () => {
     const clock = fakeClock();
     let calls = 0;
+    // Four equal empty answers that leave exactly MIN_RUN_WAIT_MS of the budget.
+    const emptyAnswerMs = (CHAIN_DEADLINE_MS - MIN_RUN_WAIT_MS) / 4;
     const run = vi.fn<ActorRun>(async (_actorId, _input, { timeoutMs }) => {
       calls++;
       if (calls <= 4) {
-        clock.advance(7_500);
+        clock.advance(emptyAnswerMs);
         return [];
       }
-      // Four empty answers leave 15 s: the fifth actor is started with that and is cut off.
+      // The fifth actor is started with the 15 s left and is cut off.
       clock.advance(timeoutMs);
       throw abortError();
     });
 
-    await expect(runMemberChain("someone", "followers", 60, { now: clock.now, run })).rejects.toThrow(/45s limit/);
+    await expect(runMemberChain("someone", "followers", 60, { now: clock.now, run })).rejects.toThrow(/50s limit/);
     expect(calls).toBe(5);
   });
 

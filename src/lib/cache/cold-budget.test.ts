@@ -32,6 +32,17 @@ describe("member route budget", () => {
     expect(MIN_RUN_WAIT_MS).toBeLessThan(CHAIN_DEADLINE_MS);
   });
 
+  it("leaves a 10 s headroom, so the chain budget is 50 s at the 60 s route limit", () => {
+    expect(MEMBER_ROUTE_MAX_DURATION_S).toBe(60);
+    expect(ROUTE_HEADROOM_MS).toBe(10_000);
+    expect(CHAIN_DEADLINE_MS).toBe(50_000);
+  });
+
+  it("keeps the minimum run wait under half the chain budget", () => {
+    expect(MIN_RUN_WAIT_MS).toBe(15_000);
+    expect(MIN_RUN_WAIT_MS * 2).toBeLessThan(CHAIN_DEADLINE_MS);
+  });
+
   it.each(MEMBER_ROUTES)("%s exports the same maxDuration as the budget", (file) => {
     const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
     const source = readFileSync(path.join(repoRoot, file), "utf8");
@@ -188,15 +199,15 @@ describe("cold budget", () => {
 
   describe("withDeadline", () => {
     it("resolves with the value when the work settles in time", async () => {
-      await expect(withDeadline(Promise.resolve("done"), 45_000)).resolves.toBe("done");
+      await expect(withDeadline(Promise.resolve("done"), CHAIN_DEADLINE_MS)).resolves.toBe("done");
     });
 
     it("rejects with DeadlineExceededError when the work is still pending at the limit", async () => {
       vi.useFakeTimers();
       try {
-        const pending = withDeadline(new Promise<never>(() => {}), 45_000);
+        const pending = withDeadline(new Promise<never>(() => {}), CHAIN_DEADLINE_MS);
         const assertion = expect(pending).rejects.toBeInstanceOf(DeadlineExceededError);
-        await vi.advanceTimersByTimeAsync(45_000);
+        await vi.advanceTimersByTimeAsync(CHAIN_DEADLINE_MS);
         await assertion;
       } finally {
         vi.useRealTimers();
