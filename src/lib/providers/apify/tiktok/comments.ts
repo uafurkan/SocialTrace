@@ -1,5 +1,6 @@
 import type { Comment } from "@/lib/domain/types";
 import { runApifyActor } from "../client";
+import { toPostedAt } from "../../post-date";
 
 const COMMENTS_ACTOR_ID = "clockworks~tiktok-comments-scraper";
 
@@ -28,6 +29,6 @@ export async function fetchApifyTikTokComments(permalink: string, limit = 50): P
     authorIsVerified: false,
     text: item.text ?? "",
     likeCount: item.diggCount ?? 0,
-    postedAt: item.createTimeISO ?? new Date().toISOString(),
+    postedAt: toPostedAt(item.createTimeISO),
   }));
 }

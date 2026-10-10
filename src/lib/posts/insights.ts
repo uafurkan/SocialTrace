@@ -35,7 +35,7 @@ export function computePostInsights(posts: Post[]): PostInsights {
   const comments = posts.map((post) => post.commentCount);
   const views = posts.flatMap((post) => (post.viewCount == null ? [] : [post.viewCount]));
   const times = posts
-    .map((post) => Date.parse(post.postedAt))
+    .map((post) => (post.postedAt == null ? Number.NaN : Date.parse(post.postedAt)))
     .filter((time) => !Number.isNaN(time))
     .sort((a, b) => a - b);
   const daysBetweenPosts = times.length >= 2 ? (times[times.length - 1] - times[0]) / (times.length - 1) / MS_PER_DAY : null;

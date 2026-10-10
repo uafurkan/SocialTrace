@@ -1,5 +1,6 @@
 import type { Comment } from "@/lib/domain/types";
 import { runApifyActor } from "../client";
+import { toPostedAt } from "../../post-date";
 
 const COMMENTS_ACTOR_ID = "apify~facebook-comments-scraper";
 
@@ -28,6 +29,6 @@ export async function fetchApifyFacebookComments(permalink: string, limit = 50):
     authorIsVerified: false,
     text: item.text ?? "",
     likeCount: item.likesCount ?? 0,
-    postedAt: item.date ?? new Date().toISOString(),
+    postedAt: toPostedAt(item.date),
   }));
 }

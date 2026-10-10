@@ -89,6 +89,36 @@ describe("computePostInsights", () => {
     ]);
     expect(insights.daysBetweenPosts).toBeNull();
   });
+
+  it("excludes posts with no date from the frequency and keeps the gap between dated posts", () => {
+    const insights = computePostInsights([
+      post({ id: "a", postedAt: "2026-01-01T00:00:00.000Z" }),
+      post({ id: "x", postedAt: null }),
+      post({ id: "b", postedAt: "2026-01-11T00:00:00.000Z" }),
+      post({ id: "y", postedAt: null }),
+    ]);
+    expect(insights.daysBetweenPosts).toBe(10);
+  });
+
+  it("reports no frequency when fewer than two posts have a date", () => {
+    const insights = computePostInsights([
+      post({ id: "a", postedAt: "2026-01-01T00:00:00.000Z" }),
+      post({ id: "b", postedAt: null }),
+      post({ id: "c", postedAt: null }),
+    ]);
+    expect(insights.daysBetweenPosts).toBeNull();
+  });
+
+  it("leaves the like, comment and view averages unchanged when posts lose their date", () => {
+    const dated = [
+      post({ id: "a", likeCount: 10, commentCount: 1, viewCount: 100, postedAt: "2026-01-01T00:00:00.000Z" }),
+      post({ id: "b", likeCount: 30, commentCount: 5, viewCount: 300, postedAt: "2026-01-11T00:00:00.000Z" }),
+      post({ id: "c", likeCount: 500, commentCount: 50, viewCount: null, postedAt: "2026-01-21T00:00:00.000Z" }),
+    ];
+    const undated = dated.map((p) => ({ ...p, postedAt: null }));
+
+    expect(computePostInsights(undated)).toEqual({ ...computePostInsights(dated), daysBetweenPosts: null });
+  });
 });
 
 describe("filterPostsByCaption", () => {

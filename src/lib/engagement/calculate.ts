@@ -28,7 +28,7 @@ export interface EngagementResult {
   avgLikes: number;
   avgComments: number;
   engagementRatePercent: number;
-  perPost: Array<{ id: string; likeCount: number; commentCount: number; postedAt: string }>;
+  perPost: Array<{ id: string; likeCount: number; commentCount: number; postedAt: string | null }>;
 }
 
 /** Anything that isn't a statement about the profile itself is a source failure — surfaced as a retryable 503 rather than a generic 502 that reads as "this profile is broken". */
