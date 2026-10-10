@@ -80,26 +80,8 @@ export default async function AdminPage() {
 
       <div className="mt-10">
         <h2 className="text-xl font-semibold text-primary">Data sources</h2>
-        <p className="mt-1 text-sm text-secondary">
-          Whether this deployment&apos;s IP can reach the free Instagram source, and whether Apify&apos;s quota
-          breaker is currently tripped.
-        </p>
+        <p className="mt-1 text-sm text-secondary">Whether Apify&apos;s quota breaker is currently tripped.</p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Instagram free source</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Badge variant={sources.instagramPublic.ok ? "success" : "danger"}>
-                {sources.instagramPublic.ok ? "Reachable" : "Blocked"}
-              </Badge>
-              <p className="mt-2 text-sm text-secondary">
-                {sources.instagramPublic.status !== null ? `HTTP ${sources.instagramPublic.status}` : "No response"}
-                {" · "}
-                {sources.instagramPublic.latencyMs}ms
-              </p>
-            </CardContent>
-          </Card>
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Apify quota breaker</CardTitle>

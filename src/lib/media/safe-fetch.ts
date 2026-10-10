@@ -35,8 +35,13 @@ import {
   type ResolvedAddress,
 } from "./guard";
 
-/** Sent on every media fetch. Hotlink-protected CDNs reject requests without a browser-like User-Agent. */
-export const MEDIA_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
+/**
+ * Sent on every media fetch. It names the proxy honestly and does not imitate
+ * a browser. A CDN that refuses non-browser clients refuses us too, and that
+ * media simply fails to load. Getting past hotlink protection by impersonating
+ * a browser is an access-control bypass, and this project does not do that.
+ */
+export const MEDIA_USER_AGENT = "Mozilla/5.0 (compatible; SocialTraceBot/1.0; +https://socialtrace.co)";
 
 /** Outcome of the caller's policy check for one URL. `reason` comes back to the caller on refusal. */
 export type HopCheck = { ok: true } | { ok: false; reason: string };

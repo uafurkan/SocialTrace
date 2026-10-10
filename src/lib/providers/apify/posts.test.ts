@@ -3,10 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 const { withDataCache } = vi.hoisted(() => ({ withDataCache: vi.fn() }));
 
 vi.mock("@/lib/cache/data-cache", () => ({ withDataCache }));
-vi.mock("../instagram-public/web-profile-info", () => ({
-  fetchWebProfileInfo: vi.fn(async () => null),
-  toPosts: vi.fn(() => []),
-}));
 vi.mock("./client", () => ({ runApifyActor: vi.fn(async () => []) }));
 
 import { fetchApifyPosts } from "./posts";

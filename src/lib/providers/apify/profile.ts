@@ -1,8 +1,6 @@
 import type { Profile } from "@/lib/domain/types";
 import { ProfileNotFoundError } from "../types";
 import { coverageFor, MEMBER_FETCH_CAP } from "../coverage";
-import { fetchWebProfileInfo, toProfile } from "../instagram-public/web-profile-info";
-import { warmBrightDataInstagramProfile } from "../brightdata/profile";
 import { runApifyActor } from "./client";
 
 const PROFILE_ACTOR_ID = "apify~instagram-profile-scraper";
@@ -24,29 +22,15 @@ interface ApifyProfileItem {
 }
 
 /**
- * Source chain: the free public endpoint first, the paid Apify actor
- * second. Bright Data (an independent vendor/quota — see
- * providers/brightdata/client.ts) is *not* in this synchronous chain —
- * live testing found its completion time too slow and variable to block a
- * request on (confirmed ~50s-plus, sometimes not ready at all within that).
- * Instead, whenever this falls through past the free source,
- * `warmBrightDataInstagramProfile` fires a background job that writes
- * straight into the profile cache when it finishes, so a *later* visit to
- * this same profile can get a fast cache hit even while Apify is out —
- * without ever making the visitor waiting right now sit through it.
+ * The single source for this path: the Apify actor. The earlier undocumented
+ * web endpoint was removed, and so was the fallback that fired a second
+ * vendor (Bright Data) when the first source refused. Moving on to another
+ * source after a block is the bypass this project does not do.
  *
- * `ProfileNotFoundError` propagates instead of falling through: a confirmed
- * "no such user" is an answer, and retrying it against a paid actor would burn
- * a billed call to be told the same thing.
+ * `ProfileNotFoundError` is a confirmed "no such user" answer, so it is thrown
+ * as is and never retried.
  */
 export async function fetchApifyProfile(username: string): Promise<Profile> {
-  const publicUser = await fetchWebProfileInfo(username);
-  if (publicUser) {
-    return toProfile(publicUser);
-  }
-
-  warmBrightDataInstagramProfile(username);
-
   const items = (await runApifyActor(PROFILE_ACTOR_ID, { usernames: [username] })) as ApifyProfileItem[];
   const item = Array.isArray(items) ? items[0] : undefined;
 

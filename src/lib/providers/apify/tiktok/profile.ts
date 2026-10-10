@@ -1,6 +1,5 @@
 import type { CoverageStatus, Profile } from "@/lib/domain/types";
 import { ProfileNotFoundError } from "../../types";
-import { fetchTikTokUserDetail, toProfile } from "../../tiktok-public/user-detail";
 import { runApifyActor } from "../client";
 
 const PROFILE_ACTOR_ID = "clockworks~tiktok-profile-scraper";
@@ -38,17 +37,11 @@ function coverageFor(indexed: number, total: number): CoverageStatus {
 }
 
 /**
- * Source chain: the free public profile page first, the paid actor second —
- * same shape as the Instagram provider's fetchApifyProfile. The free source
- * only covers the profile itself (see tiktok-public/user-detail.ts for why
- * posts aren't included), so getPosts (posts.ts) always goes through Apify.
+ * The Apify actor is the only source. The earlier path that read a profile
+ * page's embedded JSON was removed. It was an undocumented read of data meant
+ * for the page's own renderer, and it sent a browser User-Agent to get past the page.
  */
 export async function fetchApifyTikTokProfile(username: string): Promise<Profile> {
-  const publicDetail = await fetchTikTokUserDetail(username);
-  if (publicDetail) {
-    return toProfile(publicDetail);
-  }
-
   const items = (await runApifyActor(PROFILE_ACTOR_ID, {
     profiles: [username],
     resultsPerPage: 1,

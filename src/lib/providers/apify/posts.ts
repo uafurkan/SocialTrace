@@ -1,6 +1,5 @@
 import type { Post } from "@/lib/domain/types";
 import { withDataCache } from "@/lib/cache/data-cache";
-import { fetchWebProfileInfo, toPosts } from "../instagram-public/web-profile-info";
 import { runApifyActor } from "./client";
 import { toPostedAt } from "../post-date";
 
@@ -27,29 +26,17 @@ interface ApifyProfileWithPosts {
 }
 
 /**
- * Source chain, same order and reasoning as fetchApifyProfile: the free
- * public endpoint first, the paid actor second.
+ * The Apify actor is the only source here. The actor cannot tell reels from
+ * ordinary videos and settles for `type === "Video"` (documented as
+ * best-effort in docs/KNOWN_LIMITATIONS.md).
  *
- * The free response also has better fidelity here — it carries Instagram's own
- * `product_type` field, so reels are identified rather than guessed at. The
- * Apify path below can't distinguish reels from ordinary videos and settles
- * for `type === "Video"` (documented as best-effort in
- * docs/KNOWN_LIMITATIONS.md), which is why the two branches return posts
- * mapped by different code rather than sharing one mapper.
- *
- * Both branches sit inside `withDataCache`, so whichever source answers, the
- * result is cached identically and neither is re-fetched on the next request.
+ * The result sits inside `withDataCache`, so it is cached and not re-fetched
+ * on the next request.
  */
 export async function fetchApifyPosts(username: string, profileId: string): Promise<Post[]> {
   // `posts:v2:` namespace, same as postsCacheKey in data-cache.ts: the old
   // `posts:` rows hold made-up dates and must not be served.
-  return withDataCache(`posts:v2:${profileId}`, async () => {
-    const publicUser = await fetchWebProfileInfo(username);
-    if (publicUser) {
-      return toPosts(publicUser, profileId);
-    }
-    return fetchApifyPostsUncached(username, profileId);
-  });
+  return withDataCache(`posts:v2:${profileId}`, () => fetchApifyPostsUncached(username, profileId));
 }
 
 async function fetchApifyPostsUncached(username: string, profileId: string): Promise<Post[]> {
