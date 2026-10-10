@@ -38,7 +38,11 @@ doesn't exist — fake infrastructure, not a real export system.
 Instead, this generates the file **synchronously inside the API request**,
 bounded by `EXPORT_LIST_LIMIT = 500` (`src/lib/export/build.ts`) items per
 list (followers/following/posts/reels each), fetched via the same
-paginated `provider.getX()` calls the rest of the app uses. This keeps the
+paginated `provider.getX()` calls the rest of the app uses. On the Apify
+providers, followers and following stop at 200 before the export sees them:
+`MEMBER_FETCH_CAP` (`src/lib/providers/coverage.ts`) is applied by the
+provider, so those two exports hold at most 200 items there. The 500 is the
+export's own bound, reached only when a provider returns that many. This keeps the
 request fast and keeps the Apify provider's per-result billing predictable
 regardless of a profile's real follower count — the same cost-control
 reasoning as `MEMBER_FETCH_CAP` in the Apify provider (see

@@ -129,7 +129,7 @@ describes a job-queue lifecycle (REQUESTED → QUEUED → ... → COMPLETED);
 this build still has no job queue, so `captureSnapshot()`
 (`src/lib/snapshot/capture.ts`) runs synchronously inside a POST request,
 the same honest-scope reduction as the export system. It's bounded by
-`SNAPSHOT_MEMBER_LIMIT = 500` followers/following per capture for the
+`SNAPSHOT_MEMBER_LIMIT = 500` followers/following per capture (removed 2026-10-10, see the last entry) for the
 same cost/latency reasons as `EXPORT_LIST_LIMIT`.
 
 Two schema-level fixes were needed to make this real: `profiles` and
@@ -1645,3 +1645,54 @@ Open items (owner decisions and checks, none decided here):
    HypeAuditor prices and sources; LinkedIn's official API status (not checked).
 6. WS-O2 (Instagram proof of concept) and WS-O3 (YouTube, only if the
    feature is confirmed) are not started.
+
+## 2026-10-10 — Snapshots store the profile's own data only; no follower or following identities
+
+The project rule is that no third party's follow list is tracked or stored.
+Snapshot capture broke it. Each capture fetched up to
+`SNAPSHOT_MEMBER_LIMIT = 500` followers and 500 following, upserted them into
+`social_users` and `memberships`, and derived added/removed `change_events`
+from them. Capture now stores the profile row, the public counts, the profile's
+own fields, and one `profile_snapshots` row. It never calls `getFollowers` or
+`getFollowing`. This supersedes the 500-identities-per-capture design in the
+2026-09-04 snapshot and diff entries above, which are kept as written.
+
+What changed in `src/lib/snapshot/capture.ts`:
+- Every capture writes `indexed_follower_count` and `indexed_following_count` as
+  0, and both coverage percentages as 0. The columns are NOT NULL, so zero is
+  written rather than null. A zero-coverage snapshot fails the 99.5% gate, so
+  any comparison that uses it reports "unavailable".
+- Added/removed membership events are no longer produced. Profile field events
+  (username, display name, bio, avatar, verified, private) remain. No count
+  events were added.
+- `SNAPSHOT_MEMBER_LIMIT`, the membership diff and `coveragePercentFor` are
+  removed. `DIFF_COVERAGE_THRESHOLD` stays, because `src/lib/diff/compare.ts`
+  still imports it.
+- The daily cron entry stays removed (`vercel.json` has `"crons": []`, see
+  `docs/SCHEDULER.md`).
+- No migration was written, and no row was deleted.
+
+Rows already in the database. They are not deleted, and the owner decides
+whether to delete them:
+- `social_users`: identities from earlier captures, shared across profiles and
+  deduplicated by (platform, normalized_username).
+- `memberships`: links from profiles to those identities, with `kind`,
+  `first_seen_at`, `last_seen_at` and `removed_at`.
+- `change_events`: rows with `membership_event`, `membership_kind` and
+  `social_user_id` set. Deleting a `social_users` row cascades to them.
+- Read paths that still return them: `GET /api/v1/profiles/[profileId]/changes`
+  (`src/lib/diff/changes.ts`) and `GET /api/v1/profiles/[profileId]/compare`
+  (`src/lib/diff/compare.ts`). Both sit behind `FEATURES.snapshots`, which is
+  off.
+- `provider_cache` rows with `members:*` keys. These hold the Followers and
+  Following tab responses for 48 hours. The Followers and Following tabs write
+  them, not capture, so they are a separate question (`docs/SNAPSHOT_PLAN.md`,
+  section 8, item 3).
+
+Open owner decisions: whether to purge the rows above (SNAPSHOT_PLAN section 8,
+item 4), and whether follower compare stays off or is removed (item 5).
+
+Not verified: the integration tests (`npm run test:integration`) need
+`DATABASE_URL`, which was not set for this change, so they did not run. The
+unit test in `capture.test.ts` runs against a fake database and a stubbed
+provider.
