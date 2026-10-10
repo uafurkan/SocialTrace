@@ -21,6 +21,14 @@ const STATUS_STYLES: Record<AvailabilityResult["status"], { label: string; class
   unknown: { label: "Couldn't check", className: "bg-surface-subtle text-muted", icon: HelpCircle },
 };
 
+/** No official source exists for this platform, so the widget says so instead of "Couldn't check". */
+function styleFor(result: AvailabilityResult) {
+  if (result.status === "unknown" && result.reason === "no_official_source") {
+    return { ...STATUS_STYLES.unknown, label: "No official check" };
+  }
+  return STATUS_STYLES[result.status];
+}
+
 export function UsernameAvailabilityWidget() {
   const [handle, setHandle] = useState("");
   const [loading, setLoading] = useState(false);
@@ -75,7 +83,7 @@ export function UsernameAvailabilityWidget() {
       {results ? (
         <ul className="mt-6 overflow-hidden rounded-card border border-border">
           {results.map((result) => {
-            const style = STATUS_STYLES[result.status];
+            const style = styleFor(result);
             const Icon = style.icon;
             return (
               <li key={result.platform} className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 last:border-0">
