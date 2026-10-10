@@ -7,6 +7,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    date: "2026-10-10",
+    title: "Snapshots keep counts only",
+    description:
+      "Capturing a snapshot no longer stores the follower or following accounts of other people. A capture keeps the profile's own row, its public counts, any changed profile fields, and one snapshot row. Member counts are kept as counts only. Earlier snapshot entries below describe the behavior before this change.",
+    highlights: [
+      "Captures no longer request follower or following lists, and write no social_users or memberships rows.",
+      "Indexed member counts and coverage are recorded as 0 on new snapshots, so member comparisons report unavailable for them.",
+      "Rows written by captures made before this change were not deleted.",
+    ],
+  },
+  {
     date: "2026-10-09",
     title: "Focused on public lookups and exports",
     description:

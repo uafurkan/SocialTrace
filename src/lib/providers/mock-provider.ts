@@ -4,13 +4,12 @@
  * generates seeded-random fake data so the same username always returns
  * the same profile/followers, keeping UI and future tests reproducible.
  *
- * `nike` is seeded as a large, low-coverage profile, `smallcreator` as a
- * mid-size one whose real follower count still exceeds the snapshot
- * engine's per-capture cap (see src/lib/snapshot/capture.ts), and
- * `tinytest` as a genuinely small profile fully within that cap — the one
- * seed where a captured snapshot reaches near-100% coverage, which is
- * what the diff engine (src/lib/diff/) requires before it will compute
- * added/removed members at all (spec §20).
+ * `nike` is seeded as a large, low-coverage profile. `smallcreator` and
+ * `tinytest` are seeded with complete coverage (indexed count equal to the
+ * follower count). Mock member lists are generated in memory and capped at
+ * 5000 entries in buildMembers, so a list can hold fewer entries than its
+ * reported count. The live providers cap member lists at MEMBER_FETCH_CAP
+ * (src/lib/providers/coverage.ts) instead.
  */
 import type {
   Comment,
@@ -94,7 +93,7 @@ const SEED_PROFILES: Record<string, SeedProfile> = {
     followerCount: 180,
     followingCount: 95,
     postCount: 12,
-    indexedFollowers: 180, // fully indexed and within SNAPSHOT_MEMBER_LIMIT
+    indexedFollowers: 180, // fully indexed
   },
 };
 

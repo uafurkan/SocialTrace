@@ -15,12 +15,12 @@ const FAQ = [
   {
     question: "Can I export an Instagram follower list to CSV?",
     answer:
-      "Yes. Open a public profile, click Export, and choose Followers — CSV. The file has one row per follower captured, up to 500.",
+      "Yes. Open a public profile, click Export, and choose Followers — CSV. The file has one row per follower captured, up to 200.",
   },
   {
     question: "Is there a limit on how many followers I can export?",
     answer:
-      "Yes. Each export holds up to 500 items per list. Accounts with more followers get a partial export, and the profile shows how much of the real list was captured.",
+      "Yes. Each export holds up to 500 posts or reels, and up to 200 followers or following accounts. Accounts with more followers get a partial export, and the profile shows how much of the real list was captured.",
   },
   {
     question: "Do I need an account to export?",
@@ -40,7 +40,7 @@ export default function InstagramFollowersExportPage() {
       <ToolLanding
         path={PATH}
         title={TITLE}
-        lead="Export a public Instagram profile's followers, following, posts or reels as CSV, or the full profile as JSON or XML. Each export holds up to 500 items per list."
+        lead="Export a public Instagram profile's followers, following, posts or reels as CSV, or the full profile as JSON or XML. Posts and reels hold up to 500 items each; followers and following hold up to 200 accounts each."
         primaryCta={{ href: "/", label: "Look up a profile" }}
         howItWorks={[
           "Search a public @username on the homepage and open its profile.",
@@ -62,7 +62,7 @@ export default function InstagramFollowersExportPage() {
           },
         ]}
         limitations={[
-          "Each export holds up to 500 items per list. Accounts with more followers get a partial export.",
+          "Posts and reels export up to 500 items each. Followers and following export up to 200 accounts each, so accounts with more get a partial export.",
           "Only public profiles can be exported.",
           "Each visitor can run a limited number of exports every few minutes.",
           "Exports are generated when you click them and are not stored, so export again to get fresh data.",

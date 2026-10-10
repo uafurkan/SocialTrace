@@ -61,7 +61,7 @@ export default function InstagramFollowingCheckerPage() {
           },
         ]}
         limitations={[
-          "Each capture holds up to 500 following accounts. Profiles that follow many accounts show partial coverage.",
+          "The Following tab holds up to 200 following accounts. Profiles that follow more than that show partial coverage.",
           "The list may be cached for up to two days, so a recent follow can take a while to appear.",
           "Only public profiles can be searched.",
         ]}
