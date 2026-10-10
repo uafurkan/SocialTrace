@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { useSearchParams } from "next/navigation";
 import { Copy, Check, Instagram, Facebook, Music2, Youtube, XIcon } from "lucide-react";
 
@@ -136,11 +136,16 @@ function VideoPreview({
   title,
   durationSeconds,
   download,
+  videoRef,
+  onTimeUpdate,
 }: {
   videoUrl: string;
   title?: string | null;
   durationSeconds?: number;
   download?: { sourceUrl: string; platform: string };
+  /** Lets the transcript follow playback (see TranscriberWidget). */
+  videoRef?: RefObject<HTMLVideoElement | null>;
+  onTimeUpdate?: () => void;
 }) {
   const canDownload = download && download.platform !== "youtube";
   const platformInfo = download ? PLATFORM_INFO[download.platform] : undefined;
@@ -167,7 +172,15 @@ function VideoPreview({
             {title ? <p className="line-clamp-2 text-sm font-medium text-primary">{title}</p> : null}
           </div>
         ) : null}
-        <video src={videoUrl} controls playsInline className="w-full rounded-card bg-black" style={{ maxHeight: 480 }} />
+        <video
+          ref={videoRef}
+          src={videoUrl}
+          controls
+          playsInline
+          onTimeUpdate={onTimeUpdate}
+          className="w-full rounded-card bg-black"
+          style={{ maxHeight: 480 }}
+        />
         {canDownload ? (
           <div className="space-y-1.5">
             <Button asChild size="sm" variant="secondary">
@@ -197,10 +210,16 @@ function TranscriptBody({
   text,
   segments,
   emptyMessage,
+  activeIndex,
+  onSeek,
 }: {
   text: string;
   segments: TranscriptSegment[];
   emptyMessage: string;
+  /** Segment currently under the playhead, highlighted. Only passed for the original-language transcript. */
+  activeIndex?: number | null;
+  /** When set, each timestamp becomes a button that jumps the video to that point. */
+  onSeek?: (seconds: number) => void;
 }) {
   const [copiedKind, setCopiedKind] = useState<"text" | "timestamps" | null>(null);
 
@@ -232,8 +251,19 @@ function TranscriptBody({
       <div className="mt-4 max-h-96 space-y-3 overflow-y-auto text-sm text-primary">
         {segments.length > 0 ? (
           segments.map((segment, index) => (
-            <p key={index}>
-              <span className="mr-2 font-mono text-xs text-muted">{formatTimestamp(segment.start)}</span>
+            <p key={index} className={index === activeIndex ? "-mx-1 rounded-md bg-surface-subtle px-1" : "-mx-1 px-1"}>
+              {onSeek ? (
+                <button
+                  type="button"
+                  onClick={() => onSeek(segment.start)}
+                  aria-label={`Play from ${formatTimestamp(segment.start)}`}
+                  className="mr-2 font-mono text-xs text-muted hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30"
+                >
+                  {formatTimestamp(segment.start)}
+                </button>
+              ) : (
+                <span className="mr-2 font-mono text-xs text-muted">{formatTimestamp(segment.start)}</span>
+              )}
               {segment.text}
             </p>
           ))
@@ -257,6 +287,23 @@ export function TranscriberWidget({
   const [language, setLanguage] = useState("auto");
   const [state, setState] = useState<WidgetState>({ status: "idle" });
   const [translateTarget, setTranslateTarget] = useState(TRANSLATION_TARGET_LANGUAGES[0].code);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [activeSegment, setActiveSegment] = useState<number | null>(null);
+
+  /** Highlights the original-language segment under the playhead. Translated segments are not synced. */
+  function handleVideoTimeUpdate() {
+    const now = videoRef.current?.currentTime ?? 0;
+    const segments = state.status === "done" ? state.result.segments : [];
+    const index = segments.findIndex((segment) => now >= segment.start && now < segment.end);
+    setActiveSegment(index === -1 ? null : index);
+  }
+
+  function seekVideo(seconds: number) {
+    const video = videoRef.current;
+    if (!video) return;
+    video.currentTime = seconds;
+    void video.play().catch(() => undefined);
+  }
   const [translation, setTranslation] = useState<TranslationState>({ status: "idle" });
   const [activeTab, setActiveTab] = useState<"original" | "translated">("original");
   const { history: urlHistory, addToHistory: addUrlToHistory, clearHistory: clearUrlHistory } = useInputHistory(
@@ -434,6 +481,8 @@ export function TranscriberWidget({
               title={state.result.title}
               durationSeconds={state.result.durationSeconds}
               download={{ sourceUrl: url, platform: state.result.platform }}
+              videoRef={videoRef}
+              onTimeUpdate={handleVideoTimeUpdate}
             />
           ) : null}
 
@@ -494,14 +543,26 @@ export function TranscriberWidget({
                     </TabsTrigger>
                   </TabsList>
                   <TabsContent value="original">
-                    <TranscriptBody text={state.result.text} segments={state.result.segments} emptyMessage={copy.transcriber.noSpeech} />
+                    <TranscriptBody
+                      text={state.result.text}
+                      segments={state.result.segments}
+                      emptyMessage={copy.transcriber.noSpeech}
+                      activeIndex={activeSegment}
+                      onSeek={seekVideo}
+                    />
                   </TabsContent>
                   <TabsContent value="translated">
                     <TranscriptBody text={translation.text} segments={translation.segments} emptyMessage={copy.transcriber.noSpeech} />
                   </TabsContent>
                 </Tabs>
               ) : (
-                <TranscriptBody text={state.result.text} segments={state.result.segments} emptyMessage={copy.transcriber.noSpeech} />
+                <TranscriptBody
+                  text={state.result.text}
+                  segments={state.result.segments}
+                  emptyMessage={copy.transcriber.noSpeech}
+                  activeIndex={activeSegment}
+                  onSeek={seekVideo}
+                />
               )}
             </CardContent>
           </Card>
