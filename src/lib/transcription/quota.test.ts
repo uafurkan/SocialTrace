@@ -7,6 +7,8 @@ import {
   hasGlobalCapacity,
   occupiesGlobalCeiling,
   pendingReservationCutoff,
+  reservationIdFromRows,
+  utcDayKey,
   type UsageForCeiling,
 } from "./quota";
 
@@ -99,5 +101,30 @@ describe("exceedsDurationCap", () => {
 
   it("refuses a known duration over the cap", () => {
     expect(exceedsDurationCap(CAP + 1, CAP)).toBe(true);
+  });
+});
+
+describe("utcDayKey", () => {
+  it("is the UTC calendar date of the instant", () => {
+    expect(utcDayKey(NOW)).toBe("2026-10-10");
+  });
+
+  it("rolls over at UTC midnight", () => {
+    expect(utcDayKey(new Date("2026-10-09T23:59:59.999Z"))).toBe("2026-10-09");
+    expect(utcDayKey(new Date("2026-10-10T00:00:00.000Z"))).toBe("2026-10-10");
+  });
+});
+
+describe("reservationIdFromRows", () => {
+  it("returns the id of the row the reservation statement returned", () => {
+    expect(reservationIdFromRows([{ id: "3f1c9a2e" }])).toBe("3f1c9a2e");
+  });
+
+  it("returns null when the statement returned no row, i.e. the ceiling was full", () => {
+    expect(reservationIdFromRows([])).toBeNull();
+  });
+
+  it("returns null when the returned row has no string id", () => {
+    expect(reservationIdFromRows([{ used: 3 }])).toBeNull();
   });
 });
