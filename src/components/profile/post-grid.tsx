@@ -10,6 +10,7 @@ import { mediaDownloadUrl } from "@/lib/media-download-url";
 import { proxiedMediaUrl } from "@/lib/media-proxy";
 import { formatCount } from "@/lib/utils";
 import { computePostInsights, filterPostsByCaption } from "@/lib/posts/insights";
+import { PostArchiveButton } from "@/components/profile/post-archive-button";
 import { PostEngagementModal } from "@/components/profile/post-engagement-modal";
 import { PostInsightsPanel } from "@/components/profile/post-insights";
 
@@ -28,8 +29,8 @@ export function PostGrid({ posts, platform = "instagram" }: { posts: Post[]; pla
     <div>
       <PostInsightsPanel insights={insights} />
 
-      <div className="mb-4 flex items-center gap-2">
-        <div className="relative max-w-sm flex-1">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="relative min-w-48 max-w-sm flex-1">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden="true" />
           <Input
             type="search"
@@ -40,6 +41,7 @@ export function PostGrid({ posts, platform = "instagram" }: { posts: Post[]; pla
             className="pl-9"
           />
         </div>
+        <PostArchiveButton posts={visiblePosts} />
         <div className="ml-auto flex gap-1">
           <Button
             variant={view === "grid" ? "secondary" : "tertiary"}
