@@ -1,4 +1,5 @@
 import type { SocialUser } from "@/lib/domain/types";
+import { CHAIN_DEADLINE_MS } from "@/lib/cache/cold-budget";
 import { withDataCache } from "@/lib/cache/data-cache";
 import { runApifyActor } from "./client";
 
@@ -150,8 +151,15 @@ export async function fetchMembers(username: string, kind: MemberKind, limit: nu
     // a genuine "no accessible members" answer, not an infrastructure
     // failure — only throw if every single actor call itself errored out.
     let anyActorReachable = false;
+    // Chain time limit: past it, no further actor is started. A run already in flight finishes.
+    const deadline = Date.now() + CHAIN_DEADLINE_MS;
+    let stoppedEarly = false;
 
     for (const actor of candidates) {
+      if (Date.now() >= deadline) {
+        stoppedEarly = true;
+        break;
+      }
       try {
         const raw = await runApifyActor(actor.actorId, actor.buildInput(username, limit, kind));
         anyActorReachable = true;
@@ -173,6 +181,14 @@ export async function fetchMembers(username: string, kind: MemberKind, limit: nu
       }
     }
 
+    // Stopped before every actor ran, so an empty result would be a guess that
+    // withDataCache caches for 48 hours. Throw instead: nothing is written, and a
+    // stale row (if any) is still served.
+    if (stoppedEarly) {
+      throw new Error(
+        `Member lookup for ${username} (${kind}) reached the ${CHAIN_DEADLINE_MS / 1000}s limit before any actor returned data.`,
+      );
+    }
     if (anyActorReachable) {
       return [];
     }

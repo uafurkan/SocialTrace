@@ -1,29 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { ColdBudgetExceededError, createIpColdBudget, runWithColdBudget } from "@/lib/cache/cold-budget";
 import { getProvider } from "@/lib/providers";
-import { clientIdentifierFor, rateLimit } from "@/lib/rate-limit";
+import { clientIdentifierFor } from "@/lib/rate-limit";
 
 export const maxDuration = 60;
-
-// Interim per-IP limit, shared by all member-list routes under one key. Every
-// page and search request counts. The plan (WS-R) refines this so that only
-// new, uncached lookups count, and cursor paging does not spend the budget.
-const MEMBERS_RATE_LIMIT = 20;
-const MEMBERS_RATE_WINDOW_MS = 10 * 60 * 1000;
 
 function isValidProfileId(profileId: string): boolean {
   return profileId.trim() !== "" && profileId.length <= 100 && !profileId.includes("/");
 }
 
 export async function GET(request: NextRequest, props: { params: Promise<{ profileId: string }> }) {
-  const rate = await rateLimit(`members:${clientIdentifierFor(request)}`, MEMBERS_RATE_LIMIT, MEMBERS_RATE_WINDOW_MS);
-  if (!rate.allowed) {
-    return NextResponse.json(
-      { error: "Too many requests. Please slow down." },
-      { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } },
-    );
-  }
-
   const params = await props.params;
   if (!isValidProfileId(params.profileId)) {
     return NextResponse.json({ error: "Invalid profile id." }, { status: 400 });
@@ -33,11 +20,20 @@ export async function GET(request: NextRequest, props: { params: Promise<{ profi
   const cursor = searchParams.get("cursor") ?? undefined;
   const query = searchParams.get("q") ?? undefined;
   const limit = Math.min(Number(searchParams.get("limit")) || 60, 100);
+  const budget = createIpColdBudget(clientIdentifierFor(request));
 
   try {
-    const page = await getProvider("tiktok").getFollowing(params.profileId, cursor, limit, query);
+    const page = await runWithColdBudget(budget, () =>
+      getProvider("tiktok").getFollowing(params.profileId, cursor, limit, query),
+    );
     return NextResponse.json(page);
   } catch (error) {
+    if (error instanceof ColdBudgetExceededError) {
+      return NextResponse.json(
+        { error: "Too many new lists requested. Please wait a few minutes before opening another." },
+        { status: 429, headers: { "Retry-After": String(error.retryAfterSeconds) } },
+      );
+    }
     console.error("TikTok following lookup failed:", error);
     return NextResponse.json({ error: "Couldn't load following right now. Try again shortly." }, { status: 502 });
   }

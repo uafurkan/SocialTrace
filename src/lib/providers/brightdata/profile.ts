@@ -167,8 +167,21 @@ function warmProfileInBackground(
   });
 }
 
-/** Always returns `null` immediately — see the file header for why. */
+/**
+ * Instagram and Facebook warms run only when their flag is "1" or "true"
+ * (plan decision j, default off). Each warm spends Bright Data quota on a
+ * visit the Apify path is already answering, and with no flag set nothing is
+ * triggered. Read per call. LinkedIn has no warm to gate: linkedin.ts awaits
+ * its lookup.
+ */
+function warmEnabled(envName: string): boolean {
+  const value = process.env[envName]?.trim().toLowerCase();
+  return value === "1" || value === "true";
+}
+
+/** Always returns `null` immediately — see the file header for why. Off unless BRIGHTDATA_WARM_INSTAGRAM is set. */
 export function warmBrightDataInstagramProfile(username: string): null {
+  if (!warmEnabled("BRIGHTDATA_WARM_INSTAGRAM")) return null;
   warmProfileInBackground(
     "instagram",
     INSTAGRAM_PROFILES_DATASET_ID,
@@ -180,8 +193,9 @@ export function warmBrightDataInstagramProfile(username: string): null {
   return null;
 }
 
-/** Always returns `null` immediately — see the file header for why. */
+/** Always returns `null` immediately — see the file header for why. Off unless BRIGHTDATA_WARM_FACEBOOK is set. */
 export function warmBrightDataFacebookProfile(usernameOrUrl: string): null {
+  if (!warmEnabled("BRIGHTDATA_WARM_FACEBOOK")) return null;
   const url = usernameOrUrl.startsWith("http") ? usernameOrUrl : `https://www.facebook.com/${usernameOrUrl}`;
   warmProfileInBackground(
     "facebook",
