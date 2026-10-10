@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import type { Post, SocialUser } from "@/lib/domain/types";
+import type { Comment, Liker, Post, SocialUser } from "@/lib/domain/types";
 
-import { toMemberCsv, toPostCsv } from "./serialize";
+import { toCommentCsv, toLikerCsv, toMemberCsv, toPostCsv } from "./serialize";
 
 const POST_HEADER = "id,media_type,caption,like_count,comment_count,view_count,posted_at";
+const LIKER_HEADER = "username,display_name,verified";
+const COMMENT_HEADER = "author_username,text,like_count,posted_at";
 
 function post(overrides: Partial<Post> = {}): Post {
   return {
@@ -107,5 +109,130 @@ describe("toMemberCsv formula guard", () => {
   it("quotes a display name that contains a comma and doubles inner quotes", () => {
     const csv = toMemberCsv([user({ displayName: 'Brand, "Co"' })]);
     expect(csv.split("\n")[1]).toContain(',"Brand, ""Co""",');
+  });
+});
+
+function liker(overrides: Partial<Liker> = {}): Liker {
+  return {
+    username: "nike",
+    displayName: "Nike",
+    avatarUrl: "https://example.com/avatar.jpg",
+    isVerified: true,
+    isPrivate: false,
+    ...overrides,
+  };
+}
+
+function comment(overrides: Partial<Comment> = {}): Comment {
+  return {
+    id: "c-1",
+    authorUsername: "nike",
+    authorAvatarUrl: "https://example.com/avatar.jpg",
+    authorIsVerified: false,
+    text: "nice",
+    likeCount: 4,
+    postedAt: "2025-01-02T03:04:05.000Z",
+    ...overrides,
+  };
+}
+
+describe("toLikerCsv", () => {
+  it("writes only the header row for an empty list", () => {
+    expect(toLikerCsv([])).toBe(LIKER_HEADER);
+  });
+
+  it("writes a plain verified liker with yes", () => {
+    expect(toLikerCsv([liker()])).toBe(`${LIKER_HEADER}\nnike,Nike,yes`);
+  });
+
+  it("writes an unverified liker with no", () => {
+    expect(toLikerCsv([liker({ isVerified: false })])).toBe(`${LIKER_HEADER}\nnike,Nike,no`);
+  });
+
+  it("omits a profile URL column because the Liker type has no URL field", () => {
+    const [header, row] = toLikerCsv([liker()]).split("\n");
+    expect(header.split(",")).toHaveLength(3);
+    expect(row.split(",")).toHaveLength(3);
+  });
+
+  it("prefixes formula-like usernames and display names", () => {
+    expect(toLikerCsv([liker({ username: "@handle", displayName: "=1+1", isVerified: false })])).toBe(
+      `${LIKER_HEADER}\n'@handle,'=1+1,no`,
+    );
+    expect(toLikerCsv([liker({ username: "-dash" })])).toContain("\n'-dash,");
+  });
+
+  it("prefixes and quotes a display name that is a formula with quotes and commas", () => {
+    const csv = toLikerCsv([liker({ displayName: '=HYPERLINK("https://evil.example","click")' })]);
+    expect(csv.split("\n")[1]).toBe(`nike,"'=HYPERLINK(""https://evil.example"",""click"")",yes`);
+  });
+
+  it("quotes a display name that contains a comma", () => {
+    expect(toLikerCsv([liker({ displayName: "Brand, Inc" })]).split("\n")[1]).toBe('nike,"Brand, Inc",yes');
+  });
+
+  it("doubles inner quotes in a display name", () => {
+    expect(toLikerCsv([liker({ displayName: 'Brand "Co"' })]).split("\n")[1]).toBe('nike,"Brand ""Co""",yes');
+  });
+
+  it("quotes a display name that contains a line break", () => {
+    expect(toLikerCsv([liker({ displayName: "line one\nline two" })]).split("\n").slice(1).join("\n")).toBe(
+      'nike,"line one\nline two",yes',
+    );
+  });
+
+  it("writes one row per liker after the header", () => {
+    const csv = toLikerCsv([liker({ username: "a" }), liker({ username: "b", isVerified: false })]);
+    expect(csv).toBe(`${LIKER_HEADER}\na,Nike,yes\nb,Nike,no`);
+  });
+});
+
+describe("toCommentCsv", () => {
+  it("writes only the header row for an empty list", () => {
+    expect(toCommentCsv([])).toBe(COMMENT_HEADER);
+  });
+
+  it("writes a plain comment with its date and like count", () => {
+    expect(toCommentCsv([comment()])).toBe(`${COMMENT_HEADER}\nnike,nice,4,2025-01-02T03:04:05.000Z`);
+  });
+
+  it("leaves postedAt empty when the source gave no date, never a made-up one", () => {
+    expect(toCommentCsv([comment({ postedAt: null, likeCount: 0 })])).toBe(`${COMMENT_HEADER}\nnike,nice,0,`);
+  });
+
+  it("prefixes a formula-like author username and comment text", () => {
+    expect(toCommentCsv([comment({ authorUsername: "@handle", text: "=1+1" })]).split("\n")[1]).toBe(
+      "'@handle,'=1+1,4,2025-01-02T03:04:05.000Z",
+    );
+  });
+
+  it("prefixes a comment that starts with - without quoting it", () => {
+    expect(toCommentCsv([comment({ text: "-SUM(A1:A2)" })]).split("\n")[1]).toContain(",'-SUM(A1:A2),");
+  });
+
+  it("prefixes a comment that starts with a tab", () => {
+    expect(toCommentCsv([comment({ text: "\tcmd" })]).split("\n")[1]).toContain(",'\tcmd,");
+  });
+
+  it("does not prefix a trigger character that is not the first one", () => {
+    expect(toCommentCsv([comment({ text: "hi @nike" })]).split("\n")[1]).toContain(",hi @nike,");
+  });
+
+  it("quotes and prefixes a formula that contains quotes and commas", () => {
+    expect(toCommentCsv([comment({ text: '=HYPERLINK("https://evil.example","click")' })]).split("\n")[1]).toBe(
+      `nike,"'=HYPERLINK(""https://evil.example"",""click"")",4,2025-01-02T03:04:05.000Z`,
+    );
+  });
+
+  it("quotes a comment with a comma, a quote, and a line break", () => {
+    expect(toCommentCsv([comment({ text: 'Great, "really" great\nthanks' })]).split("\n").slice(1).join("\n")).toBe(
+      'nike,"Great, ""really"" great\nthanks",4,2025-01-02T03:04:05.000Z',
+    );
+  });
+
+  it("quotes and prefixes a comment that starts with a carriage return", () => {
+    expect(toCommentCsv([comment({ text: "\rfirst" })]).split("\n").slice(1).join("\n")).toBe(
+      `nike,"'\rfirst",4,2025-01-02T03:04:05.000Z`,
+    );
   });
 });
