@@ -13,7 +13,8 @@ vi.mock("@/lib/providers", () => ({ getProvider: () => provider }));
 
 import { GET } from "./route";
 
-const CHAIN_DEADLINE_MS = 45_000;
+import { CHAIN_DEADLINE_MS } from "@/lib/cache/cold-budget";
+
 
 function call(ip: string) {
   const permalink = encodeURIComponent("https://www.instagram.com/p/abc123/");

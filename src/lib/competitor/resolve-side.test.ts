@@ -19,7 +19,8 @@ import { EngagementError } from "@/lib/engagement/calculate";
 
 import { resolveSide, STATUS_BY_REASON } from "./resolve-side";
 
-const CHAIN_DEADLINE_MS = 45_000;
+import { CHAIN_DEADLINE_MS } from "@/lib/cache/cold-budget";
+
 const okResult = { username: "alpha_brand", engagementRatePercent: 3.1 };
 
 describe("STATUS_BY_REASON", () => {

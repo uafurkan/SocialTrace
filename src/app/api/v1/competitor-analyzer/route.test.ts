@@ -17,7 +17,8 @@ vi.mock("@/lib/engagement/calculate", () => {
 
 import { POST } from "./route";
 
-const CHAIN_DEADLINE_MS = 45_000;
+import { CHAIN_DEADLINE_MS } from "@/lib/cache/cold-budget";
+
 const okResult = { sample: 12, medianEngagement: 4.2 };
 
 function post(body: unknown, ip: string) {

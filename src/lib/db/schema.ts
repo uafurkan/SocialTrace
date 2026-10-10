@@ -134,7 +134,7 @@ export const profileCache = pgTable(
  * chain), the direct cause of "switching tabs takes minutes" in
  * production. `cacheKey` encodes both which call this is (e.g. "posts")
  * and what it varies by (the profile, and anything else like a search
- * query), e.g. "posts:profile_nike".
+ * query), e.g. "posts:v2:profile_nike".
  */
 export const providerCache = pgTable("provider_cache", {
   // Single column (e.g. "posts:profile_nike") rather than a composite key —
