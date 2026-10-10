@@ -45,9 +45,8 @@ const ROUTE_TIERS: RouteTier[] = [
 
   // Search-intent landing pages behind each hub — real, distinct pages
   // per docs/SEO.md, not doorway pages.
-  { path: "/tools/instagram-follower-history", priority: 0.7, changeFrequency: "monthly", lastModified: "2026-09-06" },
-  { path: "/tools/instagram-follower-compare", priority: 0.7, changeFrequency: "monthly", lastModified: "2026-09-06" },
-  { path: "/tools/instagram-growth-tracker", priority: 0.7, changeFrequency: "monthly", lastModified: "2026-09-06" },
+  { path: "/tools/instagram-follower-history", priority: 0.7, changeFrequency: "monthly", lastModified: "2026-10-10" },
+  { path: "/tools/instagram-growth-tracker", priority: 0.7, changeFrequency: "monthly", lastModified: "2026-10-10" },
   { path: "/tools/instagram-story-viewer", priority: 0.7, changeFrequency: "monthly", lastModified: "2026-09-06" },
   { path: "/tools/anonymous-instagram-viewer", priority: 0.7, changeFrequency: "monthly", lastModified: "2026-09-06" },
   { path: "/tools/anonymous-tiktok-viewer", priority: 0.7, changeFrequency: "monthly", lastModified: "2026-09-06" },

@@ -54,7 +54,7 @@ export default function InstagramFollowerHistoryPage() {
         features={[
           { title: "Real data points", body: "Every point on the history line is a real captured snapshot, timestamped." },
           { title: "Counts per snapshot", body: "Each snapshot records the profile's follower, following and post counts. No follower or following accounts are stored with it." },
-          { title: "Cross-links to comparisons", body: "From any two snapshots you can jump straight to a full Compare view." },
+          { title: "Count comparisons", body: "Pick any two snapshots to see how the follower, following and post counts moved between them, plus any profile-field changes in that window." },
           { title: "No fabrication", body: "History has no gaps filled in — if a period wasn't captured, it isn't drawn." },
         ]}
         limitations={[
@@ -62,7 +62,6 @@ export default function InstagramFollowerHistoryPage() {
           "Each snapshot stores the profile's counts only, not its follower or following accounts. The counts themselves are not capped.",
         ]}
         relatedTools={[
-          { href: "/tools/instagram-follower-compare", label: "Instagram follower compare", body: "Pick two snapshots and see who joined or left between them." },
           { href: "/tools/instagram-growth-tracker", label: "Instagram growth tracker", body: "Track profiles on a dashboard with per-profile deltas." },
         ]}
         faq={FAQ}

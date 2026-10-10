@@ -22,11 +22,6 @@ const FAQ = [
     answer:
       "Only when someone captures a new snapshot for that profile. There is no scheduler in this build; the dashboard shows the delta between the two most recent snapshots for each tracked profile.",
   },
-  {
-    question: "Can I save searches over a tracked profile?",
-    answer:
-      "Yes — on the Followers or Following page use Save search, and the /tracking dashboard shows new and removed matching accounts between the two most recent snapshots.",
-  },
 ];
 
 export default function InstagramGrowthTrackerPage() {
@@ -54,7 +49,6 @@ export default function InstagramGrowthTrackerPage() {
         features={[
           { title: "One click to track", body: "Track and untrack from the profile header — no forms, no configuration." },
           { title: "Per-profile delta", body: "Each row shows the follower change since the last snapshot of that profile." },
-          { title: "Saved searches inline", body: "Saved substring queries against a profile's followers or following appear on the same dashboard." },
           { title: "Anonymous by design", body: "No sign-in — a first-party browser cookie identifies you." },
         ]}
         limitations={[
@@ -64,7 +58,6 @@ export default function InstagramGrowthTrackerPage() {
         ]}
         relatedTools={[
           { href: "/tools/instagram-follower-history", label: "Instagram follower history", body: "See the full time series behind the delta on the dashboard." },
-          { href: "/tools/instagram-follower-compare", label: "Instagram follower compare", body: "Pick any two snapshots to see the accounts behind the delta." },
         ]}
         faq={FAQ}
       />
