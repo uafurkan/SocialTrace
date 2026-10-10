@@ -3,11 +3,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { clientIdentifierFor, rateLimit } from "@/lib/rate-limit";
 import {
   MAX_MEDIA_BYTES,
+  checkHostResolution,
   createCappedStream,
   declaredLengthExceeds,
   isRedirectStatus,
   redirectLimitReached,
   resolveRedirectLocation,
+  type HostResolution,
 } from "@/lib/media/guard";
 import { extensionFor, isAllowedMediaHost, sanitizeFilename } from "./utils";
 
@@ -20,9 +22,11 @@ import { extensionFor, isAllowedMediaHost, sanitizeFilename } from "./utils";
  * with no auth, so an open proxy to arbitrary URLs would be an SSRF hole.
  *
  * Redirects are followed by hand (at most MAX_REDIRECTS), and every hop must
- * pass the same host allowlist as the first URL. The body is capped at
- * MAX_MEDIA_BYTES, both by Content-Length and by counting bytes as they
- * stream, and the stream is abandoned after BODY_TIMEOUT_MS.
+ * pass the same host allowlist as the first URL. Each host is also resolved,
+ * and refused when any address is private or reserved (see
+ * `checkHostResolution` for the DNS rebinding window that remains). The body
+ * is capped at MAX_MEDIA_BYTES, both by Content-Length and by counting bytes
+ * as they stream, and the stream is abandoned after BODY_TIMEOUT_MS.
  */
 const DOWNLOAD_RATE_LIMIT = 30;
 const DOWNLOAD_RATE_WINDOW_MS = 10 * 60 * 1000;
@@ -31,6 +35,21 @@ const BODY_TIMEOUT_MS = 60_000;
 
 function isAllowedMediaUrl(url: URL): boolean {
   return url.protocol === "https:" && isAllowedMediaHost(url.hostname);
+}
+
+type RefusedResolution = Exclude<HostResolution, { kind: "public" }>;
+
+/**
+ * Refusal for a host the resolver check did not clear. A private address gets
+ * `privateStatus`, matching the allowlist refusal in the same position (400 for
+ * the first URL, 403 for a redirect target). A name that does not resolve is a
+ * 400 in either position.
+ */
+function refusalFor(resolution: RefusedResolution, privateStatus: 400 | 403): NextResponse {
+  if (resolution.kind === "unresolved") {
+    return NextResponse.json({ error: "url host could not be resolved" }, { status: 400 });
+  }
+  return NextResponse.json({ error: "url host is not allowed" }, { status: privateStatus });
 }
 
 export async function GET(request: NextRequest) {
@@ -61,6 +80,9 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const initialResolution = await checkHostResolution(parsed.hostname);
+  if (initialResolution.kind !== "public") return refusalFor(initialResolution, 400);
+
   // The header timeout covers the whole redirect chain. It is cleared once
   // the final response's headers have arrived.
   const controller = new AbortController();
@@ -83,6 +105,8 @@ export async function GET(request: NextRequest) {
       if (!isAllowedMediaUrl(next)) {
         return NextResponse.json({ error: "url host is not allowed" }, { status: 403 });
       }
+      const hopResolution = await checkHostResolution(next.hostname);
+      if (hopResolution.kind !== "public") return refusalFor(hopResolution, 403);
       current = next;
     }
   } catch {
