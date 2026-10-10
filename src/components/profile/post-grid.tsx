@@ -127,7 +127,9 @@ export function PostGrid({ posts, platform = "instagram" }: { posts: Post[]; pla
             <tbody>
               {visiblePosts.map((post) => (
                 <tr key={post.id} className="border-b border-border last:border-0">
-                  <td className="py-2 pr-4 text-secondary">{new Date(post.postedAt).toLocaleDateString("en-US")}</td>
+                  <td className="py-2 pr-4 text-secondary">
+                    {post.postedAt ? new Date(post.postedAt).toLocaleDateString("en-US") : "—"}
+                  </td>
                   <td className="py-2 pr-4 capitalize text-secondary">{post.mediaType}</td>
                   <td className="py-2 pr-4">
                     {post.permalink ? (

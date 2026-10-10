@@ -1,5 +1,6 @@
 import type { Comment } from "@/lib/domain/types";
 import { runApifyActor } from "./client";
+import { toPostedAt } from "../post-date";
 
 /**
  * apify/instagram-comment-scraper — Apify's own official actor (9M+ runs),
@@ -31,6 +32,6 @@ export async function fetchApifyComments(permalink: string, limit = DEFAULT_LIMI
     authorIsVerified: item.owner?.is_verified ?? false,
     text: item.text ?? "",
     likeCount: item.likesCount ?? 0,
-    postedAt: item.timestamp ?? new Date().toISOString(),
+    postedAt: toPostedAt(item.timestamp),
   }));
 }

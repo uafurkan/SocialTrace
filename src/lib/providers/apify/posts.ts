@@ -2,6 +2,7 @@ import type { Post } from "@/lib/domain/types";
 import { withDataCache } from "@/lib/cache/data-cache";
 import { fetchWebProfileInfo, toPosts } from "../instagram-public/web-profile-info";
 import { runApifyActor } from "./client";
+import { toPostedAt } from "../post-date";
 
 const PROFILE_ACTOR_ID = "apify~instagram-profile-scraper";
 
@@ -65,6 +66,6 @@ async function fetchApifyPostsUncached(username: string, profileId: string): Pro
     likeCount: post.likesCount ?? 0,
     commentCount: post.commentsCount ?? 0,
     viewCount: post.videoViewCount ?? null,
-    postedAt: post.timestamp ?? new Date().toISOString(),
+    postedAt: toPostedAt(post.timestamp),
   }));
 }

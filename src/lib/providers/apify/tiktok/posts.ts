@@ -1,6 +1,7 @@
 import type { Post } from "@/lib/domain/types";
 import { withDataCache } from "@/lib/cache/data-cache";
 import { runApifyActor } from "../client";
+import { toPostedAt } from "../../post-date";
 
 const PROFILE_ACTOR_ID = "clockworks~tiktok-profile-scraper";
 
@@ -46,6 +47,6 @@ export async function fetchApifyTikTokPosts(username: string, profileId: string,
     likeCount: item.diggCount ?? 0,
     commentCount: item.commentCount ?? 0,
     viewCount: item.playCount ?? null,
-    postedAt: item.createTimeISO ?? new Date().toISOString(),
+    postedAt: toPostedAt(item.createTimeISO),
   }));
 }

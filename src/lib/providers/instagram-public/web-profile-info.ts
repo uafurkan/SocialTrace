@@ -25,6 +25,7 @@
 import type { Post, Profile } from "@/lib/domain/types";
 import { ProfileNotFoundError } from "../types";
 import { coverageFor, MEMBER_FETCH_CAP } from "../coverage";
+import { unixSecondsToPostedAt } from "../post-date";
 
 const WEB_PROFILE_INFO_URL = "https://i.instagram.com/api/v1/users/web_profile_info/";
 
@@ -222,9 +223,7 @@ export function toPosts(user: WebProfileUser, profileId: string): Post[] {
         likeCount: likeCountOf(node),
         commentCount: isNumber(node.edge_media_to_comment?.count) ? node.edge_media_to_comment.count : 0,
         viewCount: isNumber(node.video_view_count) ? node.video_view_count : null,
-        postedAt: isNumber(node.taken_at_timestamp)
-          ? new Date(node.taken_at_timestamp * 1000).toISOString()
-          : new Date(0).toISOString(),
+        postedAt: unixSecondsToPostedAt(isNumber(node.taken_at_timestamp) ? node.taken_at_timestamp : null),
       },
     ];
   });

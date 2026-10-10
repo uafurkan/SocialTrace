@@ -1,6 +1,7 @@
 import type { TaggedPost } from "@/lib/domain/types";
 import { withDataCache } from "@/lib/cache/data-cache";
 import { runApifyActor } from "./client";
+import { toPostedAt, unixSecondsToPostedAt } from "../post-date";
 
 /**
  * instagram-scraper/instagram-tagged-posts-scraper — verified live during
@@ -39,10 +40,8 @@ function captionText(caption: ApifyTaggedPostItem["caption"]): string {
 }
 
 /** The actor has been observed returning `taken_at` as both a unix-seconds number and an ISO string — handle both rather than assuming one. */
-function parseTakenAt(takenAt: number | string | undefined): string {
-  if (takenAt == null) return new Date().toISOString();
-  const date = typeof takenAt === "number" ? new Date(takenAt * 1000) : new Date(takenAt);
-  return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
+function parseTakenAt(takenAt: number | string | undefined): string | null {
+  return typeof takenAt === "number" ? unixSecondsToPostedAt(takenAt) : toPostedAt(takenAt);
 }
 
 export async function fetchApifyTaggedPosts(username: string): Promise<TaggedPost[]> {

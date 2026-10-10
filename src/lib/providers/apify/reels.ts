@@ -1,6 +1,7 @@
 import type { Post } from "@/lib/domain/types";
 import { withDataCache } from "@/lib/cache/data-cache";
 import { runApifyActor } from "./client";
+import { toPostedAt } from "../post-date";
 
 const REEL_ACTOR_ID = "apify~instagram-reel-scraper";
 
@@ -50,7 +51,7 @@ export async function fetchApifyReels(username: string, profileId: string, limit
         likeCount: reel.likesCount ?? 0,
         commentCount: reel.commentsCount ?? 0,
         viewCount: reel.videoPlayCount ?? reel.videoViewCount ?? null,
-        postedAt: reel.timestamp ?? new Date().toISOString(),
+        postedAt: toPostedAt(reel.timestamp),
       }));
   });
 }

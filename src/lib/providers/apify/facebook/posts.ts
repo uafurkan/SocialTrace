@@ -1,6 +1,7 @@
 import type { Post } from "@/lib/domain/types";
 import { withDataCache } from "@/lib/cache/data-cache";
 import { runApifyActor } from "../client";
+import { toPostedAt } from "../../post-date";
 
 const POSTS_ACTOR_ID = "apify~facebook-posts-scraper";
 
@@ -46,6 +47,6 @@ export async function fetchApifyFacebookPosts(usernameOrUrl: string, profileId: 
     likeCount: item.likes ?? 0,
     commentCount: item.comments ?? 0,
     viewCount: item.viewsCount ?? null,
-    postedAt: item.time ?? new Date().toISOString(),
+    postedAt: toPostedAt(item.time),
   }));
 }

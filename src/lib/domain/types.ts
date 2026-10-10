@@ -66,7 +66,8 @@ export interface Post {
   likeCount: number;
   commentCount: number;
   viewCount: number | null;
-  postedAt: string;
+  /** `null` when the source gave no valid date. Never a made-up time. */
+  postedAt: string | null;
 }
 
 /** A still-active (unexpired) story — spec's stories tab, sourced live with no login required (docs/DECISIONS.md). */
@@ -107,7 +108,8 @@ export interface TaggedPost {
   caption: string;
   likeCount: number;
   commentCount: number;
-  postedAt: string;
+  /** `null` when the source gave no valid date. Never a made-up time. */
+  postedAt: string | null;
   authorUsername: string;
   authorAvatarUrl: string;
   authorIsVerified: boolean;
@@ -130,7 +132,8 @@ export interface Comment {
   authorIsVerified: boolean;
   text: string;
   likeCount: number;
-  postedAt: string;
+  /** `null` when the source gave no valid date. Never a made-up time. */
+  postedAt: string | null;
 }
 
 /** Spec §19 snapshot metadata, trimmed to what the history UI needs. */

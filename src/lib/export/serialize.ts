@@ -18,7 +18,7 @@ function userXml(tag: string, user: SocialUser): string {
 }
 
 function postXml(tag: string, post: Post): string {
-  return `<${tag}><id>${xmlEscape(post.id)}</id><media_type>${post.mediaType}</media_type><caption>${xmlEscape(post.caption)}</caption><like_count>${post.likeCount}</like_count><comment_count>${post.commentCount}</comment_count><posted_at>${post.postedAt}</posted_at></${tag}>`;
+  return `<${tag}><id>${xmlEscape(post.id)}</id><media_type>${post.mediaType}</media_type><caption>${xmlEscape(post.caption)}</caption><like_count>${post.likeCount}</like_count><comment_count>${post.commentCount}</comment_count><posted_at>${post.postedAt ?? ""}</posted_at></${tag}>`;
 }
 
 export function toExportXml(bundle: ExportBundle): string {
