@@ -14,7 +14,15 @@ import {
   TranscriptionError,
   type TranscriptResult,
 } from "@/lib/transcription";
-import { assertTranscriptionAllowed, deleteUsageReservation, markUsageBilled, recordUsage } from "@/lib/transcription/quota";
+import {
+  assertTranscriptionAllowed,
+  deleteUsageReservation,
+  GLOBAL_CEILING_MESSAGE,
+  markUsageBilled,
+  recordUsage,
+  reserveGlobalSlot,
+  TranscriptionQuotaError,
+} from "@/lib/transcription/quota";
 import { VISITOR_COOKIE, VISITOR_COOKIE_OPTIONS } from "@/lib/tracking/visitor-cookie";
 
 export const runtime = "nodejs";
@@ -30,6 +38,9 @@ const TRANSCRIBE_RATE_WINDOW_MS = 10 * 60 * 1000;
 /** How long a request will poll someone else's in-flight job for the same URL before giving up (bad-outcome #8, docs/TRANSCRIBER.md) — stays well under the 60s function budget. */
 const DUPLICATE_WAIT_TIMEOUT_MS = 45_000;
 const DUPLICATE_POLL_INTERVAL_MS = 1_500;
+
+/** The only text a client gets for an internal failure. The real error goes to console.error. */
+const TRANSCRIPTION_FAILED_MESSAGE = "Transcription failed. Please try again.";
 
 type StreamEvent =
   | { stage: "downloading" }
@@ -117,10 +128,12 @@ export async function POST(request: NextRequest) {
     try {
       await assertTranscriptionAllowed(identity.scopeId, identity.account?.plan ?? null);
     } catch (error) {
-      if (error instanceof PlanLimitError || error instanceof Error) {
+      if (error instanceof PlanLimitError || error instanceof TranscriptionQuotaError) {
         return NextResponse.json({ error: error.message }, { status: 429 });
       }
-      throw error;
+      // Anything else is internal (a database error, say): log it and never send its raw text, even inside a 429.
+      console.error("[transcribe] quota check failed:", error);
+      return NextResponse.json({ error: TRANSCRIPTION_FAILED_MESSAGE }, { status: 500 });
     }
   }
 
@@ -178,10 +191,41 @@ export async function POST(request: NextRequest) {
   // window to the time between the SELECT count and this INSERT. Billed
   // status and final disposition are decided below once the outcome (or
   // absence of one, on failure) is known.
-  const usageReservation = isOwner ? await recordUsage(identity.scopeId, cacheKey, false) : null;
+  // The global ceiling check and this reservation are one SQL statement
+  // (reserveGlobalSlot), so concurrent runs cannot both take the last slot.
+  // Admins skip the ceiling, matching the pre-check above, but still get a row.
+  // If the slot can't be taken, release the claim so the next request can
+  // run the pipeline, and refuse before any stream starts.
+  let usageReservation: string | null = null;
+  if (isOwner) {
+    try {
+      usageReservation = isAdmin
+        ? await recordUsage(identity.scopeId, cacheKey, false)
+        : await reserveGlobalSlot(identity.scopeId, cacheKey);
+    } catch (error) {
+      await db.delete(schema.transcriptCache).where(eq(schema.transcriptCache.cacheKey, cacheKey)).catch(() => {});
+      console.error("[transcribe] reserving usage failed:", error);
+      return NextResponse.json({ error: TRANSCRIPTION_FAILED_MESSAGE }, { status: 500 });
+    }
+    if (!usageReservation) {
+      await db.delete(schema.transcriptCache).where(eq(schema.transcriptCache.cacheKey, cacheKey)).catch(() => {});
+      return NextResponse.json({ error: GLOBAL_CEILING_MESSAGE }, { status: 429 });
+    }
+  }
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
+      // Closing a controller twice throws, and the branches below both close
+      // and then return into `finally`, which closes again. One flag makes
+      // close run exactly once.
+      let closed = false;
+      const closeOnce = () => {
+        if (closed) return;
+        closed = true;
+        controller.close();
+      };
+      // Set once this run's reservation is marked billed. A billed run must keep its row.
+      let billed = false;
       writeEvent(controller, { stage: "downloading" });
 
       try {
@@ -189,7 +233,7 @@ export async function POST(request: NextRequest) {
           const result = await waitForExistingJob(cacheKey, DUPLICATE_WAIT_TIMEOUT_MS);
           if (!result) {
             writeEvent(controller, { stage: "error", reason: "transcription_failed", message: "Still processing — please try again shortly." });
-            controller.close();
+            closeOnce();
             return;
           }
           await recordUsage(identity.scopeId, cacheKey, false);
@@ -198,13 +242,20 @@ export async function POST(request: NextRequest) {
           // video either — best-effort refetch a free preview link.
           const freshVideoUrl = await fetchFreeVideoPreview(url, platform).catch(() => null);
           writeEvent(controller, { stage: "done", result: { ...toPayload(result), videoUrl: toProxiedVideoUrl(freshVideoUrl) } });
-          controller.close();
+          closeOnce();
           return;
         }
 
         const result = await transcribe(url, language, (videoUrl) => {
           writeEvent(controller, { stage: "transcribing", videoUrl: toProxiedVideoUrl(videoUrl) ?? "" });
         });
+        // usageReservation is guaranteed set here: this branch only runs
+        // when isOwner is true, and the reservation was made (or the request
+        // refused) above, before the stream started. Billing is marked before
+        // the transcript is marked done, so the run is never missing from the
+        // ceiling count between the two writes.
+        await markUsageBilled(usageReservation!);
+        billed = true;
         await db
           .update(schema.transcriptCache)
           .set({
@@ -217,10 +268,6 @@ export async function POST(request: NextRequest) {
             updatedAt: new Date(),
           })
           .where(eq(schema.transcriptCache.cacheKey, cacheKey));
-        // usageReservation is guaranteed set here: this branch only runs
-        // when isOwner is true, and usageReservation was populated
-        // immediately after isOwner was determined, above.
-        await markUsageBilled(usageReservation!);
         writeEvent(controller, { stage: "done", result: toPayload(result) });
       } catch (error) {
         if (isOwner) {
@@ -229,14 +276,17 @@ export async function POST(request: NextRequest) {
           await db.delete(schema.transcriptCache).where(eq(schema.transcriptCache.cacheKey, cacheKey)).catch(() => {});
           // A failed attempt shouldn't cost the visitor part of their daily
           // quota — release the reservation made before the pipeline ran.
-          await deleteUsageReservation(usageReservation!).catch(() => {});
+          // Not after billing: a run that was already billed really cost money.
+          if (!billed) await deleteUsageReservation(usageReservation!).catch(() => {});
         }
         const reason = error instanceof TranscriptionError ? error.reason : "transcription_failed";
-        const message = error instanceof Error ? error.message : "Something went wrong.";
+        // TranscriptionError messages are written for the visitor (index.ts).
+        // Anything else is internal: the real error is logged, and the client gets the fixed text.
+        const message = error instanceof TranscriptionError ? error.message : TRANSCRIPTION_FAILED_MESSAGE;
         console.error("[transcribe] pipeline failed:", error);
         writeEvent(controller, { stage: "error", reason, message });
       } finally {
-        controller.close();
+        closeOnce();
       }
     },
   });

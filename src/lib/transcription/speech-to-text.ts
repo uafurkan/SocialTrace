@@ -10,6 +10,8 @@ const GROQ_URL = "https://api.groq.com/openai/v1/audio/transcriptions";
 const GROQ_MODEL = "whisper-large-v3-turbo";
 const OPENAI_URL = "https://api.openai.com/v1/audio/transcriptions";
 const OPENAI_MODEL = "whisper-1";
+/** One Whisper request, per key. Without it a hung upload holds the route's whole maxDuration. */
+const REQUEST_TIMEOUT_MS = 60_000;
 
 interface VerboseJsonSegment {
   start?: number;
@@ -146,6 +148,7 @@ async function transcribeWith(
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}` },
     body: form,
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
 
   if (!res.ok) {
