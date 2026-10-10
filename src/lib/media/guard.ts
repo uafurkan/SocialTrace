@@ -1,14 +1,15 @@
 /**
  * Checks shared by the media routes (video proxy and media download).
  *
- * Apart from `checkHostResolution`, nothing here performs I/O. The routes do
- * the fetching and call these helpers for the initial URL and for every
- * redirect target.
+ * Apart from `resolveHostAddresses`, nothing here performs I/O. The fetching
+ * lives in `./safe-fetch`, which resolves each hop once through
+ * `resolveHostAddresses`, refuses a hop when any address is private, and
+ * connects to the address it checked. The first URL and every redirect target
+ * go through it.
  *
  * The hostname text is checked by `isPrivateAddress` and the allowlist. The
- * name is also resolved by `checkHostResolution`, so a public-looking name
- * whose DNS answer is private is refused. That check leaves a DNS rebinding
- * window, described on the function.
+ * name is also resolved, so a public-looking name whose DNS answer is private
+ * is refused.
  */
 import { lookup as dnsLookup } from "node:dns/promises";
 import { isIP } from "node:net";
@@ -139,22 +140,26 @@ function parseIPv6(literal: string): number[] | null {
 function isPrivateIPv6(groups: number[]): boolean {
   const [g0, g1, g2, g3, g4, g5, g6, g7] = groups;
   const embeddedIPv4 = g6 * 0x10000 + g7;
+  const zeroPrefix = g0 === 0 && g1 === 0 && g2 === 0 && g3 === 0 && g4 === 0;
 
-  // ::a.b.c.d (deprecated IPv4-compatible) and ::ffff:a.b.c.d (IPv4-mapped):
-  // judged by the embedded IPv4 address. This also covers :: (0.0.0.0) and
-  // ::1 (0.0.0.1), both inside 0.0.0.0/8.
-  if (g0 === 0 && g1 === 0 && g2 === 0 && g3 === 0 && g4 === 0 && (g5 === 0 || g5 === 0xffff)) {
-    return isPrivateIPv4(embeddedIPv4);
-  }
+  // ::ffff:a.b.c.d (IPv4-mapped) is judged by the embedded IPv4 address.
+  if (zeroPrefix && g5 === 0xffff) return isPrivateIPv4(embeddedIPv4);
+  // ::/96 (IPv4-compatible, deprecated) is refused whatever it embeds. This
+  // includes :: and ::1.
+  if (zeroPrefix && g5 === 0) return true;
   return (
     (g0 & 0xfe00) === 0xfc00 || // fc00::/7 unique local
     (g0 & 0xffc0) === 0xfe80 || // fe80::/10 link-local
-    (g0 & 0xff00) === 0xff00 // ff00::/8 multicast
+    (g0 & 0xffc0) === 0xfec0 || // fec0::/10 site-local (deprecated)
+    (g0 & 0xff00) === 0xff00 || // ff00::/8 multicast
+    (g0 === 0x0064 && g1 === 0xff9b && g2 === 0 && g3 === 0 && g4 === 0 && g5 === 0) || // 64:ff9b::/96 NAT64
+    (g0 === 0x0064 && g1 === 0xff9b && g2 === 0x0001) || // 64:ff9b:1::/48 local-use NAT64
+    g0 === 0x2002 // 2002::/16 6to4, which embeds an IPv4 address this does not unwrap
   );
 }
 
 /** Lowercased, without IPv6 brackets or a trailing dot. */
-function normalizeHost(hostname: string): string {
+export function normalizeHost(hostname: string): string {
   let host = hostname.trim().toLowerCase();
   if (host.startsWith("[") && host.endsWith("]")) host = host.slice(1, -1);
   return host.replace(/\.$/, "");
@@ -163,8 +168,10 @@ function normalizeHost(hostname: string): string {
 /**
  * True when IP text is private, loopback, link-local, CGNAT, multicast or
  * reserved. IPv6 is recognised by its colon, otherwise the text is IPv4. An
- * IPv4-mapped (`::ffff:a.b.c.d`) or IPv4-compatible address is judged by its
- * embedded IPv4 address. Text that is not an IP address counts as reserved
+ * IPv4-mapped address (`::ffff:a.b.c.d`) is judged by its embedded IPv4
+ * address. The deprecated IPv4-compatible `::/96` is always reserved, and so
+ * are NAT64 (`64:ff9b::/96`, `64:ff9b:1::/48`), 6to4 (`2002::/16`) and
+ * site-local (`fec0::/10`). Text that is not an IP address counts as reserved
  * (fail closed).
  */
 export function isReservedIpAddress(address: string): boolean {
@@ -211,12 +218,13 @@ const defaultLookup: HostLookup = (hostname, options) => dnsLookup(hostname, opt
 /** Longest a name may take to resolve. A slower lookup is refused as unresolved. */
 export const DNS_TIMEOUT_MS = 5_000;
 
-export type HostResolution =
-  /** Every address in the answer is public. */
-  | { kind: "public" }
-  /** The name is private, or at least one address in its answer is private or reserved. */
+/** Every address a hostname resolves to, for one fetch hop. The caller checks them and connects to one. */
+export type HostAddresses =
+  /** One entry per address in the answer. A public IP literal is its own answer and needs no lookup. */
+  | { kind: "addresses"; addresses: readonly ResolvedAddress[] }
+  /** Judged private from the text alone (localhost, a private literal, an empty host). No lookup was made. */
   | { kind: "private" }
-  /** The name did not resolve, the lookup failed, or it timed out. The host is not fetched. */
+  /** The name did not resolve, the lookup failed, or it timed out. */
   | { kind: "unresolved" };
 
 function withTimeout<T>(pending: Promise<T>, ms: number): Promise<T> {
@@ -228,31 +236,25 @@ function withTimeout<T>(pending: Promise<T>, ms: number): Promise<T> {
 }
 
 /**
- * Judges a hostname by where it resolves. Every address in the answer is
- * checked, not the first one, so one private record is enough to refuse the
- * name. Literal IPs and names `isPrivateAddress` already judges are classified
- * without a lookup.
- *
- * Residual window (DNS rebinding): this resolves the name, and the caller's
- * fetch then resolves it again. A resolver that answers with a public address
- * here and a private one for the connection gets through. Node's built-in
- * fetch cannot take a custom resolver, and this module adds no dependency.
- * Closing the window means connecting to the address checked here. Pass that
- * address to the `lookup` option of an `https.request` call, which keeps TLS
- * verification against the hostname, and do the same for each redirect hop.
+ * Resolves a hostname once and returns every address in the answer, in the
+ * resolver's order. Names that `isPrivateAddress` already judges and IP
+ * literals are handled without a lookup. The caller decides what to do with
+ * the addresses: `safe-fetch` refuses the hop if any is reserved, and connects
+ * to the address it verified.
  */
-export async function checkHostResolution(
+export async function resolveHostAddresses(
   hostname: string,
   options: { lookup?: HostLookup; timeoutMs?: number } = {},
-): Promise<HostResolution> {
+): Promise<HostAddresses> {
   if (isPrivateAddress(hostname)) return { kind: "private" };
   const host = normalizeHost(hostname);
-  if (isIP(host) !== 0) return { kind: "public" };
+  const literal = isIP(host);
+  if (literal !== 0) return { kind: "addresses", addresses: [{ address: host, family: literal }] };
 
   const lookup = options.lookup ?? defaultLookup;
   let answers: readonly ResolvedAddress[];
   try {
-    // `verbatim` keeps the resolver's order. Every answer is checked anyway.
+    // `verbatim` keeps the resolver's order.
     answers = await withTimeout(
       lookup(host, { all: true, verbatim: true }),
       options.timeoutMs ?? DNS_TIMEOUT_MS,
@@ -261,9 +263,7 @@ export async function checkHostResolution(
     return { kind: "unresolved" };
   }
   if (answers.length === 0) return { kind: "unresolved" };
-  return answers.some((answer) => isReservedIpAddress(answer.address))
-    ? { kind: "private" }
-    : { kind: "public" };
+  return { kind: "addresses", addresses: answers };
 }
 
 export type UrlVerdict =

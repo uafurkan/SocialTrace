@@ -4,7 +4,6 @@ import {
   MAX_MEDIA_BYTES,
   MAX_REDIRECTS,
   PayloadTooLargeError,
-  checkHostResolution,
   classifyVideoUrl,
   createByteCounter,
   createCappedStream,
@@ -15,6 +14,7 @@ import {
   isReservedIpAddress,
   readCappedBody,
   redirectLimitReached,
+  resolveHostAddresses,
   resolveRedirectLocation,
   videoProxyMode,
   type HostLookup,
@@ -109,9 +109,15 @@ describe("isPrivateAddress", () => {
     "[fc00::1]",
     "fe80::1",
     "[febf::1]",
+    "[fec0::1]",
     "100.64.0.1",
     "224.0.0.1",
     "ff02::1",
+    "::8.8.8.8",
+    "[::8.8.8.8]",
+    "64:ff9b::808:808",
+    "[64:ff9b:1::1]",
+    "[2002:808:808::1]",
     "0x7f000001",
     "2130706433",
     "0177.0.0.1",
@@ -139,7 +145,6 @@ describe("isPrivateAddress", () => {
     "2606:4700:4700::1111",
     "::ffff:8.8.8.8",
     "[::ffff:808:808]",
-    "::8.8.8.8",
   ])("treats %s as public", (host) => {
     expect(isPrivateAddress(host)).toBe(false);
   });
@@ -215,12 +220,28 @@ describe("isReservedIpAddress", () => {
     ["fe7f::1", false],
     ["fe80::", true],
     ["febf::1", true],
-    ["feff::1", false],
+    // fec0::/10 site-local runs to feff, so the last address before ff00 is reserved.
+    ["fec0::", true],
+    ["feff:ffff::1", true],
     ["ff00::", true],
     ["ff02::1", true],
     ["fe80::1%eth0", true],
-    ["2001:4860:4860::8888", false],
-    ["2606:4700:4700::1111", false],
+    // IPv4-compatible ::/96 (deprecated) is reserved whatever address it embeds.
+    ["::8.8.8.8", true],
+    ["::0.0.0.1", true],
+    // NAT64 well-known prefix 64:ff9b::/96 and local-use 64:ff9b:1::/48.
+    ["64:ff9b::", true],
+    ["64:ff9b::808:808", true],
+    ["64:ff9b:0:1::", false],
+    ["64:ff9b:1::", true],
+    ["64:ff9b:1:ffff:ffff:ffff:ffff:ffff", true],
+    ["64:ff9b:2::", false],
+    // 6to4 2002::/16.
+    ["2002::", true],
+    ["2002:808:808::1", true],
+    ["2002:ffff:ffff:ffff:ffff:ffff:ffff:ffff", true],
+    ["2001:ffff::", false],
+    ["2003::", false],
     ["::ffff:126.255.255.255", false],
     ["::ffff:127.0.0.0", true],
     ["::ffff:127.255.255.255", true],
@@ -242,7 +263,7 @@ describe("isReservedIpAddress", () => {
   });
 });
 
-describe("checkHostResolution", () => {
+describe("resolveHostAddresses", () => {
   /** A lookup that answers with `addresses` and records every call. */
   function fakeLookup(addresses: string[]) {
     const calls: Array<{ hostname: string; options: unknown }> = [];
@@ -253,56 +274,32 @@ describe("checkHostResolution", () => {
     return { lookup, calls };
   }
 
-  it("resolves a public name with all answers and verbatim order, and passes the public verdict", async () => {
-    const { lookup, calls } = fakeLookup(["93.184.216.34"]);
-    expect(await checkHostResolution("Example.COM.", { lookup })).toEqual({ kind: "public" });
+  it("resolves a name once with every answer, in verbatim order", async () => {
+    const { lookup, calls } = fakeLookup(["93.184.216.34", "10.0.0.7"]);
+    expect(await resolveHostAddresses("Example.COM.", { lookup })).toEqual({
+      kind: "addresses",
+      addresses: [
+        { address: "93.184.216.34", family: 4 },
+        { address: "10.0.0.7", family: 4 },
+      ],
+    });
     expect(calls).toEqual([{ hostname: "example.com", options: { all: true, verbatim: true } }]);
   });
 
-  it.each([
-    "127.0.0.1",
-    "169.254.169.254",
-    "10.1.2.3",
-    "172.16.5.5",
-    "192.168.1.1",
-    "100.64.0.9",
-    "224.0.0.251",
-    "::1",
-    "fd00::5",
-    "fe80::1",
-    "ff02::1",
-    "::ffff:127.0.0.1",
-    "::ffff:169.254.169.254",
-  ])("refuses a public-looking name that resolves to %s", async (address) => {
-    const { lookup } = fakeLookup([address]);
-    expect(await checkHostResolution("public-looking.example", { lookup })).toEqual({ kind: "private" });
-  });
-
-  it("refuses the name when any one answer is private, not only the first", async () => {
-    const { lookup } = fakeLookup(["93.184.216.34", "10.0.0.7"]);
-    expect(await checkHostResolution("mixed.example", { lookup })).toEqual({ kind: "private" });
-  });
-
-  it("treats an empty answer as unresolved", async () => {
-    const { lookup } = fakeLookup([]);
-    expect(await checkHostResolution("nowhere.example", { lookup })).toEqual({ kind: "unresolved" });
-  });
-
-  it("treats a failed lookup as unresolved and does not throw", async () => {
-    const lookup: HostLookup = async () => {
-      throw Object.assign(new Error("getaddrinfo ENOTFOUND nowhere.example"), { code: "ENOTFOUND" });
-    };
-    await expect(checkHostResolution("nowhere.example", { lookup })).resolves.toEqual({ kind: "unresolved" });
-  });
-
-  it("treats a lookup that never answers as unresolved once the timeout passes", async () => {
-    const lookup: HostLookup = () => new Promise(() => undefined);
-    await expect(checkHostResolution("slow.example", { lookup, timeoutMs: 5 })).resolves.toEqual({
-      kind: "unresolved",
+  it("returns a public IP literal as its own answer, without a lookup", async () => {
+    const { lookup, calls } = fakeLookup(["93.184.216.34"]);
+    expect(await resolveHostAddresses("8.8.8.8", { lookup })).toEqual({
+      kind: "addresses",
+      addresses: [{ address: "8.8.8.8", family: 4 }],
     });
+    expect(await resolveHostAddresses("[2606:4700:4700::1111]", { lookup })).toEqual({
+      kind: "addresses",
+      addresses: [{ address: "2606:4700:4700::1111", family: 6 }],
+    });
+    expect(calls).toEqual([]);
   });
 
-  it("classifies literal hosts and localhost without a lookup", async () => {
+  it("returns private for localhost and private literals without a lookup", async () => {
     const { lookup, calls } = fakeLookup(["93.184.216.34"]);
     for (const host of [
       "localhost",
@@ -315,12 +312,28 @@ describe("checkHostResolution", () => {
       "[fd00::1]",
       "[::ffff:10.0.0.1]",
     ]) {
-      expect(await checkHostResolution(host, { lookup }), host).toEqual({ kind: "private" });
-    }
-    for (const host of ["8.8.8.8", "[2606:4700:4700::1111]", "[::ffff:8.8.8.8]"]) {
-      expect(await checkHostResolution(host, { lookup }), host).toEqual({ kind: "public" });
+      expect(await resolveHostAddresses(host, { lookup }), host).toEqual({ kind: "private" });
     }
     expect(calls).toEqual([]);
+  });
+
+  it("treats an empty answer as unresolved", async () => {
+    const { lookup } = fakeLookup([]);
+    expect(await resolveHostAddresses("nowhere.example", { lookup })).toEqual({ kind: "unresolved" });
+  });
+
+  it("treats a failed lookup as unresolved and does not throw", async () => {
+    const lookup: HostLookup = async () => {
+      throw Object.assign(new Error("getaddrinfo ENOTFOUND nowhere.example"), { code: "ENOTFOUND" });
+    };
+    await expect(resolveHostAddresses("nowhere.example", { lookup })).resolves.toEqual({ kind: "unresolved" });
+  });
+
+  it("treats a lookup that never answers as unresolved once the timeout passes", async () => {
+    const lookup: HostLookup = () => new Promise(() => undefined);
+    await expect(resolveHostAddresses("slow.example", { lookup, timeoutMs: 5 })).resolves.toEqual({
+      kind: "unresolved",
+    });
   });
 });
 
