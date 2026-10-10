@@ -3,6 +3,7 @@ import { apifyMediaHeaders } from "./apify-media";
 import { downloadAudio, fetchFreeVideoPreview } from "./downloader";
 import { tryFallbackActor } from "./fallback-actor";
 import { detectPlatform, normalizeVideoUrl } from "./platform";
+import { exceedsDurationCap } from "./quota";
 import { transcribeAudio } from "./speech-to-text";
 import { TranscriptionError, type TranscriptResult } from "./types";
 import { extractYouTubeVideoId, tryYouTubeCaptions } from "./youtube-captions";
@@ -21,8 +22,11 @@ export { detectPlatform, normalizeVideoUrl, fetchFreeVideoPreview };
 export type { TranscriptResult };
 export { TranscriptionError };
 
+/** Bounds the audio download. Route maxDuration is 120s, so one stalled download must not use the whole budget. */
+const AUDIO_FETCH_TIMEOUT_MS = 60_000;
+
 async function fetchAsBlob(url: string): Promise<Blob> {
-  const res = await fetch(url, { headers: apifyMediaHeaders(url) });
+  const res = await fetch(url, { headers: apifyMediaHeaders(url), signal: AbortSignal.timeout(AUDIO_FETCH_TIMEOUT_MS) });
   if (!res.ok) throw new Error(`Failed to fetch audio (${res.status})`);
   return await res.blob();
 }
@@ -96,10 +100,17 @@ export async function transcribe(
   const downloadSucceeded = Boolean(downloaded);
 
   if (downloaded) {
-    if (downloaded.durationSeconds > MAX_VIDEO_DURATION_SECONDS) {
+    // An unknown duration (0) is refused, not waved through: a missing length
+    // must not become an unbounded transcription. See exceedsDurationCap.
+    if (exceedsDurationCap(downloaded.durationSeconds, MAX_VIDEO_DURATION_SECONDS)) {
+      // This refusal skips the try/finally below, so remove any local yt-dlp file here.
+      if (downloaded.localAudioPath) await unlink(downloaded.localAudioPath).catch(() => {});
+      const durationKnown = Number.isFinite(downloaded.durationSeconds) && downloaded.durationSeconds > 0;
       throw new TranscriptionError(
         "too_long",
-        `This video is longer than the ${MAX_VIDEO_DURATION_SECONDS / 60}-minute limit for transcription.`,
+        durationKnown
+          ? `This video is longer than the ${MAX_VIDEO_DURATION_SECONDS / 60}-minute limit for transcription.`
+          : `Couldn't confirm this video's length, so it can't be transcribed within the ${MAX_VIDEO_DURATION_SECONDS / 60}-minute limit.`,
       );
     }
     try {

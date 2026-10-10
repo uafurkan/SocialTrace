@@ -60,6 +60,10 @@ const YOUTUBE_ACTOR_ID = "streamers~youtube-video-downloader";
 const INSTAGRAM_ACTOR_ID = "thenetaji~instagram-video-downloader";
 const FACEBOOK_ACTOR_ID = "apple_yang~facebook-video-audio-downloader";
 const TIKWM_ENDPOINT = "https://www.tikwm.com/api/";
+/** Kills a hung yt-dlp download. Route maxDuration is 120s, so a stalled child must not run the function into its platform timeout. */
+const YTDLP_TIMEOUT_MS = 120_000;
+/** Metadata-only preview, used on cache hits that are expected to be near-instant. A hang here would hold the whole cache-hit response. */
+const YTDLP_PREVIEW_TIMEOUT_MS = 30_000;
 
 export interface DownloadedAudio {
   /** URL fed to the speech-to-text step — always audio, or an audio+video file Whisper accepts (mp4/webm/m4a are all valid Whisper inputs, not just mp3/wav). Empty string when `localAudioPath` is set instead. */
@@ -356,12 +360,16 @@ async function downloadFacebook(sourceUrl: string): Promise<DownloadedAudio | nu
  */
 async function downloadTwitterPreviewUrl(sourceUrl: string): Promise<string | null> {
   try {
-    const info = (await ytdlp(sourceUrl, {
-      dumpSingleJson: true,
-      noWarnings: true,
-      noPlaylist: true,
-      quiet: true,
-    })) as YtDlpInfo;
+    const info = (await ytdlp(
+      sourceUrl,
+      {
+        dumpSingleJson: true,
+        noWarnings: true,
+        noPlaylist: true,
+        quiet: true,
+      },
+      { timeout: YTDLP_PREVIEW_TIMEOUT_MS },
+    )) as YtDlpInfo;
     const formats = (info.formats ?? []).filter(
       (f) => Boolean(f.url) && (f.protocol === "https" || f.protocol === "http"),
     );
@@ -378,17 +386,21 @@ async function downloadTwitterFree(sourceUrl: string): Promise<DownloadedAudio |
   const prefix = `twitter-${randomUUID()}`;
   const outTemplate = join(tmpdir(), `${prefix}.%(ext)s`);
   try {
-    const info = (await ytdlp(sourceUrl, {
-      output: outTemplate,
-      format: "worstaudio/worst",
-      extractAudio: true,
-      audioFormat: "best",
-      ffmpegLocation: ffmpegPath ?? undefined,
-      noWarnings: true,
-      noPlaylist: true,
-      quiet: true,
-      printJson: true,
-    })) as YtDlpInfo;
+    const info = (await ytdlp(
+      sourceUrl,
+      {
+        output: outTemplate,
+        format: "worstaudio/worst",
+        extractAudio: true,
+        audioFormat: "best",
+        ffmpegLocation: ffmpegPath ?? undefined,
+        noWarnings: true,
+        noPlaylist: true,
+        quiet: true,
+        printJson: true,
+      },
+      { timeout: YTDLP_TIMEOUT_MS },
+    )) as YtDlpInfo;
 
     const files = await readdir(tmpdir());
     const match = files.find((f) => f.startsWith(prefix));
@@ -462,17 +474,21 @@ async function downloadWithYtDlp(sourceUrl: string): Promise<DownloadedAudio | n
   const prefix = `transcribe-${randomUUID()}`;
   const outTemplate = join(tmpdir(), `${prefix}.%(ext)s`);
   try {
-    const info = (await ytdlp(sourceUrl, {
-      output: outTemplate,
-      format: "bestaudio/best",
-      extractAudio: true,
-      audioFormat: "best",
-      ffmpegLocation: ffmpegPath ?? undefined,
-      noWarnings: true,
-      noPlaylist: true,
-      quiet: true,
-      printJson: true,
-    })) as { duration?: number; title?: string };
+    const info = (await ytdlp(
+      sourceUrl,
+      {
+        output: outTemplate,
+        format: "bestaudio/best",
+        extractAudio: true,
+        audioFormat: "best",
+        ffmpegLocation: ffmpegPath ?? undefined,
+        noWarnings: true,
+        noPlaylist: true,
+        quiet: true,
+        printJson: true,
+      },
+      { timeout: YTDLP_TIMEOUT_MS },
+    )) as { duration?: number; title?: string };
 
     const files = await readdir(tmpdir());
     const match = files.find((f) => f.startsWith(prefix));
