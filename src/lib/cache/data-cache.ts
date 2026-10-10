@@ -10,6 +10,7 @@ import { eq } from "drizzle-orm";
 
 import { getDb, isDbConfigured, schema } from "@/lib/db";
 import { ProfileNotFoundError } from "@/lib/providers/types";
+import { chargeColdStart } from "./cold-budget";
 import { isFresh } from "./profile-cache";
 
 export const DATA_CACHE_TTL_MS = (Number(process.env.DATA_CACHE_TTL_HOURS) || 6) * 60 * 60 * 1000;
@@ -72,6 +73,7 @@ async function writeCache(cacheKey: string, data: unknown) {
  */
 export async function withDataCache<T>(cacheKey: string, fetchFn: () => Promise<T>): Promise<T> {
   if (!isDbConfigured()) {
+    await chargeColdStart();
     return fetchFn();
   }
 
@@ -79,6 +81,11 @@ export async function withDataCache<T>(cacheKey: string, fetchFn: () => Promise<
   if (cached && isFresh(cached.fetchedAt, new Date(), ttlForCacheKey(cacheKey))) {
     return cached.data as T;
   }
+
+  // A miss starts a cold provider chain, so it is charged against the route's
+  // budget (no-op without one). Kept outside the try below: an exhausted
+  // budget must surface as a 429, not be answered with a stale row.
+  await chargeColdStart();
 
   let result: T;
   try {

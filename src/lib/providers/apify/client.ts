@@ -103,6 +103,13 @@ function releaseActorRunSlot(): void {
   if (next) next();
 }
 
+type ActorRunStatus = "ok" | "error" | "timeout";
+
+/** Our own APIFY_TIMEOUT_MS abort rejects the fetch with an AbortError. */
+function isAbortError(error: unknown): boolean {
+  return typeof error === "object" && error !== null && (error as { name?: unknown }).name === "AbortError";
+}
+
 async function runApifyActorOnce(actorId: string, input: Record<string, unknown>, token: string): Promise<unknown> {
   // Token goes in the Authorization header, not the query string: URLs turn up
   // in logs and error reports, headers don't.
@@ -144,11 +151,16 @@ export async function runApifyActor(actorId: string, input: Record<string, unkno
   }
 
   await acquireActorRunSlot();
+  const startedAt = Date.now();
+  let status: ActorRunStatus = "ok";
   try {
     for (let attempt = 0; ; attempt++) {
       try {
-        return await runApifyActorOnce(actorId, input, token);
+        const body = await runApifyActorOnce(actorId, input, token);
+        status = "ok";
+        return body;
       } catch (error) {
+        status = isAbortError(error) ? "timeout" : "error";
         if (isApifyQuotaError(error)) {
           tripQuotaBreaker();
           throw error;
@@ -162,6 +174,8 @@ export async function runApifyActor(actorId: string, input: Record<string, unkno
     }
   } finally {
     releaseActorRunSlot();
+    // One line per run, after retries: the actor run counter used to size Apify spend.
+    console.log(`[apify-run] ${JSON.stringify({ actorId, durationMs: Date.now() - startedAt, status })}`);
   }
 }
 

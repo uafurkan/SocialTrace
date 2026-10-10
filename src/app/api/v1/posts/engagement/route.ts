@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { CHAIN_DEADLINE_MS, DeadlineExceededError, withDeadline } from "@/lib/cache/cold-budget";
 import type { Platform } from "@/lib/domain/types";
 import { clientIdentifierFor, rateLimit } from "@/lib/rate-limit";
 import { getProvider } from "@/lib/providers";
@@ -59,9 +60,16 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const [likers, comments] = await Promise.all([provider.getLikers(permalink), provider.getComments(permalink)]);
+    // One time limit for the pair. Past it, the request returns 504; the provider calls themselves keep running.
+    const [likers, comments] = await withDeadline(
+      Promise.all([provider.getLikers(permalink), provider.getComments(permalink)]),
+      CHAIN_DEADLINE_MS,
+    );
     return NextResponse.json({ likers, comments });
   } catch (error) {
+    if (error instanceof DeadlineExceededError) {
+      return NextResponse.json({ error: "Engagement data took too long to load. Try again shortly." }, { status: 504 });
+    }
     console.error("Post engagement lookup failed:", error);
     return NextResponse.json({ error: "Couldn't load engagement data right now. Try again shortly." }, { status: 502 });
   }
