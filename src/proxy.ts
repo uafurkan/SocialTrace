@@ -40,7 +40,8 @@ import { isPathEnabled } from "@/lib/features";
  * widening script-src itself. With ads disabled (the default), the
  * policy stays at its strict 'self'-only baseline.
  *
- * script-src also adds 'unsafe-eval', but only when ads are enabled:
+ * script-src also adds 'unsafe-eval', but only when ads are enabled (and
+ * under `next dev`, which needs it — see isDev below):
  * Ezoic's consent/analytics.js evaluates a string as JS for its
  * country-based consent-requirement check (confirmed live in production —
  * it threw `EvalError: ... violates ... 'unsafe-eval' is not an allowed
@@ -90,6 +91,10 @@ export function proxy(request: NextRequest) {
   // before ads are actually turned on.
   const adsEnabled =
     process.env.NEXT_PUBLIC_EZOIC_ENABLED === "true" || process.env.NEXT_PUBLIC_ADSENSE_ENABLED === "true";
+  // `next dev` needs 'unsafe-eval' (React and webpack evaluate dev code with
+  // eval); without it the dev app is served but never hydrates. Production
+  // builds use no eval, so the production policy is unchanged.
+  const isDev = process.env.NODE_ENV === "development";
   // Turnstile's challenge widget renders in its own iframe from
   // challenges.cloudflare.com — that host needs frame-src even with ads
   // off, since bot protection on login/signup is independent of the ad
@@ -110,7 +115,7 @@ export function proxy(request: NextRequest) {
 
   const csp = `
     default-src 'self';
-    script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${adsEnabled ? " 'unsafe-eval'" : ""};
+    script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${adsEnabled || isDev ? " 'unsafe-eval'" : ""};
     style-src 'self' 'unsafe-inline';
     img-src 'self' https: data:;
     font-src 'self';
