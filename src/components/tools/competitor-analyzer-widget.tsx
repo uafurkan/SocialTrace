@@ -93,9 +93,13 @@ function ResultColumn({ label, side }: { label: string; side: SideResult | null 
         {label} — @{result.username}
       </p>
       <div className="mt-2 flex items-baseline gap-2">
-        <span className="text-3xl font-semibold text-primary">{result.engagementRatePercent.toFixed(2)}%</span>
-        <span className="text-sm text-muted">engagement</span>
+        <span className="text-3xl font-semibold text-primary">{result.medianEngagementRatePercent.toFixed(2)}%</span>
+        <span className="text-sm text-muted">median engagement rate</span>
       </div>
+      <p className="mt-1 text-sm text-muted">Mean: {result.engagementRatePercent.toFixed(2)}%</p>
+      <p className="mt-3 text-sm text-secondary">
+        Median of the {result.medianSampleSize} most recent {result.medianSampleSize === 1 ? "post" : "posts"} we could load.
+      </p>
       <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
         <div>
           <div className="text-muted">Followers</div>
