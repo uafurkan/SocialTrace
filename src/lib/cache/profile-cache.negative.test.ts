@@ -221,6 +221,21 @@ describe("getCachedProfile negative cache", () => {
     expect(state.providers.instagram.getProfile).not.toHaveBeenCalled();
   });
 
+  it("does not overwrite an expired stored profile with a marker when the provider says not-found", async () => {
+    state.providers.instagram.getProfile = notFoundProvider();
+    const stored = profileFor("real_account");
+    state.rows.push({
+      platform: "instagram",
+      normalizedUsername: "real_account",
+      data: stored,
+      fetchedAt: new Date(Date.now() - PROFILE_CACHE_TTL_MS - 60_000),
+    });
+
+    await expect(getCachedProfile("real_account")).rejects.toBeInstanceOf(ProfileNotFoundError);
+
+    expect(rowFor("instagram", "real_account")?.data).toEqual(stored);
+  });
+
   it("without a database calls the provider every time and stores no marker", async () => {
     state.configured = false;
     const getProfile = notFoundProvider();

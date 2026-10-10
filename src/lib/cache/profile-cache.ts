@@ -143,7 +143,11 @@ export async function getCachedProfile(username: string, platform: Platform = "i
     return result;
   } catch (error) {
     if (error instanceof ProfileNotFoundError) {
-      await writeNotFoundMarker(platform, normalizedUsername);
+      // A stored profile is never overwritten by a marker. A provider that
+      // wrongly reports not-found would otherwise erase the last known good row.
+      if (!cached || isNotFoundMarker(cached.data)) {
+        await writeNotFoundMarker(platform, normalizedUsername);
+      }
       throw error;
     }
     // Last known good. An expired row used to be discarded outright, which
