@@ -9,6 +9,7 @@
 import {
   bigint,
   boolean,
+  date,
   index,
   integer,
   jsonb,
@@ -446,3 +447,17 @@ export const transcriptionUsage = pgTable(
     createdAtIdx: index("transcription_usage_created_at_idx").on(table.createdAt),
   }),
 );
+
+/**
+ * Global daily slot counter behind the transcriber's ceiling (docs/TRANSCRIBER.md
+ * bad-outcome #9). One row per UTC day; `used` is the number of slots taken
+ * that day. It is changed only by single statements in
+ * src/lib/transcription/quota.ts, each of which also inserts or deletes the
+ * matching `transcription_usage` row. The reservation is an
+ * `INSERT ... ON CONFLICT ... DO UPDATE ... WHERE used < ceiling`, so two
+ * concurrent requests cannot both take the last slot.
+ */
+export const transcriptionDailyBudget = pgTable("transcription_daily_budget", {
+  day: date("day", { mode: "string" }).primaryKey(),
+  used: integer("used").notNull().default(0),
+});
