@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
-import { CHAIN_DEADLINE_MS, DeadlineExceededError, withDeadline } from "@/lib/cache/cold-budget";
-import { calculateEngagement, EngagementError, type EngagementErrorReason, type EngagementResult } from "@/lib/engagement/calculate";
+import { resolveSide, STATUS_BY_REASON } from "@/lib/competitor/resolve-side";
 import { clientIdentifierFor, rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -19,37 +18,8 @@ const PROFILE_SCHEMA = z.object({
 
 const REQUEST_SCHEMA = z.object({ a: PROFILE_SCHEMA, b: PROFILE_SCHEMA });
 
-const STATUS_BY_REASON: Record<EngagementErrorReason, number> = {
-  profile_not_found: 404,
-  private_account: 403,
-  no_posts: 422,
-  // 503, not 502: the profile is fine, our data source is temporarily out.
-  source_unavailable: 503,
-};
-
 /** A side that runs past its deadline is reported as its own error; the other side is still returned. */
 const STATUS_BY_SIDE_REASON: Record<string, number> = { ...STATUS_BY_REASON, timeout: 504 };
-
-interface SideResult {
-  result?: EngagementResult;
-  error?: { reason: string; message: string };
-}
-
-async function resolveSide(platform: z.infer<typeof PROFILE_SCHEMA>["platform"], username: string): Promise<SideResult> {
-  try {
-    const result = await withDeadline(calculateEngagement(platform, username), CHAIN_DEADLINE_MS);
-    return { result };
-  } catch (error) {
-    if (error instanceof DeadlineExceededError) {
-      return { error: { reason: "timeout", message: "This profile took too long to analyze. Try again in a moment." } };
-    }
-    if (error instanceof EngagementError) {
-      return { error: { reason: error.reason, message: error.message } };
-    }
-    console.error("[competitor-analyzer] failed:", error);
-    return { error: { reason: "engagement_failed", message: "Could not calculate engagement for this profile." } };
-  }
-}
 
 export async function POST(request: NextRequest) {
   const rate = await rateLimit(`competitor-analyzer:${clientIdentifierFor(request)}`, COMPETITOR_RATE_LIMIT, COMPETITOR_RATE_WINDOW_MS);

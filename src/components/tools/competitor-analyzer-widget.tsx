@@ -14,13 +14,18 @@ const PLATFORMS: Array<{ id: Platform; label: string }> = [
   { id: "facebook", label: "Facebook" },
 ];
 
-const ERROR_COPY: Record<string, string> = {
-  profile_not_found: "No public profile found for that username.",
-  private_account: "This account is private — engagement can't be calculated from a private profile.",
-  no_posts: "This profile has no public posts to sample.",
-  source_unavailable: "We couldn't reach the data source for this profile right now. Please try again shortly.",
-  engagement_failed: "Something went wrong calculating engagement.",
-};
+/** Copy per reason code. The server's own message text is never shown. */
+const ERROR_COPY = new Map<string, string>([
+  ["rate_limited", "Too many requests right now. Try again in a minute."],
+  ["profile_not_found", "No public profile found for that username."],
+  ["private_account", "This account is private — engagement can't be calculated from a private profile."],
+  ["no_posts", "This profile has no public posts to sample."],
+  ["source_unavailable", "We couldn't reach the data source for this profile right now. Please try again shortly."],
+  ["timeout", "This profile took too long to analyze. Try again in a moment."],
+  ["engagement_failed", "Something went wrong calculating engagement."],
+]);
+const GENERIC_SIDE_ERROR = "Could not analyze this profile. Try again in a moment.";
+const GENERIC_COMPARE_ERROR = "Something went wrong comparing these profiles. Try again in a moment.";
 
 interface Side {
   platform: Platform;
@@ -29,7 +34,11 @@ interface Side {
 
 interface SideResult {
   result?: EngagementResult;
-  error?: { reason: string; message: string };
+  error?: { reason: string };
+}
+
+function copyForReason(reason: string | undefined): string {
+  return (reason === undefined ? undefined : ERROR_COPY.get(reason)) ?? GENERIC_SIDE_ERROR;
 }
 
 function ProfileInput({
@@ -69,15 +78,15 @@ function ProfileInput({
 
 function ResultColumn({ label, side }: { label: string; side: SideResult | null }) {
   if (!side) return <div className="flex-1 rounded-card border border-dashed border-border-strong p-5 text-sm text-muted">{label}</div>;
-  if (side.error) {
+  if (side.error || !side.result) {
     return (
       <div className="flex-1 rounded-card border border-border bg-surface p-5">
         <p className="text-sm font-medium text-primary">{label}</p>
-        <p className="mt-2 text-sm text-danger">{ERROR_COPY[side.error.reason] ?? side.error.message}</p>
+        <p className="mt-2 text-sm text-danger">{copyForReason(side.error?.reason)}</p>
       </div>
     );
   }
-  const result = side.result!;
+  const result = side.result;
   return (
     <div className="flex-1 rounded-card border border-border bg-surface p-5">
       <p className="text-sm font-medium text-primary">
@@ -135,14 +144,27 @@ export function CompetitorAnalyzerWidget() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ a: { platform: a.platform, username: handleA }, b: { platform: b.platform, username: handleB } }),
       });
-      const data = await res.json();
+      const data: { a?: SideResult; b?: SideResult; error?: unknown } | null = await res.json().catch(() => null);
       if (res.status === 400) {
-        setError(data?.error ?? "Something went wrong.");
+        setError(typeof data?.error === "string" ? data.error : GENERIC_COMPARE_ERROR);
+        return;
+      }
+      if (res.status === 429) {
+        // Rate limited before either profile was analyzed: both boxes say so.
+        const limited: SideResult = { error: { reason: "rate_limited" } };
+        setResults({ a: limited, b: limited });
+        return;
+      }
+      if (!data?.a || !data?.b) {
+        // Not a comparison payload (for example a gateway error page). Both boxes
+        // get a generic message; the response body is never displayed.
+        const failed: SideResult = { error: { reason: "engagement_failed" } };
+        setResults({ a: failed, b: failed });
         return;
       }
       setResults({ a: data.a, b: data.b });
     } catch {
-      setError("Something went wrong comparing these profiles. Try again in a moment.");
+      setError(GENERIC_COMPARE_ERROR);
     } finally {
       setLoading(false);
     }

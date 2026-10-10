@@ -3,6 +3,7 @@ import { getCachedProfile } from "@/lib/cache/profile-cache";
 import { collectPages } from "@/lib/providers/collect";
 import { getProvider } from "@/lib/providers";
 import { ProfileNotFoundError } from "@/lib/providers/types";
+import { summarizeSample } from "@/lib/engagement/summarize-sample";
 
 /** How many recent posts are sampled — matches the sample size competitor engagement calculators (Hootsuite, Modash) disclose for their own tools. */
 const SAMPLE_SIZE = 12;
@@ -27,7 +28,12 @@ export interface EngagementResult {
   sampleSize: number;
   avgLikes: number;
   avgComments: number;
+  /** Mean of the per-post engagement rates, in percent. */
   engagementRatePercent: number;
+  /** Median of the per-post engagement rates, in percent. The calculator's headline figure. */
+  medianEngagementRatePercent: number;
+  /** Number of posts the median was computed from (posts with unreadable counts are left out). */
+  medianSampleSize: number;
   perPost: Array<{ id: string; likeCount: number; commentCount: number; postedAt: string | null }>;
 }
 
@@ -79,6 +85,16 @@ export async function calculateEngagement(platform: Platform, username: string):
   const avgComments = totalComments / posts.length;
   const engagementRatePercent = profile.followerCount > 0 ? ((avgLikes + avgComments) / profile.followerCount) * 100 : 0;
 
+  // Median over the same per-post rates the mean is built from. A single viral
+  // post moves the mean a lot; the median is the headline for that reason.
+  const perPostRatePercent = posts.map((post) =>
+    profile.followerCount > 0 ? ((post.likeCount + post.commentCount) / profile.followerCount) * 100 : 0,
+  );
+  const rateSample = summarizeSample(perPostRatePercent);
+  if (rateSample.median === null) {
+    throw new EngagementError("no_posts", "This profile has no public posts to sample.");
+  }
+
   return {
     platform,
     username: profile.username,
@@ -88,6 +104,8 @@ export async function calculateEngagement(platform: Platform, username: string):
     avgLikes,
     avgComments,
     engagementRatePercent,
+    medianEngagementRatePercent: rateSample.median,
+    medianSampleSize: rateSample.n,
     perPost: posts.map((post) => ({ id: post.id, likeCount: post.likeCount, commentCount: post.commentCount, postedAt: post.postedAt })),
   };
 }

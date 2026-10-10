@@ -24,6 +24,9 @@ const ERROR_COPY: Record<ErrorReason, string> = {
   engagement_failed: "Something went wrong calculating engagement. Try again in a moment.",
 };
 
+/** Below this many posts the median rests on too little to read much into. */
+const WEAK_SAMPLE_THRESHOLD = 5;
+
 export function EngagementCalculatorWidget() {
   const [platform, setPlatform] = useState<Platform>("instagram");
   const [username, setUsername] = useState("");
@@ -96,12 +99,21 @@ export function EngagementCalculatorWidget() {
       {result ? (
         <div className="mt-6 rounded-card border border-border bg-surface p-5">
           <div className="flex items-baseline gap-3">
-            <span className="text-4xl font-semibold text-primary">{result.engagementRatePercent.toFixed(2)}%</span>
-            <span className="text-sm text-muted">engagement rate</span>
+            <span className="text-4xl font-semibold text-primary">{result.medianEngagementRatePercent.toFixed(2)}%</span>
+            <span className="text-sm text-muted">median engagement rate</span>
           </div>
-          <p className="mt-2 text-sm text-secondary">
-            Based on the {result.sampleSize} most recent posts from @{result.username} ({result.followerCount.toLocaleString()} followers).
+          <p className="mt-1 text-sm text-muted">Mean: {result.engagementRatePercent.toFixed(2)}%</p>
+          <p className="mt-3 text-sm text-secondary">
+            Median of the {result.medianSampleSize} most recent {result.medianSampleSize === 1 ? "post" : "posts"} we could load.
           </p>
+          <p className="mt-1 text-sm text-muted">
+            @{result.username} · {result.followerCount.toLocaleString()} followers
+          </p>
+          {result.medianSampleSize < WEAK_SAMPLE_THRESHOLD ? (
+            <p className="mt-3 rounded-button bg-warning-soft px-3 py-2 text-sm text-primary">
+              Only {result.medianSampleSize} {result.medianSampleSize === 1 ? "post" : "posts"} could be loaded, so this estimate is weak.
+            </p>
+          ) : null}
           <div className="mt-4 grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
             <div>
               <div className="text-muted">Avg. likes</div>
