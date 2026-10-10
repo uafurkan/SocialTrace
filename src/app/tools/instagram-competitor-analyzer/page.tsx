@@ -7,7 +7,7 @@ import { pageMetadata } from "@/lib/seo/metadata";
 
 const TITLE = "Competitor analyzer";
 const DESCRIPTION =
-  "Compare two public profiles from Instagram, TikTok, or Facebook side by side — followers, posts sampled, and engagement rate for each.";
+  "Compare two public profiles from Instagram, TikTok, or Facebook side by side — followers, posts sampled, and median engagement rate for each.";
 const PATH = "/tools/instagram-competitor-analyzer";
 
 export const metadata: Metadata = pageMetadata({ title: TITLE, description: DESCRIPTION, path: PATH });
@@ -16,7 +16,7 @@ const FAQ = [
   {
     question: "How does this compare two profiles?",
     answer:
-      "Each profile gets the same engagement rate calculation used by the Engagement calculator — most recent public posts, averaged, divided by follower count — run independently and shown side by side.",
+      "Each profile gets the same calculation used by the Engagement calculator: the engagement rate of each of its most recent public posts (likes plus comments, divided by follower count). The median of those rates is the headline figure, with the mean and the number of posts used shown alongside. Both profiles are run independently and shown side by side.",
   },
   {
     question: "What if one profile is private or has no posts?",
@@ -40,11 +40,11 @@ export default function CompetitorAnalyzerPage() {
       <ToolLanding
         path={PATH}
         title={TITLE}
-        lead="Paste two public profiles and see their engagement rate, followers, and post samples side by side — worked out from real recent posts, not an estimate."
+        lead="Paste two public profiles and see their median engagement rate, followers, and post samples side by side — worked out from real recent posts, not an estimate."
         widget={<CompetitorAnalyzerWidget />}
         howItWorks={[
           "Pick a platform and paste a public username or profile link for each profile.",
-          "We calculate engagement rate for both profiles independently, the same way the Engagement calculator does.",
+          "We calculate the median engagement rate for both profiles independently, the same way the Engagement calculator does.",
           "Results appear side by side so you can compare at a glance.",
         ]}
         features={[

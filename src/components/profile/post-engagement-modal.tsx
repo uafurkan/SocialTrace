@@ -17,10 +17,13 @@ interface EngagementResponse {
 
 export function PostEngagementModal({
   permalink,
+  postId,
   platform = "instagram",
   onClose,
 }: {
   permalink: string;
+  /** The post's own id, used in download file names. Optional: without it the name is read from the permalink. */
+  postId?: string;
   platform?: Platform;
   onClose: () => void;
 }) {
@@ -56,7 +59,7 @@ export function PostEngagementModal({
   function handleDownload(kind: EngagementListKind) {
     if (!data) return;
     const csv = kind === "likers" ? toLikerCsv(data.likers) : toCommentCsv(data.comments);
-    downloadCsv(engagementCsvFilename(platform, permalink, kind), csv);
+    downloadCsv(engagementCsvFilename(platform, permalink, kind, postId), csv);
   }
 
   return (

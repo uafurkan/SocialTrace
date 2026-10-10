@@ -76,12 +76,18 @@ function validDay(value: string): string | null {
   return value;
 }
 
-/** UTC calendar day (YYYY-MM-DD) of a post's date, or null when the date is unknown. */
-export function postDayUtc(post: Post): string | null {
+/**
+ * Local calendar day (YYYY-MM-DD) of a post's date, or null when the date is
+ * unknown. This is the day the table's date column shows for the same post.
+ */
+export function postDayLocal(post: Post): string | null {
   const time = postTime(post);
   if (time === null) return null;
-  const day = new Date(time).toISOString().slice(0, 10);
-  return ISO_DAY.test(day) ? day : null;
+  const date = new Date(time);
+  const year = String(date.getFullYear()).padStart(4, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 /** True when at least one bound is a valid YYYY-MM-DD day. */
@@ -90,7 +96,7 @@ export function hasDateFilter(from: string, to: string): boolean {
 }
 
 /**
- * Keeps posts whose UTC calendar day falls between `from` and `to`, both
+ * Keeps posts whose local calendar day falls between `from` and `to`, both
  * inclusive. An empty or invalid bound is open on that side. With no valid
  * bound, every post is returned unchanged, including posts with unknown dates.
  * Once a bound is set, posts with an unknown date are excluded.
@@ -100,7 +106,7 @@ export function filterPostsByDate(posts: Post[], from: string, to: string): Post
   const upper = validDay(to);
   if (lower === null && upper === null) return posts;
   return posts.filter((post) => {
-    const day = postDayUtc(post);
+    const day = postDayLocal(post);
     if (day === null) return false;
     return (lower === null || day >= lower) && (upper === null || day <= upper);
   });
@@ -108,5 +114,5 @@ export function filterPostsByDate(posts: Post[], from: string, to: string): Post
 
 /** How many posts have no usable date, so a date filter cannot place them. */
 export function countUndatedPosts(posts: Post[]): number {
-  return posts.filter((post) => postDayUtc(post) === null).length;
+  return posts.filter((post) => postDayLocal(post) === null).length;
 }

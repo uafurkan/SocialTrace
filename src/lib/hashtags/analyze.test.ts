@@ -46,6 +46,24 @@ describe("countHashtags", () => {
     expect(result.tags).toEqual([{ tag: "#café", count: 2 }]);
   });
 
+  it("merges the Turkish capital dotted I with its plain lowercase form", () => {
+    // U+0130 lowercases to "i" + U+0307, which must not split the tag in two.
+    const result = countHashtags([{ caption: "#İstanbul" }, { caption: "#istanbul" }, { caption: "#ISTANBUL" }]);
+
+    expect(result.tags).toEqual([{ tag: "#İstanbul", count: 3 }]);
+  });
+
+  it("keeps the first-seen spelling of a merged dotted-I tag", () => {
+    expect(countHashtags([{ caption: "#istanbul" }, { caption: "#İstanbul" }]).tags).toEqual([{ tag: "#istanbul", count: 2 }]);
+  });
+
+  it("merges a decomposed dotted I (I + combining dot) with the precomposed form", () => {
+    // NFC turns "I" + U+0307 into U+0130 before matching, so both spellings group together.
+    const result = countHashtags([{ caption: "#İstanbul" }, { caption: "#İstanbul" }]);
+
+    expect(result.tags).toEqual([{ tag: "#İstanbul", count: 2 }]);
+  });
+
   it("ignores a lone # and a # with no letters or digits after it", () => {
     const result = countHashtags([{ caption: "# and #! and #. and #" }]);
 

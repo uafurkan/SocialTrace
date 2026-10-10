@@ -14,9 +14,10 @@ const PLATFORMS: Array<{ id: Platform; label: string }> = [
   { id: "facebook", label: "Facebook" },
 ];
 
-type ErrorReason = "profile_not_found" | "private_account" | "no_posts" | "source_unavailable" | "engagement_failed";
+type ErrorReason = "rate_limited" | "profile_not_found" | "private_account" | "no_posts" | "source_unavailable" | "engagement_failed";
 
 const ERROR_COPY: Record<ErrorReason, string> = {
+  rate_limited: "Too many requests right now. Try again in a minute.",
   profile_not_found: "No public profile found for that username.",
   private_account: "This account is private — engagement can't be calculated from a private profile.",
   no_posts: "This profile has no public posts to sample.",
@@ -52,6 +53,11 @@ export function EngagementCalculatorWidget() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ platform, username: handle }),
       });
+      if (res.status === 429) {
+        // Same handling as the competitor analyzer: the server's own message is never shown.
+        setError(ERROR_COPY.rate_limited);
+        return;
+      }
       const data = await res.json();
       if (!res.ok) {
         const reason = (data?.error as ErrorReason) ?? "engagement_failed";

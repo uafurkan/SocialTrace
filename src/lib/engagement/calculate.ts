@@ -25,6 +25,7 @@ export interface EngagementResult {
   username: string;
   followerCount: number;
   requestedSampleSize: number;
+  /** Number of posts the averages were computed from (posts with unreadable counts are left out). */
   sampleSize: number;
   avgLikes: number;
   avgComments: number;
@@ -69,12 +70,17 @@ export async function calculateEngagement(platform: Platform, username: string):
     throw new EngagementError("private_account", "This account is private — engagement can't be calculated from a private profile.");
   }
 
-  let posts;
+  let fetched;
   try {
-    posts = await collectPages((cursor) => provider.getPosts(profile.id, cursor), SAMPLE_SIZE);
+    fetched = await collectPages((cursor) => provider.getPosts(profile.id, cursor), SAMPLE_SIZE);
   } catch (error) {
     throw asEngagementError(error, platform, username);
   }
+
+  // A post whose like or comment count is missing or not a finite number is
+  // left out of the mean, the median and the sample size. One such post would
+  // otherwise turn the mean into NaN.
+  const posts = fetched.filter((post) => Number.isFinite(post.likeCount) && Number.isFinite(post.commentCount));
   if (posts.length === 0) {
     throw new EngagementError("no_posts", "This profile has no public posts to sample.");
   }

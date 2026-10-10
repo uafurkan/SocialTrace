@@ -26,16 +26,25 @@ export interface HashtagSummary {
 }
 
 /**
- * Distinct tags in one caption, keyed by their lowercase form and mapped to
- * the spelling seen first in that caption. NFC normalization keeps a tag
- * typed with a decomposed accent (e + combining mark) from being cut short.
+ * Grouping key for a tag: its lowercase form without U+0307. The Turkish
+ * capital dotted I (U+0130) lowercases to "i" plus U+0307, which would keep
+ * "#İstanbul" apart from "#istanbul". The display spelling is not affected.
+ */
+function tagKey(tag: string): string {
+  return tag.toLowerCase().replace(/̇/g, "");
+}
+
+/**
+ * Distinct tags in one caption, keyed by tagKey and mapped to the spelling
+ * seen first in that caption. NFC normalization keeps a tag typed with a
+ * decomposed accent (e + combining mark) from being cut short.
  */
 function distinctTagsInCaption(caption: string): Map<string, string> {
   const found = new Map<string, string>();
   for (const match of caption.normalize("NFC").matchAll(HASHTAG_PATTERN)) {
     const tag = match[0];
     if (!HAS_LETTER_OR_DIGIT.test(tag.slice(1))) continue;
-    const key = tag.toLowerCase();
+    const key = tagKey(tag);
     if (!found.has(key)) found.set(key, tag);
   }
   return found;
