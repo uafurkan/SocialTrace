@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Download, Heart, MessageCircle, LayoutGrid, List, Play, Search } from "lucide-react";
+import { useId, useMemo, useState } from "react";
+import { ArrowDown, ArrowUp, Download, Heart, MessageCircle, LayoutGrid, List, Play, Search } from "lucide-react";
 
 import type { Platform, Post } from "@/lib/domain/types";
 import { Button } from "@/components/ui/button";
@@ -10,19 +10,76 @@ import { mediaDownloadUrl } from "@/lib/media-download-url";
 import { proxiedMediaUrl } from "@/lib/media-proxy";
 import { formatCount } from "@/lib/utils";
 import { computePostInsights, filterPostsByCaption } from "@/lib/posts/insights";
+import {
+  countUndatedPosts,
+  DEFAULT_POST_SORT,
+  filterPostsByDate,
+  hasDateFilter,
+  POST_SORT_OPTIONS,
+  type PostSort,
+  sortOptionValue,
+  sortPosts,
+} from "@/lib/posts/grid";
 import { PostArchiveButton } from "@/components/profile/post-archive-button";
 import { PostEngagementModal } from "@/components/profile/post-engagement-modal";
 import { PostInsightsPanel } from "@/components/profile/post-insights";
+
+type HeaderSortKey = "likes" | "comments" | "date";
 
 export function PostGrid({ posts, platform = "instagram" }: { posts: Post[]; platform?: Platform }) {
   const [view, setView] = useState<"grid" | "list">("grid");
   const [openPermalink, setOpenPermalink] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<PostSort>(DEFAULT_POST_SORT);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const sortId = useId();
+  const dateFromId = useId();
+  const dateToId = useId();
   const insights = useMemo(() => computePostInsights(posts), [posts]);
-  const visiblePosts = useMemo(() => filterPostsByCaption(posts, query), [posts, query]);
+  const captionMatches = useMemo(() => filterPostsByCaption(posts, query), [posts, query]);
+  const visiblePosts = useMemo(
+    () => sortPosts(filterPostsByDate(captionMatches, dateFrom, dateTo), sort.key, sort.direction),
+    [captionMatches, dateFrom, dateTo, sort],
+  );
+  const searchActive = query.trim() !== "";
+  const dateActive = hasDateFilter(dateFrom, dateTo);
+  const filtersActive = searchActive || dateActive;
+  const undatedCount = useMemo(() => (dateActive ? countUndatedPosts(posts) : 0), [posts, dateActive]);
 
   if (posts.length === 0) {
     return <p className="py-16 text-center text-sm text-muted">No posts to display.</p>;
+  }
+
+  function toggleHeaderSort(key: HeaderSortKey) {
+    setSort((current) => ({
+      key,
+      direction: current.key === key && current.direction === "desc" ? "asc" : "desc",
+    }));
+  }
+
+  function headerSortAttr(key: HeaderSortKey): "ascending" | "descending" | undefined {
+    if (sort.key !== key) return undefined;
+    return sort.direction === "asc" ? "ascending" : "descending";
+  }
+
+  function sortButton(key: HeaderSortKey, label: string) {
+    const Arrow = sort.direction === "asc" ? ArrowUp : ArrowDown;
+    return (
+      <button
+        type="button"
+        onClick={() => toggleHeaderSort(key)}
+        className="inline-flex items-center gap-1 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30"
+      >
+        {label}
+        {sort.key === key ? <Arrow className="size-3" aria-hidden="true" /> : null}
+      </button>
+    );
+  }
+
+  function clearDates() {
+    setDateFrom("");
+    setDateTo("");
   }
 
   return (
@@ -64,8 +121,78 @@ export function PostGrid({ posts, platform = "instagram" }: { posts: Post[]; pla
         </div>
       </div>
 
+      <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="flex items-center gap-2">
+          <label htmlFor={sortId} className="text-sm text-secondary">
+            Sort
+          </label>
+          <select
+            id={sortId}
+            value={sortOptionValue(sort)}
+            onChange={(event) => {
+              const option = POST_SORT_OPTIONS.find((item) => item.value === event.target.value);
+              if (option) setSort(option.sort);
+            }}
+            className="h-11 rounded-button border border-border bg-surface px-3 text-base text-primary focus-visible:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/20 sm:text-sm"
+          >
+            {POST_SORT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-center gap-2">
+          <label htmlFor={dateFromId} className="text-sm text-secondary">
+            From
+          </label>
+          <Input
+            id={dateFromId}
+            type="date"
+            value={dateFrom}
+            max={dateTo || undefined}
+            onChange={(event) => setDateFrom(event.target.value)}
+            className="w-auto"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <label htmlFor={dateToId} className="text-sm text-secondary">
+            To
+          </label>
+          <Input
+            id={dateToId}
+            type="date"
+            value={dateTo}
+            min={dateFrom || undefined}
+            onChange={(event) => setDateTo(event.target.value)}
+            className="w-auto"
+          />
+        </div>
+        <Button variant="secondary" onClick={clearDates} disabled={!dateFrom && !dateTo}>
+          Clear dates
+        </Button>
+      </div>
+
+      {filtersActive ? (
+        <div className="mb-3 text-xs text-muted">
+          <p>{`Showing ${visiblePosts.length} of ${posts.length} loaded posts`}</p>
+          {dateActive ? <p>Date range is compared in UTC.</p> : null}
+          {undatedCount > 0 ? (
+            <p>
+              {`${undatedCount} loaded ${undatedCount === 1 ? "post has" : "posts have"} no known date and ${
+                undatedCount === 1 ? "is" : "are"
+              } hidden by the date range.`}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       {visiblePosts.length === 0 ? (
-        <p className="py-10 text-center text-sm text-muted">No loaded posts mention &ldquo;{query.trim()}&rdquo;.</p>
+        captionMatches.length === 0 ? (
+          <p className="py-10 text-center text-sm text-muted">No loaded posts mention &ldquo;{query.trim()}&rdquo;.</p>
+        ) : (
+          <p className="py-10 text-center text-sm text-muted">No loaded posts fall within this date range.</p>
+        )
       ) : view === "grid" ? (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
           {visiblePosts.map((post) => (
@@ -114,10 +241,16 @@ export function PostGrid({ posts, platform = "instagram" }: { posts: Post[]; pla
           <table className="w-full text-left text-sm">
             <thead className="text-xs uppercase tracking-wide text-muted">
               <tr className="border-b border-border">
-                <th className="py-2 pr-4 font-medium">Date</th>
+                <th className="py-2 pr-4 font-medium" aria-sort={headerSortAttr("date")}>
+                  {sortButton("date", "Date")}
+                </th>
                 <th className="py-2 pr-4 font-medium">Type</th>
-                <th className="py-2 pr-4 font-medium">Likes</th>
-                <th className="py-2 pr-4 font-medium">Comments</th>
+                <th className="py-2 pr-4 font-medium" aria-sort={headerSortAttr("likes")}>
+                  {sortButton("likes", "Likes")}
+                </th>
+                <th className="py-2 pr-4 font-medium" aria-sort={headerSortAttr("comments")}>
+                  {sortButton("comments", "Comments")}
+                </th>
                 <th className="py-2 pr-4 font-medium">Caption</th>
                 <th className="py-2 font-medium">
                   <span className="sr-only">Download</span>
