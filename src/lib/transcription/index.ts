@@ -25,6 +25,9 @@ export { TranscriptionError };
 /** Bounds the audio download. Route maxDuration is 120s, so one stalled download must not use the whole budget. */
 const AUDIO_FETCH_TIMEOUT_MS = 60_000;
 
+/** Roughly Groq's ~25 MB request limit (see downloader.ts): the largest unknown-length audio we send. */
+const MAX_UNKNOWN_DURATION_AUDIO_BYTES = 25 * 1024 * 1024;
+
 async function fetchAsBlob(url: string): Promise<Blob> {
   const res = await fetch(url, { headers: apifyMediaHeaders(url), signal: AbortSignal.timeout(AUDIO_FETCH_TIMEOUT_MS) });
   if (!res.ok) throw new Error(`Failed to fetch audio (${res.status})`);
@@ -100,17 +103,15 @@ export async function transcribe(
   const downloadSucceeded = Boolean(downloaded);
 
   if (downloaded) {
-    // An unknown duration (0) is refused, not waved through: a missing length
-    // must not become an unbounded transcription. See exceedsDurationCap.
-    if (exceedsDurationCap(downloaded.durationSeconds, MAX_VIDEO_DURATION_SECONDS)) {
+    // Some sources (Facebook, Instagram) report no duration. Those are bounded by
+    // audio size below instead of being refused outright. See exceedsDurationCap.
+    const durationKnown = Number.isFinite(downloaded.durationSeconds) && downloaded.durationSeconds > 0;
+    if (durationKnown && exceedsDurationCap(downloaded.durationSeconds, MAX_VIDEO_DURATION_SECONDS)) {
       // This refusal skips the try/finally below, so remove any local yt-dlp file here.
       if (downloaded.localAudioPath) await unlink(downloaded.localAudioPath).catch(() => {});
-      const durationKnown = Number.isFinite(downloaded.durationSeconds) && downloaded.durationSeconds > 0;
       throw new TranscriptionError(
         "too_long",
-        durationKnown
-          ? `This video is longer than the ${MAX_VIDEO_DURATION_SECONDS / 60}-minute limit for transcription.`
-          : `Couldn't confirm this video's length, so it can't be transcribed within the ${MAX_VIDEO_DURATION_SECONDS / 60}-minute limit.`,
+        `This video is longer than the ${MAX_VIDEO_DURATION_SECONDS / 60}-minute limit for transcription.`,
       );
     }
     try {
@@ -134,6 +135,14 @@ export async function transcribe(
       const audioBlob = downloaded.localAudioPath
         ? await readLocalAudioAsBlob(downloaded.localAudioPath)
         : await fetchAsBlob(downloaded.audioUrl);
+      // Without a known duration, one provider upload is the most we send. Refuse
+      // before any paid call. The finally below removes the local file.
+      if (!durationKnown && audioBlob.size > MAX_UNKNOWN_DURATION_AUDIO_BYTES) {
+        throw new TranscriptionError(
+          "too_long",
+          `Couldn't confirm this video's length, and its audio is too large to transcribe within the ${MAX_VIDEO_DURATION_SECONDS / 60}-minute limit.`,
+        );
+      }
       const result = await transcribeAudio(audioBlob, language);
       if (!result.text) {
         throw new TranscriptionError("no_speech", "No speech was detected in this video.");
