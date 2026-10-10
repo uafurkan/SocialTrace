@@ -2,18 +2,21 @@ import { and, count, desc, eq } from "drizzle-orm";
 
 import type { SocialUser } from "@/lib/domain/types";
 import { getDb, schema } from "@/lib/db";
-import { compareSnapshots } from "@/lib/diff/compare";
 import { provider } from "@/lib/providers";
 import { upsertProfileRow } from "@/lib/snapshot/capture";
 import { assertWithinLimit, type Plan } from "@/lib/billing/plans";
 
 /**
- * Spec §22 Saved Searches, built on top of the follower comparison
- * reconstruction (src/lib/diff/compare.ts) rather than a separate
- * mechanism: "3 new matching accounts, 1 removed matching account" is
- * exactly compareSnapshots's newMembers/removedMembers between a
- * profile's two most recent snapshots, filtered by the saved query
- * string against username/displayName.
+ * Spec §22 Saved Searches: a saved query, matched against username and
+ * display name, on one profile's follower or following list.
+ *
+ * The intended output was "3 new matching accounts, 1 removed matching
+ * account" between two snapshots. Snapshot capture stores no follower or
+ * following accounts (src/lib/snapshot/capture.ts), and
+ * src/lib/diff/compare.ts is count-only, so that member-level comparison
+ * cannot be computed. Every saved search reports `available: false` with
+ * MEMBER_CHANGES_UNAVAILABLE_REASON. `newMatches` and `removedMatches` are
+ * always empty; they stay on the type so existing callers keep compiling.
  */
 export interface SavedSearchResult {
   id: string;
@@ -26,6 +29,8 @@ export interface SavedSearchResult {
   newMatches: SocialUser[];
   removedMatches: SocialUser[];
 }
+
+const MEMBER_CHANGES_UNAVAILABLE_REASON = "Member-level changes are not recorded any more.";
 
 export function matches(user: SocialUser, query: string): boolean {
   const needle = query.toLowerCase();
@@ -81,17 +86,6 @@ export async function deleteSavedSearch(id: string, visitorId: string): Promise<
   await db.delete(schema.savedSearches).where(and(eq(schema.savedSearches.id, id), eq(schema.savedSearches.visitorId, visitorId)));
 }
 
-async function latestTwoSnapshotIds(db: ReturnType<typeof getDb>, profileId: string): Promise<[string, string] | null> {
-  const rows = await db
-    .select({ id: schema.profileSnapshots.id })
-    .from(schema.profileSnapshots)
-    .where(eq(schema.profileSnapshots.profileId, profileId))
-    .orderBy(desc(schema.profileSnapshots.capturedAt))
-    .limit(2);
-  if (rows.length < 2) return null;
-  return [rows[1].id, rows[0].id];
-}
-
 export async function listSavedSearches(visitorId: string): Promise<SavedSearchResult[]> {
   const db = getDb();
   const rows = await db
@@ -107,35 +101,13 @@ export async function listSavedSearches(visitorId: string): Promise<SavedSearchR
     .where(eq(schema.savedSearches.visitorId, visitorId))
     .orderBy(desc(schema.savedSearches.createdAt));
 
-  return Promise.all(
-    rows.map(async (row): Promise<SavedSearchResult> => {
-      const snapshotIds = await latestTwoSnapshotIds(db, row.profileId);
-      if (!snapshotIds) {
-        return {
-          ...row,
-          available: false,
-          reason: "Capture at least two snapshots of this profile to see matching changes here.",
-          newMatches: [],
-          removedMatches: [],
-        };
-      }
-      const comparison = await compareSnapshots(row.username, row.kind, snapshotIds[0], snapshotIds[1]);
-      if (!comparison || !comparison.available) {
-        return {
-          ...row,
-          available: false,
-          reason: comparison?.reason ?? "Comparison unavailable.",
-          newMatches: [],
-          removedMatches: [],
-        };
-      }
-      return {
-        ...row,
-        available: true,
-        reason: null,
-        newMatches: comparison.newMembers.filter((user) => matches(user, row.query)),
-        removedMatches: comparison.removedMembers.filter((user) => matches(user, row.query)),
-      };
+  return rows.map(
+    (row): SavedSearchResult => ({
+      ...row,
+      available: false,
+      reason: MEMBER_CHANGES_UNAVAILABLE_REASON,
+      newMatches: [],
+      removedMatches: [],
     }),
   );
 }
