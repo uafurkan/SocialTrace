@@ -7,6 +7,22 @@ KNOWN_LIMITATIONS.md`). This slice adds the smallest real version of
 both, scoped to what's buildable without adding Redis/BullMQ or an
 email-sending service.
 
+## No daily job runs today
+
+`vercel.json` contains `"crons": []`, so Vercel Cron calls nothing. The
+daily entry for `/api/cron/capture-tracked` was removed in commit
+68c6856, when tracking and snapshots were switched off
+(`src/lib/features.ts`). The route still exists and still needs
+`CRON_SECRET`, but nothing calls it on a schedule. While
+`FEATURES.tracking` is `false`, `/api/cron` is answered with a 404 by
+`src/proxy.ts`.
+
+To re-enable the daily run, follow [docs/SNAPSHOT_PLAN.md](SNAPSHOT_PLAN.md):
+the consent rule (section 3), the cron entry and cost limits (sections 2
+and 4), and the flag order (section 5). That means restoring the
+`vercel.json` entry, setting `CRON_SECRET`, and turning on
+`FEATURES.tracking`.
+
 ## What's implemented
 
 - **`GET /api/cron/capture-tracked`**
@@ -18,18 +34,8 @@ email-sending service.
   `SCHEDULED_CAPTURE_BATCH_LIMIT` (25) per invocation, sequentially, so
   one bad profile (deleted/renamed/private) or a slow provider can't
   take down the whole batch or fan out too many concurrent calls to a
-  real, billed provider (`docs/PROVIDER_CONTRACT.md`).
-- **`vercel.json`** schedules that route once a day via Vercel Cron —
-  the only "scheduler" this build has, chosen because it needs no new
-  infrastructure (no Redis, no separate worker process) beyond a
-  `vercel.json` file and one env var, and the user confirmed Vercel is
-  the deploy target. Once a day, not more often: the **Hobby** plan
-  rejects a `vercel.json` whose cron schedule fires more than once a
-  day — a `0 */6 * * *` (every 6 hours) schedule was tried first and
-  silently blocked every deployment from that commit onward (no build
-  log, no entry in the Deployments list — Vercel refuses the deployment
-  at config-validation time, before a build ever starts). See
-  `docs/DECISIONS.md`.
+  real, billed provider (`docs/PROVIDER_CONTRACT.md`). Each capture stores
+  the profile's counts and profile fields only (`docs/SNAPSHOTS.md`).
 - **Auth**: the route refuses to run at all unless `CRON_SECRET` is set
   and the request's `Authorization: Bearer <value>` header matches it.
   Vercel automatically sends that header on cron invocations once
@@ -46,7 +52,17 @@ email-sending service.
   small badge next to the "Track" link in both the desktop and mobile
   nav, fetched client-side (same reasoning as `AccountMenu` — reading
   the identity cookie in the shared header would break static
-  generation, see `docs/AUTH.md`).
+  generation, see `docs/AUTH.md`). It is off while `FEATURES.tracking` is
+  `false`.
+
+## Vercel Hobby limit (for when the daily run is re-enabled)
+
+Once a day, not more often: the **Hobby** plan rejects a `vercel.json`
+whose cron schedule fires more than once a day — a `0 */6 * * *` (every
+6 hours) schedule was tried first and silently blocked every deployment
+from that commit onward (no build log, no entry in the Deployments list —
+Vercel refuses the deployment at config-validation time, before a build
+ever starts). See `docs/DECISIONS.md`.
 
 ## Why not real email/push
 

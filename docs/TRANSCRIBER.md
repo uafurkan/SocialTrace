@@ -250,7 +250,7 @@ confirmed to be the same category of block, checked live, not guessed.
 | Very long video | Hard 45-minute cap (`MAX_VIDEO_DURATION_SECONDS`), enforced once duration is known from the downloader's metadata, before transcribing. |
 | Vercel's function budget | `maxDuration = 60` (same pattern as the rest of the app) plus the length cap above keeps realistic runs well under budget. |
 | Duplicate concurrent requests for the same viral link | `transcript_cache` row inserted with `status="processing"` via `ON CONFLICT DO NOTHING` before work starts; a second request finds the in-flight row and polls it instead of re-triggering a second paid run. |
-| Bot/scripted abuse driving cost | Layered: per-visitor rate limiting (`src/lib/rate-limit.ts`), a daily per-scope quota (`src/lib/transcription/quota.ts` — anonymous 3/day, free account 15/day, Pro 100/day, per `PLAN_LIMITS` in `src/lib/billing/plans.ts`), and a global daily *billed* ceiling (300/day) that refuses new uncached requests once crossed. |
+| Bot/scripted abuse driving cost | Layered: per-visitor rate limiting (`src/lib/rate-limit.ts`), a daily per-scope quota (`src/lib/transcription/quota.ts` — anonymous 3/day, free account 15/day, Pro 100/day, per `PLAN_LIMITS` in `src/lib/billing/plans.ts`), and a global daily ceiling (300 slots/day, see "Daily budget counter" below) that refuses new uncached requests once crossed. |
 | Cache poisoning / stale failure | The cache row is written only on full pipeline success; a failed attempt deletes its claim row so the next request retries cleanly, rather than being stuck on a permanently-cached failure. |
 
 ## Database
@@ -261,6 +261,68 @@ key instead of a composite one, see its comment in `schema.ts`) and
 `transcription_usage` (one row per request a visitor actually consumed,
 scoped by `resolveIdentity()`'s `scopeId`; what the daily quota and
 global ceiling both count against).
+
+## Daily budget counter (transcription_daily_budget)
+
+Migration `drizzle/0015_transcription_daily_budget.sql` adds
+`transcription_daily_budget`: one row per UTC day, with `day` (a `date`
+primary key, `YYYY-MM-DD`) and `used` (an integer, default 0). `used` is
+the number of that day's usage rows that hold a global slot. The ceiling is
+`GLOBAL_DAILY_BILLED_CEILING` = 300 (`src/lib/transcription/quota.ts`). The
+check reads a counter rather than counting rows, which is what lets it be
+strict.
+
+**Which rows hold a slot.** A billed row always does. An unbilled owner row
+holds one only while its transcript is still `processing` and the row is
+inside the 5-minute pending window (`PENDING_RESERVATION_WINDOW_MS`). Cache
+hits and requests that waited on another run never hold one. The read-only
+pre-check in `assertTranscriptionAllowed` applies the same rule with a count
+query. The decision itself is made by `reserveGlobalSlot`.
+
+**Reservation.** `reserveGlobalSlot` writes the counter and the usage row in
+one statement. It adds 1 to `used` only while `used` is below the ceiling,
+and inserts the usage row only if that update succeeded. Concurrent
+reservations for the same day are serialized on that one row, so the ceiling
+holds. The integration test runs 20 parallel reservations against a ceiling
+of 3, and exactly 3 succeed.
+
+**Release on failure.** When a pipeline run fails before billing, the route
+calls `deleteUsageReservation`. In one statement it deletes the unbilled row
+and takes 1 off `used`, returning the slot. A billed row is never released
+this way.
+
+**Abandoned reservations.** A run that dies (for example, the function is
+killed) never reaches either step. `reclaimExpiredReservations` runs at the
+start of every reservation. It deletes today's unbilled owner rows that are
+older than 5 minutes and whose transcript is still `processing`, and takes
+their count off `used`, in one statement. The window is longer than the
+transcribe route's `maxDuration` (120 seconds), so a live run is never
+reclaimed.
+
+**Admins.** Admin requests skip the ceiling check (`recordUsage`), but their
+rows still count, so `used` can go above 300 on a day with admin runs.
+
+**Known edge: the counter can over-admit by one.** Each path below returns a
+slot for a run the provider has already charged for, so the counter can admit
+one run more than the ceiling intends.
+
+- **A billing write fails after a paid run.** The route calls
+  `markUsageBilled` after `transcribe()` returns. If that write throws, the
+  run is treated as failed. The catch deletes the still-unbilled row and
+  takes 1 off `used`, although the download or Whisper call was already paid.
+- **The function dies after a paid call and before billing.** A run killed
+  after a paid download or transcription request, but before
+  `markUsageBilled`, keeps an unbilled row. Its transcript stays `processing`,
+  so `reclaimExpiredReservations` returns the slot after 5 minutes.
+
+The opposite error also exists, and it is the safe direction. Errors from
+`deleteUsageReservation` are swallowed. The claim row has already been
+deleted, so no later reclaim matches the row, and the slot is held until
+UTC midnight. The counter then runs ahead of actual occupancy and refuses
+earlier.
+
+Neither edge has a test, and `src/lib/transcription/quota.ts` does not
+describe them. They were derived from reading the code.
 
 ## Homepage: why this isn't "keyword-adaptive"
 

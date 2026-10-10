@@ -51,44 +51,41 @@ most of `SOCIALTRACE_MASTER_BUILD_SPEC.md`. Explicitly out of scope:
   anonymous visitors; logging in only upgrades that scope from "this
   browser" to "this account" (same rows, no migration, see
   `docs/AUTH.md`'s identity resolution).
-- **Snapshot, diff, and tracking exist (synchronous, bounded,
-  coverage-gated, and cookie- or account-identified).**
-  `/profile/[username]/history` lists real captured snapshots and can
-  capture a new one on demand, `/profile/[username]/changes` lists the
-  added/removed followers and changed profile fields detected
-  automatically at capture time, and clicking "Track profile" adds a
-  profile to the visitor's real `/tracking` dashboard — but all of it
-  only when `DATABASE_URL` is set (falls back to "not available"
-  otherwise). Each capture is bounded to 500 followers/following (see
-  `docs/SNAPSHOTS.md`), membership diffing only runs when both sides of
-  the comparison have ≥99.5% coverage (see `docs/DIFF.md`), and tracking
-  identifies visitors by an anonymous cookie rather than a real account —
-  no sign-in, no cross-device sync, no recovery if cookies are cleared
-  (see `docs/TRACKING.md`). A Vercel Cron job now recaptures tracked/
-  saved-search profiles automatically once a day (see
-  `docs/SCHEDULER.md`) — but only when deployed to Vercel with
-  `CRON_SECRET` set; there's still no configurable check frequency or
-  change-threshold, and the "notification" is an in-app nav badge, not
+- **Snapshot, diff, and tracking exist (synchronous, counts-only,
+  cookie- or account-identified), and are switched off.**
+  `FEATURES.snapshots` and `FEATURES.tracking` are `false`
+  (`src/lib/features.ts`), so the History, Changes and Compare pages, the
+  snapshot API routes and the tracking dashboard are not reachable. When
+  `DATABASE_URL` is set and a flag is turned on, a capture stores the
+  profile's public counts and profile fields, never a follower or
+  following identity (see `docs/SNAPSHOTS.md`). The field-change history
+  is in `docs/DIFF.md`. Tracking identifies visitors by an anonymous
+  cookie rather than a real account — no sign-in, no cross-device sync, no
+  recovery if cookies are cleared (see `docs/TRACKING.md`). The daily
+  Vercel Cron recapture is off: `vercel.json` has `"crons": []` (see
+  `docs/SCHEDULER.md`). There is still no configurable check frequency or
+  change threshold, and the "notification" is an in-app nav badge, not
   email or push (no email-sending service is configured).
-- **Follower comparison exists (spec §23), reusing the diff engine's
-  coverage gate.** "Compare snapshots" on the profile header now links
-  to a real `/profile/[username]/compare` page — pick any two snapshots
-  and see who was gained/lost between them, computed on demand from the
-  `memberships` table's history columns (no new table needed). Same
-  ≥99.5%-coverage-on-both-sides rule as the automatic diff engine; below
-  that it says so instead of guessing. See `docs/FOLLOWER_COMPARISON.md`.
+- **Follower comparison is built but off (spec §23).** The "Compare
+  snapshots" page reconstructs who was gained or lost between two
+  snapshots from the `memberships` table, under the same ≥99.5%-coverage
+  rule as the diff engine. Captures since 2026-10-10 store no members, so
+  any comparison that uses one reports "unavailable". See
+  `docs/FOLLOWER_COMPARISON.md`.
 - **Saved searches exist (spec §22), built on the comparison
   reconstruction above.** A "Save search" button on the Followers/
   Following pages saves a `(profile, dataset, query)` for the current
   anonymous visitor; the `/tracking` dashboard shows new/removed matching
-  accounts between a profile's two most recent snapshots. No
+  accounts between a profile's two most recent snapshots, which needs the
+  comparison above and so is unavailable for captures since 2026-10-10. No
   notifications — same missing notification channel as tracking, see
   `docs/SAVED_SEARCHES.md`.
 - **Export exists but is synchronous and bounded, not a background-job
   pipeline.** The profile page's Export dropdown downloads JSON/XML (full
   profile bundle) or CSV (one resource at a time) directly from
   `/api/v1/profiles/[profileId]/export`, generated inside the request and
-  capped at 500 items per list. No auth, no job queue, no blob storage, no
+  capped at 500 items per list (200 for followers and following on the Apify
+  providers). No auth, no job queue, no blob storage, no
   signed/expiring URLs, no JSONL/ZIP/PDF formats — see `docs/EXPORT.md`.
 - **Stories, Highlights, Tagged posts, and post Likers/Comments are all
   real and anonymous (spec-honest) now — no login required for any of
@@ -156,7 +153,9 @@ most of `SOCIALTRACE_MASTER_BUILD_SPEC.md`. Explicitly out of scope:
   aren't supported (a hard cap protecting the serverless time budget and
   cost). The fallback actor path returns no per-segment timestamps
   (`segments: []`), only the fast-path/primary route does. No SRT/VTT
-  export, translation, or speaker diarization yet.
+  export, translation, or speaker diarization yet. The global daily ceiling
+  can admit a run beyond its 300-per-day limit, as described in
+  docs/TRANSCRIBER.md.
 
 - **Username rename history has a real starting point.** A rename that
   happened before a profile's first snapshot captured after
