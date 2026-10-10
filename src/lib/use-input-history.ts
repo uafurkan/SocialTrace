@@ -2,17 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-const PREFIX = "socialtrace:input-history:";
-const MAX_ITEMS = 8;
+import { clearEntries, readEntries, writeEntry, type StorageLike } from "@/lib/input-history";
 
-function readHistory(key: string): string[] {
+/** `window.localStorage`, or null where reading it throws (blocked site data). */
+function getStorage(): StorageLike | null {
   try {
-    const raw = window.localStorage.getItem(PREFIX + key);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === "string") : [];
+    return window.localStorage;
   } catch {
-    return [];
+    return null;
   }
 }
 
@@ -24,6 +21,9 @@ function readHistory(key: string): string[] {
  * scoped by a caller-chosen `key` (e.g. "transcriber-url",
  * "profile-search-instagram") so different boxes on the same page (or
  * different platforms in the same widget) keep separate histories.
+ *
+ * Entries expire after 30 days and the list is capped; the rules live in
+ * `lib/input-history.ts`. `clearHistory` empties this key's history.
  *
  * Feeds `components/ui/history-suggestions.tsx`'s custom dropdown, not a
  * native `<datalist>` (an earlier version of this hook returned a
@@ -43,24 +43,25 @@ export function useInputHistory(key: string) {
     // be read client-side after mount — re-reads on `key` change too, since
     // callers that reuse this hook across a platform switcher (one key per
     // platform) need a fresh list, not the previous platform's history.
+    const storage = getStorage();
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setHistory(readHistory(key));
+    setHistory(storage ? readEntries(storage, key, Date.now()) : []);
   }, [key]);
 
   const addToHistory = useCallback(
     (value: string) => {
-      const trimmed = value.trim();
-      if (!trimmed) return;
-      try {
-        const next = [trimmed, ...readHistory(key).filter((v) => v !== trimmed)].slice(0, MAX_ITEMS);
-        window.localStorage.setItem(PREFIX + key, JSON.stringify(next));
-        setHistory(next);
-      } catch {
-        // Storage full/unavailable — history just doesn't persist this time.
-      }
+      const storage = getStorage();
+      if (!storage) return;
+      setHistory(writeEntry(storage, key, value, Date.now()));
     },
     [key],
   );
 
-  return { history, addToHistory };
+  const clearHistory = useCallback(() => {
+    const storage = getStorage();
+    if (storage) clearEntries(storage, key);
+    setHistory([]);
+  }, [key]);
+
+  return { history, addToHistory, clearHistory };
 }
