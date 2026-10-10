@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { apifyMediaHeaders } from "@/lib/transcription/apify-media";
+import { apifyMediaHeaders, isAllowedApifyMediaUrl } from "@/lib/transcription/apify-media";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -51,6 +51,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "invalid url" }, { status: 400 });
   }
   if (!isSafeVideoUrl(target)) {
+    return NextResponse.json({ error: "url not allowed" }, { status: 400 });
+  }
+  // api.apify.com is the host this route attaches the API token to, so it
+  // serves only key-value-store records. Stripping a trailing dot stops
+  // "api.apify.com." from getting past this check as a different hostname.
+  if (target.hostname.replace(/\.$/, "") === "api.apify.com" && !isAllowedApifyMediaUrl(raw)) {
     return NextResponse.json({ error: "url not allowed" }, { status: 400 });
   }
 
