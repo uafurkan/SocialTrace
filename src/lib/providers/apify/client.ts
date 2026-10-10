@@ -104,14 +104,16 @@ function releaseActorRunSlot(): void {
 }
 
 async function runApifyActorOnce(actorId: string, input: Record<string, unknown>, token: string): Promise<unknown> {
-  const url = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${encodeURIComponent(token)}`;
+  // Token goes in the Authorization header, not the query string: URLs turn up
+  // in logs and error reports, headers don't.
+  const url = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), APIFY_TIMEOUT_MS);
 
   try {
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify(input),
       signal: controller.signal,
     });
