@@ -1,4 +1,4 @@
-const ALLOWED_MEDIA_HOSTS = [
+export const ALLOWED_MEDIA_HOSTS = [
   "cdninstagram.com",
   "fbcdn.net",
   "picsum.photos",
