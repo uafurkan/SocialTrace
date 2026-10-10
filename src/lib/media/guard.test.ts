@@ -4,6 +4,7 @@ import {
   MAX_MEDIA_BYTES,
   MAX_REDIRECTS,
   PayloadTooLargeError,
+  checkHostResolution,
   classifyVideoUrl,
   createByteCounter,
   createCappedStream,
@@ -11,10 +12,12 @@ import {
   isAllowedVideoHost,
   isPrivateAddress,
   isRedirectStatus,
+  isReservedIpAddress,
   readCappedBody,
   redirectLimitReached,
   resolveRedirectLocation,
   videoProxyMode,
+  type HostLookup,
 } from "./guard";
 
 /** A source that produces `count` chunks of `size` bytes, then closes. Tracks whether it was cancelled. */
@@ -106,6 +109,9 @@ describe("isPrivateAddress", () => {
     "[fc00::1]",
     "fe80::1",
     "[febf::1]",
+    "100.64.0.1",
+    "224.0.0.1",
+    "ff02::1",
     "0x7f000001",
     "2130706433",
     "0177.0.0.1",
@@ -127,6 +133,8 @@ describe("isPrivateAddress", () => {
     "172.32.0.1",
     "172.15.255.255",
     "192.169.0.1",
+    "100.128.0.1",
+    "223.255.255.255",
     "2001:4860:4860::8888",
     "2606:4700:4700::1111",
     "::ffff:8.8.8.8",
@@ -158,6 +166,161 @@ describe("isPrivateAddress", () => {
       expect(isPrivateAddress(new URL(input).hostname), input).toBe(true);
     }
     expect(isPrivateAddress(new URL("https://example.com/").hostname)).toBe(false);
+  });
+});
+
+describe("isReservedIpAddress", () => {
+  // Each range with the last address before it, its first and last address,
+  // and the first address after it. IPv4-mapped IPv6 uses the embedded IPv4.
+  it.each<[string, boolean]>([
+    ["0.0.0.0", true],
+    ["0.255.255.255", true],
+    ["1.0.0.0", false],
+    ["9.255.255.255", false],
+    ["10.0.0.0", true],
+    ["10.255.255.255", true],
+    ["11.0.0.0", false],
+    ["100.63.255.255", false],
+    ["100.64.0.0", true],
+    ["100.127.255.255", true],
+    ["100.128.0.0", false],
+    ["126.255.255.255", false],
+    ["127.0.0.0", true],
+    ["127.255.255.255", true],
+    ["128.0.0.0", false],
+    ["169.253.255.255", false],
+    ["169.254.0.0", true],
+    ["169.254.255.255", true],
+    ["169.255.0.0", false],
+    ["172.15.255.255", false],
+    ["172.16.0.0", true],
+    ["172.31.255.255", true],
+    ["172.32.0.0", false],
+    ["192.167.255.255", false],
+    ["192.168.0.0", true],
+    ["192.168.255.255", true],
+    ["192.169.0.0", false],
+    ["223.255.255.255", false],
+    ["224.0.0.0", true],
+    ["239.255.255.255", true],
+    ["240.0.0.0", true],
+    ["255.255.255.255", true],
+    ["8.8.8.8", false],
+    ["1.1.1.1", false],
+    ["::", true],
+    ["::1", true],
+    ["fbff::1", false],
+    ["fc00::", true],
+    ["fdff:ffff::1", true],
+    ["fe7f::1", false],
+    ["fe80::", true],
+    ["febf::1", true],
+    ["feff::1", false],
+    ["ff00::", true],
+    ["ff02::1", true],
+    ["fe80::1%eth0", true],
+    ["2001:4860:4860::8888", false],
+    ["2606:4700:4700::1111", false],
+    ["::ffff:126.255.255.255", false],
+    ["::ffff:127.0.0.0", true],
+    ["::ffff:127.255.255.255", true],
+    ["::ffff:7f00:1", true],
+    ["::ffff:10.0.0.1", true],
+    ["::ffff:100.64.0.1", true],
+    ["::ffff:169.254.169.254", true],
+    ["::ffff:172.15.255.255", false],
+    ["::ffff:172.16.0.1", true],
+    ["::ffff:192.168.1.1", true],
+    ["::ffff:224.0.0.1", true],
+    ["::ffff:8.8.8.8", false],
+    ["::ffff:808:808", false],
+    ["[::ffff:127.0.0.1]", true],
+    // Text that is not an IP address fails closed.
+    ["not-an-ip", true],
+  ])("%s -> reserved %s", (address, reserved) => {
+    expect(isReservedIpAddress(address)).toBe(reserved);
+  });
+});
+
+describe("checkHostResolution", () => {
+  /** A lookup that answers with `addresses` and records every call. */
+  function fakeLookup(addresses: string[]) {
+    const calls: Array<{ hostname: string; options: unknown }> = [];
+    const lookup: HostLookup = async (hostname, options) => {
+      calls.push({ hostname, options });
+      return addresses.map((address) => ({ address, family: address.includes(":") ? 6 : 4 }));
+    };
+    return { lookup, calls };
+  }
+
+  it("resolves a public name with all answers and verbatim order, and passes the public verdict", async () => {
+    const { lookup, calls } = fakeLookup(["93.184.216.34"]);
+    expect(await checkHostResolution("Example.COM.", { lookup })).toEqual({ kind: "public" });
+    expect(calls).toEqual([{ hostname: "example.com", options: { all: true, verbatim: true } }]);
+  });
+
+  it.each([
+    "127.0.0.1",
+    "169.254.169.254",
+    "10.1.2.3",
+    "172.16.5.5",
+    "192.168.1.1",
+    "100.64.0.9",
+    "224.0.0.251",
+    "::1",
+    "fd00::5",
+    "fe80::1",
+    "ff02::1",
+    "::ffff:127.0.0.1",
+    "::ffff:169.254.169.254",
+  ])("refuses a public-looking name that resolves to %s", async (address) => {
+    const { lookup } = fakeLookup([address]);
+    expect(await checkHostResolution("public-looking.example", { lookup })).toEqual({ kind: "private" });
+  });
+
+  it("refuses the name when any one answer is private, not only the first", async () => {
+    const { lookup } = fakeLookup(["93.184.216.34", "10.0.0.7"]);
+    expect(await checkHostResolution("mixed.example", { lookup })).toEqual({ kind: "private" });
+  });
+
+  it("treats an empty answer as unresolved", async () => {
+    const { lookup } = fakeLookup([]);
+    expect(await checkHostResolution("nowhere.example", { lookup })).toEqual({ kind: "unresolved" });
+  });
+
+  it("treats a failed lookup as unresolved and does not throw", async () => {
+    const lookup: HostLookup = async () => {
+      throw Object.assign(new Error("getaddrinfo ENOTFOUND nowhere.example"), { code: "ENOTFOUND" });
+    };
+    await expect(checkHostResolution("nowhere.example", { lookup })).resolves.toEqual({ kind: "unresolved" });
+  });
+
+  it("treats a lookup that never answers as unresolved once the timeout passes", async () => {
+    const lookup: HostLookup = () => new Promise(() => undefined);
+    await expect(checkHostResolution("slow.example", { lookup, timeoutMs: 5 })).resolves.toEqual({
+      kind: "unresolved",
+    });
+  });
+
+  it("classifies literal hosts and localhost without a lookup", async () => {
+    const { lookup, calls } = fakeLookup(["93.184.216.34"]);
+    for (const host of [
+      "localhost",
+      "app.localhost",
+      "127.0.0.1",
+      "[::1]",
+      "[::1",
+      "169.254.169.254",
+      "100.64.0.1",
+      "[fd00::1]",
+      "[::ffff:10.0.0.1]",
+    ]) {
+      expect(await checkHostResolution(host, { lookup }), host).toEqual({ kind: "private" });
+    }
+    for (const host of ["8.8.8.8", "[2606:4700:4700::1111]", "[::ffff:8.8.8.8]"]) {
+      expect(await checkHostResolution(host, { lookup }), host).toEqual({ kind: "public" });
+    }
+    expect(calls).toEqual([]);
   });
 });
 

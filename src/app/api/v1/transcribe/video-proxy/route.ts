@@ -4,6 +4,7 @@ import { clientIdentifierFor, rateLimit } from "@/lib/rate-limit";
 import {
   MAX_MEDIA_BYTES,
   PayloadTooLargeError,
+  checkHostResolution,
   classifyVideoUrl,
   declaredLengthExceeds,
   isRedirectStatus,
@@ -12,6 +13,7 @@ import {
   resolveRedirectLocation,
   videoProxyMode,
   type UrlVerdict,
+  type VideoProxyMode,
 } from "@/lib/media/guard";
 import { apifyMediaHeaders, isAllowedApifyMediaUrl } from "@/lib/transcription/apify-media";
 
@@ -42,26 +44,63 @@ const UPSTREAM_TIMEOUT_MS = 50_000;
  * blindly. Every URL this route fetches (the initial one and each redirect
  * hop) is checked by `@/lib/media/guard`: https only, no private or loopback
  * address (no localhost/internal-IP SSRF pivot), and a host allowlist. The
+ * address check covers the addresses the name resolves to, not only its text,
+ * so a public-looking name that points at a private address is refused. The
  * allowlist runs in `VIDEO_PROXY_MODE`: `log` (default) serves a miss and
  * logs it so real hosts can be learned, `enforce` refuses it with 403.
- * Private addresses are refused in both modes.
+ * Private addresses are refused in both modes. The resolution check has a
+ * DNS rebinding window, documented on `checkHostResolution`.
  */
 
 /**
- * Host-level verdict for one URL the route is about to fetch (the initial
- * request or a redirect target). api.apify.com is governed by its own rule:
- * only key-value-store record URLs pass, because that is the one shape that
- * receives the Apify token (see apify-media.ts).
+ * Verdict for one URL the route is about to fetch (the initial request or a
+ * redirect target). `apify-non-record` and `unresolvable` are added here.
+ * api.apify.com is governed by its own rule: only key-value-store record URLs
+ * pass, because that is the one shape that receives the Apify token (see
+ * apify-media.ts).
  */
-type HopVerdict = UrlVerdict | { kind: "blocked"; reason: "apify-non-record" };
+type HopVerdict =
+  | UrlVerdict
+  | { kind: "blocked"; reason: "apify-non-record" | "unresolvable" };
 
-function verdictFor(url: URL): HopVerdict {
+type HopBlockReason = Extract<HopVerdict, { kind: "blocked" }>["reason"];
+
+/** Verdict from the URL text alone: scheme, Apify rule, hostname text and allowlist. */
+function textVerdictFor(url: URL): HopVerdict {
   if (url.hostname.replace(/\.$/, "") === "api.apify.com") {
     return isAllowedApifyMediaUrl(url.href)
       ? { kind: "allowed" }
       : { kind: "blocked", reason: "apify-non-record" };
   }
   return classifyVideoUrl(url);
+}
+
+/**
+ * Full verdict for one hop, run before every outgoing fetch: the text checks,
+ * then the addresses the name resolves to. A would-block host in `enforce`
+ * mode is refused by the caller, so it is not looked up here.
+ */
+async function verdictFor(url: URL, mode: VideoProxyMode): Promise<HopVerdict> {
+  const text = textVerdictFor(url);
+  if (text.kind === "blocked") return text;
+  if (text.kind === "would-block" && mode === "enforce") return text;
+
+  const resolution = await checkHostResolution(url.hostname);
+  if (resolution.kind === "private") return { kind: "blocked", reason: "private-address" };
+  if (resolution.kind === "unresolved") return { kind: "blocked", reason: "unresolvable" };
+  return text;
+}
+
+/**
+ * Refusal for a blocked hop. A host that cannot be resolved is a 400 in either
+ * position, since it could not be checked. Other blocks keep the status their
+ * position already uses: 400 for the first URL, 403 for a redirect target.
+ */
+function blockedResponse(reason: HopBlockReason, blockedStatus: 400 | 403): NextResponse {
+  if (reason === "unresolvable") {
+    return NextResponse.json({ error: "url host could not be resolved" }, { status: 400 });
+  }
+  return NextResponse.json({ error: "url not allowed" }, { status: blockedStatus });
 }
 
 function warnWouldBlock(url: URL, reason: string): void {
@@ -102,10 +141,8 @@ export async function GET(request: NextRequest) {
   }
 
   const mode = videoProxyMode(process.env.VIDEO_PROXY_MODE);
-  const initial = verdictFor(target);
-  if (initial.kind === "blocked") {
-    return NextResponse.json({ error: "url not allowed" }, { status: 400 });
-  }
+  const initial = await verdictFor(target, mode);
+  if (initial.kind === "blocked") return blockedResponse(initial.reason, 400);
   if (initial.kind === "would-block") {
     if (mode === "enforce") return NextResponse.json({ error: "url not allowed" }, { status: 403 });
     warnWouldBlock(target, initial.reason);
@@ -148,8 +185,8 @@ export async function GET(request: NextRequest) {
     }
     redirectsFollowed += 1;
 
-    const hop = verdictFor(next);
-    if (hop.kind === "blocked") return NextResponse.json({ error: "url not allowed" }, { status: 403 });
+    const hop = await verdictFor(next, mode);
+    if (hop.kind === "blocked") return blockedResponse(hop.reason, 403);
     if (hop.kind === "would-block") {
       if (mode === "enforce") return NextResponse.json({ error: "url not allowed" }, { status: 403 });
       warnWouldBlock(next, hop.reason);
